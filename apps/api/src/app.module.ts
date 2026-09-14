@@ -7,6 +7,7 @@ import { AuditModule } from './audit/audit.module'
 import { FutureDomainsModule } from './future-domains.module'
 import { EventsModule } from './events/events.module'
 import { TicketTypesModule } from './ticket-types/ticket-types.module'
+import { OrdersModule } from './orders/orders.module'
 
-@Module({ imports: [CommonModule, AuthModule, UsersModule, OrganizersModule, AuditModule, FutureDomainsModule, EventsModule, TicketTypesModule] })
+@Module({ imports: [CommonModule, AuthModule, UsersModule, OrganizersModule, AuditModule, FutureDomainsModule, EventsModule, TicketTypesModule, OrdersModule] })
 export class AppModule {}
