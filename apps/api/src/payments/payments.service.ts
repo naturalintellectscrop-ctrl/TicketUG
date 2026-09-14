@@ -5,13 +5,14 @@ import { DatabaseService } from '../common/database.service'
 import { assertPaymentTransition, type PaymentStatus } from './payment.rules'
 import { ProviderRegistry } from './payment.provider'
 import type { InitiatePaymentDto } from './payment.dto'
+import { TicketsService } from '../tickets/tickets.service'
 
 type PaymentRow = { id: string; public_id: string; order_id: string; order_public_id: string; order_number: string; amount_minor_units: string; currency: string; provider: string; status: PaymentStatus; payment_expires_at: string | null; provider_attempt_reference?: string | null; attempt_public_id?: string | null; attempt_status?: PaymentStatus | null }
 const paymentSelect = `p.id,p.public_id,p.order_id,o.public_id AS order_public_id,o.order_number,p.amount_minor_units,p.currency,p.provider,p.status,o.payment_expires_at`
 
 @Injectable()
 export class PaymentsService {
-  constructor(@Inject(DatabaseService) private readonly db: DatabaseService, private readonly providers: ProviderRegistry) {}
+  constructor(@Inject(DatabaseService) private readonly db: DatabaseService, private readonly providers: ProviderRegistry, private readonly tickets: TicketsService) {}
   private async orderForAccess(publicId: string, user: ApiUser) { const result = await this.db.query<{ id: string; public_id: string; order_number: string; user_profile_id: string | null; status: string; payment_expires_at: string | null; total_minor_units: string; currency: string }>('SELECT id,public_id,order_number,user_profile_id,status,payment_expires_at,total_minor_units,currency FROM ticketug.order WHERE public_id=$1', [publicId]); const order = result.rows[0]; if (!order) throw new NotFoundException('Order not found'); if (order.user_profile_id !== user.profileId) throw new NotFoundException('Order not found'); return order }
   async initiate(user: ApiUser, publicId: string, body: InitiatePaymentDto) {
     const order = await this.orderForAccess(publicId, user); const providerName = body.provider ?? this.providers.selected(); if (!providerName) throw new ServiceUnavailableException('PROVIDER_NOT_CONFIGURED'); const provider = this.providers.get(providerName)
@@ -51,6 +52,7 @@ export class PaymentsService {
       await client.query('UPDATE ticketug.payment_attempt SET status=$2,completed_at=now() WHERE id=$1', [attempt.attempt_public_id ? (await client.query<{id:string}>('SELECT id FROM ticketug.payment_attempt WHERE public_id=$1',[attempt.attempt_public_id])).rows[0].id : '', event.status])
       await client.query('UPDATE ticketug.payment SET status=$2,successful_provider_reference=CASE WHEN $2=\'SUCCEEDED\' THEN $3 ELSE successful_provider_reference END,updated_at=now(),succeeded_at=CASE WHEN $2=\'SUCCEEDED\' THEN now() ELSE succeeded_at END WHERE id=$1', [attempt.id,event.status,event.providerAttemptReference])
       await client.query('UPDATE ticketug.order SET status=CASE WHEN $2=\'SUCCEEDED\' THEN \'PAID\' ELSE status END,payment_state=CASE WHEN $2=\'SUCCEEDED\' THEN \'PAID\' ELSE payment_state END,updated_at=now() WHERE id=$1', [attempt.order_id,event.status])
+      if (event.status === 'SUCCEEDED') await this.tickets.issuePaidOrder(client, { orderId: attempt.order_id, paymentId: attempt.id, providerReference: event.providerAttemptReference })
       await client.query("UPDATE ticketug.webhook_event SET processing_status='PROCESSED',processed_at=now() WHERE id=$1", [inserted.rows[0].id])
       return { status: 'PROCESSED' }
     })
