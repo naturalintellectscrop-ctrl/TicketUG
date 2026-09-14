@@ -1,4 +1,9 @@
-import { IsBoolean, IsISO8601, IsNotEmpty, IsOptional, IsString, IsUrl, Length, MaxLength, Matches } from 'class-validator'
+import { IsBoolean, IsEnum, IsISO8601, IsNotEmpty, IsOptional, IsString, IsUrl, Length, MaxLength, Matches } from 'class-validator'
+
+export enum EventMediaType {
+  IMAGE = 'IMAGE',
+  VIDEO = 'VIDEO',
+}
 
 export class CreateEventDto {
   @IsString() @IsNotEmpty() @MaxLength(180) title!: string
@@ -36,6 +41,6 @@ export class CreateMediaDto {
   @IsString() @IsNotEmpty() @MaxLength(512) storageKey!: string
   @IsUrl({ protocols: ['https'] }) url!: string
   @IsOptional() @IsString() @MaxLength(240) altText?: string
-  @IsOptional() @IsString() mediaType?: string
+  @IsOptional() @IsEnum(EventMediaType) mediaType?: EventMediaType
   @IsOptional() @IsBoolean() discoverable?: boolean
 }
