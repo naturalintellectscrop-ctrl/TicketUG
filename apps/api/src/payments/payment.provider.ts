@@ -8,8 +8,16 @@ export class TestPaymentProvider implements PaymentProviderAdapter {
   initiate(input: { paymentPublicId: string; attemptPublicId: string; amountMinorUnits: bigint; currency: string; orderReference: string }): Promise<ProviderInitiation> {
     return Promise.resolve({ providerAttemptReference: `test_${input.attemptPublicId}`, instructions: 'Non-production test adapter only.' })
   }
+  signWebhook(body: Record<string, unknown>) {
+    const secret = process.env.PAYMENT_TEST_WEBHOOK_SECRET ?? (process.env.NODE_ENV !== 'production' && process.env.PAYMENT_MODE === 'test' ? 'ticketug-development-test-only' : null)
+    if (!secret) throw new ServiceUnavailableException('PROVIDER_NOT_CONFIGURED')
+    const rawBody = JSON.stringify(body)
+    const timestamp = String(Date.now())
+    const signature = createHmac('sha256', secret).update(`${timestamp}.${rawBody}`).digest('hex')
+    return { rawBody, headers: { 'x-payment-signature': signature, 'x-payment-timestamp': timestamp } }
+  }
   verifyWebhook(input: { headers: Record<string, string | undefined>; rawBody: string; body: unknown }): VerifiedProviderEvent {
-    const secret = process.env.PAYMENT_TEST_WEBHOOK_SECRET
+    const secret = process.env.PAYMENT_TEST_WEBHOOK_SECRET ?? (process.env.NODE_ENV !== 'production' && process.env.PAYMENT_MODE === 'test' ? 'ticketug-development-test-only' : null)
     if (!secret) throw new ServiceUnavailableException('PROVIDER_NOT_CONFIGURED')
     const signature = input.headers['x-payment-signature']
     const timestamp = input.headers['x-payment-timestamp']
@@ -30,5 +38,6 @@ export class ProviderRegistry {
     if (name === 'test' && process.env.NODE_ENV !== 'production') return this.test
     throw new ServiceUnavailableException('PROVIDER_NOT_CONFIGURED')
   }
-  selected() { return process.env.PAYMENT_PROVIDER ?? null }
+  selected() { return process.env.PAYMENT_PROVIDER ?? (process.env.NODE_ENV !== 'production' && process.env.PAYMENT_MODE === 'test' ? 'test' : null) }
+  testWebhook(body: Record<string, unknown>) { return this.test.signWebhook(body) }
 }

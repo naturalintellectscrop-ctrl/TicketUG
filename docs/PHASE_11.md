@@ -26,7 +26,7 @@ No refund, fee, settlement, ledger, reconciliation, or order-expiry policy was i
 
 ## Verification limitations
 
-`TEST_DATABASE_URL` is unavailable, so PostgreSQL transaction/concurrency verification is blocked. Live-provider sandbox verification is also blocked until a provider is approved and configured. The test adapter and provider-neutral unit tests can be run without production data.
+The special `TEST_DATABASE_URL` is not required for normal development or interactive product testing and is not read by the application. Optional database integration tests may use it in a future isolated environment. PostgreSQL transaction/concurrency verification remains environment-unverified. Live-provider sandbox verification is also blocked until a provider is approved and configured.
 
 ## Security decisions
 

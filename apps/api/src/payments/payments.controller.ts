@@ -13,5 +13,6 @@ export class PaymentsController {
   @Get('orders/:publicId/payment') status(@CurrentUser() user: ApiUser, @Param('publicId') publicId: string) { return this.payments.status(user, publicId) }
   @Post('public/orders/:publicId/payment') guestInitiate(@Param('publicId') publicId: string, @Headers('x-order-access-token') token: string, @Body() body: InitiatePaymentDto) { return this.payments.initiateGuest(publicId, token, body) }
   @Get('public/orders/:publicId/payment') guestStatus(@Param('publicId') publicId: string, @Headers('x-order-access-token') token: string) { return this.payments.statusGuest(publicId, token) }
+  @Post('public/orders/:publicId/payment/test-complete') simulateTestSuccess(@Param('publicId') publicId: string, @Headers('x-order-access-token') token: string) { return this.payments.simulateTestSuccess(publicId, token) }
   @Post('public/payments/webhooks/:provider') webhook(@Param('provider') provider: string, @Headers() headers: Record<string, string | undefined>, @Body() body: unknown, @Req() request: { rawBody?: Buffer }) { if (!request.rawBody) throw new UnprocessableEntityException('RAW_WEBHOOK_BODY_REQUIRED'); return this.payments.webhook(provider, headers, body, request.rawBody.toString('utf8')) }
 }

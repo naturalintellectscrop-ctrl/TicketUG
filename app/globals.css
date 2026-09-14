@@ -40,4 +40,21 @@ a { color: inherit; text-decoration: none; }
 .scanner-viewport { position: relative; min-height: 240px; overflow: hidden; border: 1px solid var(--border); border-radius: 18px; background: #101411; }
 .scanner-viewport video { display: block; width: 100%; min-height: 240px; object-fit: cover; }
 .scanner-guide { position: absolute; inset: 18% 16%; border: 3px solid #b7f36b; border-radius: 18px; box-shadow: 0 0 0 999px rgb(0 0 0 / 22%); pointer-events: none; }
+.admin-nav { display: flex; flex-wrap: wrap; gap: 10px; margin: 30px 0; align-items: center; }
+.admin-nav a, .admin-nav span { border-radius: 999px; padding: 9px 13px; color: var(--muted-foreground); font-size: .9rem; }
+.admin-nav a.active { background: var(--brand); color: var(--brand-foreground); }
+.metric-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 14px; }
+.metric-card { min-height: 142px; }
+.metric-card strong { display: block; font-size: 2.3rem; letter-spacing: -.06em; }
+.metric-card .muted { margin: 8px 0 0; }
+.muted { color: var(--muted-foreground); }
+.status-pill { border: 1px solid var(--border); border-radius: 999px; padding: 8px 12px; font-size: .85rem; white-space: nowrap; }
+.admin-columns { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-top: 14px; }
+.status-list { display: grid; gap: 12px; }
+.status-list p { margin: 0; display: flex; align-items: center; gap: 9px; }
+.status-dot { width: 9px; height: 9px; border-radius: 50%; display: inline-block; }
+.status-dot.ready { background: #4d9a45; }
+.status-dot.planned { background: #b49b43; }
+@media (max-width: 760px) { .metric-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } .admin-columns { grid-template-columns: 1fr; } }
+@media (max-width: 640px) { .page-shell, .public-event { padding: 32px 18px; } .section-heading, .row-between { flex-direction: column; } .form-grid { grid-template-columns: 1fr; } }
 @media (max-width: 640px) { .page-shell, .public-event { padding: 32px 18px; } .section-heading, .row-between { flex-direction: column; } .form-grid { grid-template-columns: 1fr; } }
