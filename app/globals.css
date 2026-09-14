@@ -19,3 +19,22 @@ body {
   font-family: Arial, Helvetica, sans-serif;
 }
 a { color: inherit; text-decoration: none; }
+.page-shell, .public-event { max-width: 960px; margin: 0 auto; padding: 56px 24px; }
+.page-shell h1, .public-event h1 { margin: 0; font-size: clamp(2.4rem, 6vw, 5.5rem); letter-spacing: -0.06em; line-height: .95; }
+.eyebrow { margin: 0 0 12px; color: var(--brand); font-size: .74rem; font-weight: 800; letter-spacing: .14em; text-transform: uppercase; }
+.lede { max-width: 620px; margin: 18px 0 32px; color: var(--muted-foreground); font-size: 1.05rem; line-height: 1.6; }
+.section-heading, .row-between { display: flex; align-items: flex-start; justify-content: space-between; gap: 24px; }
+.stack { display: flex; flex-direction: column; gap: 14px; margin-top: 32px; }
+.surface { border: 1px solid var(--border); border-radius: 24px; background: color-mix(in srgb, var(--background) 88%, var(--brand)); padding: 24px; }
+.surface h2 { margin: 0 0 8px; font-size: 1.3rem; }
+.button { display: inline-flex; align-items: center; justify-content: center; border: 0; border-radius: 999px; background: var(--brand); color: var(--brand-foreground); cursor: pointer; padding: 12px 18px; font-weight: 700; }
+.button:disabled { cursor: wait; opacity: .6; }
+.form-stack { display: flex; flex-direction: column; gap: 18px; max-width: 680px; }
+.form-stack label { display: flex; flex-direction: column; gap: 7px; font-weight: 700; }
+.form-stack input, .form-stack textarea { border: 1px solid var(--border); border-radius: 12px; background: var(--background); color: var(--foreground); padding: 12px 14px; font: inherit; }
+.form-grid { display: grid; grid-template-columns: repeat(2, minmax(0,1fr)); gap: 16px; }
+.error-text { color: #a12626; }
+.event-meta { display: flex; flex-wrap: wrap; gap: 10px; margin: 30px 0; }
+.event-meta span { border: 1px solid var(--border); border-radius: 999px; padding: 9px 13px; color: var(--muted-foreground); }
+.future-ticketing { margin-top: 36px; }
+@media (max-width: 640px) { .page-shell, .public-event { padding: 32px 18px; } .section-heading, .row-between { flex-direction: column; } .form-grid { grid-template-columns: 1fr; } }

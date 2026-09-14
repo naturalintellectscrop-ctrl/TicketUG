@@ -8,7 +8,7 @@ export class NeonAuthGuard implements CanActivate {
   constructor(@Inject(DatabaseService) private readonly db: DatabaseService) {}
   async canActivate(context: ExecutionContext) {
     const request = context.switchToHttp().getRequest<{ headers: Record<string, string | undefined>; path?: string; [API_USER]?: ApiUser }>()
-    if (request.path === '/api/v1/health' || request.path === '/api/v1/readiness' || request.path?.startsWith('/api/v1/docs')) return true
+    if (request.path === '/api/v1/health' || request.path === '/api/v1/readiness' || request.path?.startsWith('/api/v1/docs') || request.path?.startsWith('/api/v1/public/events/')) return true
     const cookie = request.headers.cookie
     if (!cookie) throw new UnauthorizedException('Authentication required')
     const session = await neonAuth.getSession({ fetchOptions: { headers: { cookie } } })

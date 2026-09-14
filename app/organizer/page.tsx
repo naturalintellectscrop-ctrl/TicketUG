@@ -17,7 +17,7 @@ export default async function OrganizerPage() {
       <p className="eyebrow">Organizer</p>
       <h1>Build your organizer workspace</h1>
       <p className="lede">Create a workspace now. Events and ticketing arrive in later phases.</p>
-      {result.rows.length ? <div className="stack">{result.rows.map((organizer) => <article className="surface" key={organizer.id}><h2>{organizer.name}</h2><p>{organizer.role}</p><Link href={`/organizer/${organizer.id}/members`}>Manage team</Link></article>)}</div> : <OrganizerOnboarding />}
+      {result.rows.length ? <div className="stack">{result.rows.map((organizer) => <article className="surface" key={organizer.id}><h2>{organizer.name}</h2><p>{organizer.role}</p><div className="row-between"><Link href={`/organizer/${organizer.id}/members`}>Manage team</Link><Link href={`/organizer/${organizer.id}/events`}>Manage events</Link></div></article>)}</div> : <OrganizerOnboarding />}
     </main>
   )
 }
