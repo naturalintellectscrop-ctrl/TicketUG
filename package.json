@@ -12,6 +12,7 @@
 		"format": "prettier --write ."
 	},
 	"dependencies": {
+		"@neondatabase/auth": "0.5.0-beta",
 		"drizzle-orm": "^0.45.2",
 		"next": "^16.3.5",
 		"pg": "^8.23.0",
