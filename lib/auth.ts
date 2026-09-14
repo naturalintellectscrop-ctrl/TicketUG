@@ -7,6 +7,16 @@ export const auth = createNeonAuth({
   baseUrl,
   cookies: { secret, sessionDataTtl: 300 },
   logLevel: 'warn',
+  ...(process.env.NODE_ENV === 'development'
+    ? {
+        advanced: {
+          defaultCookieAttributes: {
+            sameSite: 'none' as const,
+            secure: true,
+          },
+        },
+      }
+    : {}),
 })
 
 export async function getAuthSession() {
