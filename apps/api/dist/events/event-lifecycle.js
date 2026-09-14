@@ -17,3 +17,10 @@ export function assertTransition(from, to) {
     if (!canTransition(from, to))
         throw new Error(`Invalid event lifecycle transition: ${from} -> ${to}`);
 }
+export function publicationStateForTransition(to) {
+    if (to === 'PUBLISHED')
+        return 'PUBLIC';
+    if (to === 'DRAFT')
+        return 'PRIVATE';
+    return undefined;
+}

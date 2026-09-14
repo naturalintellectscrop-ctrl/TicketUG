@@ -7,7 +7,12 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
 var __metadata = (this && this.__metadata) || function (k, v) {
     if (typeof Reflect === "object" && typeof Reflect.metadata === "function") return Reflect.metadata(k, v);
 };
-import { IsBoolean, IsISO8601, IsNotEmpty, IsOptional, IsString, IsUrl, Length, MaxLength, Matches } from 'class-validator';
+import { IsBoolean, IsEnum, IsISO8601, IsNotEmpty, IsOptional, IsString, IsUrl, Length, MaxLength, Matches } from 'class-validator';
+export var EventMediaType;
+(function (EventMediaType) {
+    EventMediaType["IMAGE"] = "IMAGE";
+    EventMediaType["VIDEO"] = "VIDEO";
+})(EventMediaType || (EventMediaType = {}));
 export class CreateEventDto {
     title;
     description = '';
@@ -171,7 +176,7 @@ __decorate([
 ], CreateMediaDto.prototype, "altText", void 0);
 __decorate([
     IsOptional(),
-    IsString(),
+    IsEnum(EventMediaType),
     __metadata("design:type", String)
 ], CreateMediaDto.prototype, "mediaType", void 0);
 __decorate([

@@ -21,7 +21,7 @@ let NeonAuthGuard = class NeonAuthGuard {
     }
     async canActivate(context) {
         const request = context.switchToHttp().getRequest();
-        if (request.path === '/api/v1/health' || request.path === '/api/v1/readiness' || request.path?.startsWith('/api/v1/docs') || request.path?.startsWith('/api/v1/public/events/'))
+        if (request.path === '/api/v1/health' || request.path === '/api/v1/readiness' || request.path?.startsWith('/api/v1/docs') || request.path?.startsWith('/api/v1/public/events/') || request.path?.startsWith('/api/v1/public/orders/guest') || request.path?.startsWith('/api/v1/public/payments/webhooks/'))
             return true;
         const cookie = request.headers.cookie;
         if (!cookie)

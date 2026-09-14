@@ -12,9 +12,12 @@ import { OrganizersModule } from './organizers/organizers.module';
 import { AuditModule } from './audit/audit.module';
 import { FutureDomainsModule } from './future-domains.module';
 import { EventsModule } from './events/events.module';
+import { TicketTypesModule } from './ticket-types/ticket-types.module';
+import { OrdersModule } from './orders/orders.module';
+import { PaymentsModule } from './payments/payments.module';
 let AppModule = class AppModule {
 };
 AppModule = __decorate([
-    Module({ imports: [CommonModule, AuthModule, UsersModule, OrganizersModule, AuditModule, FutureDomainsModule, EventsModule] })
+    Module({ imports: [CommonModule, AuthModule, UsersModule, OrganizersModule, AuditModule, FutureDomainsModule, EventsModule, TicketTypesModule, OrdersModule, PaymentsModule] })
 ], AppModule);
 export { AppModule };
