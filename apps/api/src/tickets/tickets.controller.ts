@@ -12,5 +12,6 @@ export class TicketsController {
   @Get('tickets/:publicId') get(@CurrentUser() user: ApiUser, @Param('publicId') publicId: string) { return this.tickets.digital(user, publicId) }
   @Get('orders/:publicId/tickets') order(@CurrentUser() user: ApiUser, @Param('publicId') publicId: string) { return this.tickets.listOrderMine(user, publicId) }
   @Get('public/orders/:publicId/tickets') guest(@Param('publicId') publicId: string, @Headers('x-order-access-token') token: string) { return this.tickets.listGuest(publicId, token) }
+  @Get('public/orders/:publicId/tickets/:ticketPublicId') guestDetail(@Param('publicId') publicId: string, @Param('ticketPublicId') ticketPublicId: string, @Headers('x-order-access-token') token: string) { return this.tickets.digitalGuest(publicId, ticketPublicId, token) }
   @Get('organizer/events/:eventId/tickets') event(@CurrentUser() user: ApiUser, @Param('eventId') eventId: string) { return this.tickets.listEvent(user, eventId) }
 }

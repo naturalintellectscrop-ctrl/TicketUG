@@ -13,7 +13,8 @@ export function OrderForm({ tickets }: { tickets: Ticket[] }) {
     if (!response.ok) { setMessage(result.message || 'Unable to create order'); return }
     const payment = await fetch(`/api/orders/${result.publicId}/payment`, { method: 'POST', headers: { 'content-type': 'application/json', 'x-order-access-token': result.guestAccessToken }, body: JSON.stringify({ idempotencyKey: crypto.randomUUID() }) })
     const paymentResult = await payment.json()
-    setMessage(payment.ok ? `Order ${result.orderNumber} created. Payment status: ${paymentResult.status}. No live provider is configured yet.` : `Order ${result.orderNumber} created and awaiting payment.`)
+    sessionStorage.setItem(`ticketug:guest-token:${result.publicId}`, result.guestAccessToken)
+    setMessage(payment.ok ? `Order ${result.orderNumber} created. Payment status: ${paymentResult.status}. Use the secure order link when tickets are issued.` : `Order ${result.orderNumber} created and awaiting payment.`)
   }
   return <form className="stack" action={submit}><label>Name<input name="purchaserName" required /></label><label>Email<input name="purchaserEmail" type="email" required /></label>{tickets.map((ticket) => <label key={ticket.public_id}>{ticket.name} — {Number(ticket.price_minor_units).toLocaleString('en-UG')} {ticket.currency}<input name={`quantity-${ticket.public_id}`} type="number" min="0" max={ticket.remaining_capacity} defaultValue="0" /></label>)}<button className="button" type="submit">Create order</button>{message && <p role="status">{message}</p>}</form>
 }
