@@ -10,6 +10,7 @@ import { TicketTypesModule } from './ticket-types/ticket-types.module'
 import { OrdersModule } from './orders/orders.module'
 import { PaymentsModule } from './payments/payments.module'
 import { TicketsModule } from './tickets/tickets.module'
+import { CheckInsModule } from './check-ins/check-ins.module'
 
-@Module({ imports: [CommonModule, AuthModule, UsersModule, OrganizersModule, AuditModule, FutureDomainsModule, EventsModule, TicketTypesModule, OrdersModule, PaymentsModule, TicketsModule] })
+@Module({ imports: [CommonModule, AuthModule, UsersModule, OrganizersModule, AuditModule, FutureDomainsModule, EventsModule, TicketTypesModule, OrdersModule, PaymentsModule, TicketsModule, CheckInsModule] })
 export class AppModule {}
