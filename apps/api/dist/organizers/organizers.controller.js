@@ -10,7 +10,7 @@ var __metadata = (this && this.__metadata) || function (k, v) {
 var __param = (this && this.__param) || function (paramIndex, decorator) {
     return function (target, key) { decorator(target, key, paramIndex); }
 };
-import { Body, Controller, Get, Param, Post, ForbiddenException } from '@nestjs/common';
+import { Body, Controller, Get, Inject, Param, Post, ForbiddenException } from '@nestjs/common';
 import { ApiTags } from '@nestjs/swagger';
 import { IsNotEmpty, IsString, Matches, MaxLength } from 'class-validator';
 import { randomUUID } from 'node:crypto';
@@ -67,6 +67,7 @@ __decorate([
 OrganizersController = __decorate([
     ApiTags('organizers'),
     Controller('organizers'),
+    __param(0, Inject(DatabaseService)),
     __metadata("design:paramtypes", [DatabaseService])
 ], OrganizersController);
 export { OrganizersController };

@@ -7,7 +7,10 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
 var __metadata = (this && this.__metadata) || function (k, v) {
     if (typeof Reflect === "object" && typeof Reflect.metadata === "function") return Reflect.metadata(k, v);
 };
-import { Injectable, UnauthorizedException } from '@nestjs/common';
+var __param = (this && this.__param) || function (paramIndex, decorator) {
+    return function (target, key) { decorator(target, key, paramIndex); }
+};
+import { Inject, Injectable, UnauthorizedException } from '@nestjs/common';
 import { neonAuth } from './neon-auth';
 import { DatabaseService } from '../common/database.service';
 import { API_USER } from './auth.types';
@@ -18,7 +21,7 @@ let NeonAuthGuard = class NeonAuthGuard {
     }
     async canActivate(context) {
         const request = context.switchToHttp().getRequest();
-        if (request.path === '/api/v1/health' || request.path === '/api/v1/readiness' || request.path?.startsWith('/api/v1/docs'))
+        if (request.path === '/api/v1/health' || request.path === '/api/v1/readiness' || request.path?.startsWith('/api/v1/docs') || request.path?.startsWith('/api/v1/public/events/'))
             return true;
         const cookie = request.headers.cookie;
         if (!cookie)
@@ -41,6 +44,7 @@ let NeonAuthGuard = class NeonAuthGuard {
 };
 NeonAuthGuard = __decorate([
     Injectable(),
+    __param(0, Inject(DatabaseService)),
     __metadata("design:paramtypes", [DatabaseService])
 ], NeonAuthGuard);
 export { NeonAuthGuard };

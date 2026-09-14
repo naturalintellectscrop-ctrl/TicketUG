@@ -10,7 +10,7 @@ var __metadata = (this && this.__metadata) || function (k, v) {
 var __param = (this && this.__param) || function (paramIndex, decorator) {
     return function (target, key) { decorator(target, key, paramIndex); }
 };
-import { Body, Controller, Get, Patch, UnauthorizedException } from '@nestjs/common';
+import { Body, Controller, Get, Inject, Patch, UnauthorizedException } from '@nestjs/common';
 import { ApiTags } from '@nestjs/swagger';
 import { IsEmail, IsOptional, IsString, MaxLength } from 'class-validator';
 import { CurrentUser } from '../auth/current-user.decorator';
@@ -72,6 +72,7 @@ __decorate([
 UsersController = __decorate([
     ApiTags('users'),
     Controller('users/me'),
+    __param(0, Inject(DatabaseService)),
     __metadata("design:paramtypes", [DatabaseService])
 ], UsersController);
 export { UsersController };
