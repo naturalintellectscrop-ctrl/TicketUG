@@ -46,7 +46,8 @@ export class PaymentsService {
       const attempt = (await client.query<PaymentRow>(`SELECT p.id,p.public_id,p.order_id,o.public_id AS order_public_id,o.order_number,p.amount_minor_units,p.currency,p.provider,p.status,o.payment_expires_at,a.public_id AS attempt_public_id,a.status AS attempt_status,a.provider_attempt_reference FROM ticketug.payment_attempt a JOIN ticketug.payment p ON p.id=a.payment_id JOIN ticketug.order o ON o.id=p.order_id WHERE p.provider=$1 AND a.provider_attempt_reference=$2 FOR UPDATE OF p,a,o`, [providerName,event.providerAttemptReference])).rows[0]
       if (!attempt) throw new NotFoundException('Unknown provider transaction')
       if (attempt.amount_minor_units !== event.amountMinorUnits.toString()) throw new UnprocessableEntityException('INVALID_PAYMENT_AMOUNT')
-      if (attempt.currency !== event.currency || event.orderReference !== attempt.order_public_id) throw new UnprocessableEntityException('INVALID_PAYMENT_CURRENCY')
+      if (attempt.currency !== event.currency) throw new UnprocessableEntityException('INVALID_PAYMENT_CURRENCY')
+      if (event.orderReference !== attempt.order_public_id) throw new UnprocessableEntityException('INVALID_PAYMENT_ORDER')
       if (attempt.status === 'SUCCEEDED') { await client.query("UPDATE ticketug.webhook_event SET processing_status='DUPLICATE',processed_at=now() WHERE id=$1", [inserted.rows[0].id]); return { status: 'DUPLICATE' } }
       assertPaymentTransition(attempt.status!, event.status)
       await client.query('UPDATE ticketug.payment_attempt SET status=$2,completed_at=now() WHERE id=$1', [attempt.attempt_public_id ? (await client.query<{id:string}>('SELECT id FROM ticketug.payment_attempt WHERE public_id=$1',[attempt.attempt_public_id])).rows[0].id : '', event.status])
