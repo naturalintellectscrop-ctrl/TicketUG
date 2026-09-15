@@ -19,16 +19,21 @@ export function AuthForm({ mode }: { mode: Mode }) {
     const name = String(form.get('name') ?? '')
     setPending(true)
     setError(null)
-    const result = mode === 'sign-up'
-      ? await authClient.signUp.email({ email, password, name })
-      : await authClient.signIn.email({ email, password })
-    setPending(false)
-    if (result.error) {
-      setError('Unable to authenticate with those details.')
-      return
+    try {
+      const result = mode === 'sign-up'
+        ? await authClient.signUp.email({ email, password, name })
+        : await authClient.signIn.email({ email, password })
+      if (result.error) {
+        setError('Unable to authenticate with those details. Check your information and try again.')
+        return
+      }
+      router.push('/account')
+      router.refresh()
+    } catch {
+      setError('Authentication is temporarily unavailable. Please try again.')
+    } finally {
+      setPending(false)
     }
-    router.push('/account')
-    router.refresh()
   }
 
   return (
