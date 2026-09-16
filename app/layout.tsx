@@ -1,6 +1,7 @@
 import type { Metadata } from "next"
 import type { ReactNode } from "react"
 import { DM_Sans, Syne } from "next/font/google"
+import { MotionShell } from "@/components/motion-shell"
 import "./globals.css"
 
 const bodyFont = DM_Sans({ subsets: ["latin"], variable: "--font-body" })
@@ -16,7 +17,7 @@ export const metadata: Metadata = {
 export default function RootLayout({ children }: Readonly<{ children: ReactNode }>) {
   return (
     <html lang="en">
-      <body className={`${bodyFont.variable} ${displayFont.variable}`}>{children}</body>
+      <body className={`${bodyFont.variable} ${displayFont.variable}`}><MotionShell>{children}</MotionShell></body>
     </html>
   )
 }

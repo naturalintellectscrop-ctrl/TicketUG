@@ -46,6 +46,25 @@ h1 em, h2 em { color: var(--brand); font-style: normal; }
 .site-footer { display: flex; align-items: center; justify-content: space-between; gap: 20px; border-top: 1px solid var(--border); padding-top: 24px; padding-bottom: 28px; color: var(--muted-foreground); font-size: .74rem; }.site-footer .brand-mark { color: var(--foreground); font-size: 1rem; }
 .page-reveal { animation: reveal .8s cubic-bezier(.2,.8,.2,1) both; }.hero-section { animation-delay: .08s; }.rhythm-section, .events-banner, .organizer-banner { animation: reveal .8s .2s cubic-bezier(.2,.8,.2,1) both; }
 @keyframes reveal { from { opacity: 0; transform: translateY(18px); } to { opacity: 1; transform: translateY(0); } } @keyframes float-card { 0%, 100% { transform: rotate(7deg) translateY(0); } 50% { transform: rotate(4deg) translateY(-12px); } } @keyframes orbit { to { transform: rotate(335deg); } } @keyframes spin { to { transform: rotate(360deg); } } @keyframes pulse { 50% { box-shadow: 0 0 0 9px rgb(102 161 74 / 0%); } }
+@keyframes page-arrive { from { opacity: 0; transform: translateY(18px); } to { opacity: 1; transform: translateY(0); } }
+@keyframes ambient-drift { 0%, 100% { translate: 0 0; rotate: -1deg; } 50% { translate: 10px -12px; rotate: 2deg; } }
+@keyframes shimmer-line { from { translate: -110% 0; } to { translate: 110% 0; } }
+.motion-shell { min-height: 100vh; opacity: 0; }
+.motion-shell-ready { opacity: 1; animation: page-arrive 700ms cubic-bezier(.22,1,.36,1) both; }
+.motion-shell-ready .surface, .motion-shell-ready .pillar-card, .motion-shell-ready .metric-card, .motion-shell-ready .hero-art, .motion-shell-ready .hero-copy { animation: page-arrive 800ms cubic-bezier(.22,1,.36,1) both; }
+.motion-shell-ready .surface:nth-child(2), .motion-shell-ready .pillar-card:nth-child(2), .motion-shell-ready .metric-card:nth-child(2) { animation-delay: 90ms; }
+.motion-shell-ready .surface:nth-child(3), .motion-shell-ready .pillar-card:nth-child(3), .motion-shell-ready .metric-card:nth-child(3) { animation-delay: 160ms; }
+.motion-shell-ready .hero-art { animation-delay: 120ms; }
+.brand-mark, .site-nav a, .button, .text-link, .admin-nav a, .surface, .pillar-card, .metric-card { transition: transform 220ms cubic-bezier(.22,1,.36,1), box-shadow 220ms ease, color 220ms ease, background-color 220ms ease, border-color 220ms ease; }
+.brand-mark:hover, .site-nav a:hover, .text-link:hover { transform: translateX(4px); }
+.button:hover { transform: translateY(-4px) rotate(-1deg); }
+.button:active { transform: translateY(-1px) scale(.98); }
+.surface:hover, .pillar-card:hover, .metric-card:hover { transform: translateY(-6px); }
+.hero-art::after { content: ""; position: absolute; inset: 12% -18%; pointer-events: none; border-top: 1px solid color-mix(in srgb, var(--ink) 22%, transparent); transform: rotate(-14deg) translateX(-120%); animation: shimmer-line 4.5s ease-in-out infinite; }
+.orbit-one, .orbit-two, .float-label { animation: ambient-drift 5s ease-in-out infinite; }
+.orbit-two { animation-delay: -2s; }
+.float-label { animation-delay: -1.5s; }
+*:focus-visible { outline: 3px solid var(--coral); outline-offset: 4px; }
 @media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation-duration: .01ms !important; animation-iteration-count: 1 !important; scroll-behavior: auto !important; transition-duration: .01ms !important; } }
 @media (max-width: 760px) { .site-header, .hero-section, .rhythm-section, .events-banner, .organizer-banner, .site-footer { padding-left: 20px; padding-right: 20px; }.site-nav a:not(.nav-cta) { display: none; }.hero-section { grid-template-columns: 1fr; min-height: auto; padding-top: 50px; padding-bottom: 75px; }.hero-copy h1 { font-size: clamp(4rem, 20vw, 7rem); }.hero-art { min-height: 390px; transform: scale(.86); margin: -12px -20px; }.section-intro, .events-banner { display: block; }.section-intro h2 { margin-top: 35px; }.pillar-grid { grid-template-columns: 1fr; }.pillar-card:nth-child(2) { transform: none; }.pillar-card:nth-child(2):hover { transform: translateY(-8px) rotate(1deg); }.banner-side { margin-top: 32px; }.organizer-banner { grid-template-columns: 1fr; gap: 44px; padding-top: 80px; padding-bottom: 80px; }.site-footer { align-items: flex-start; flex-direction: column; gap: 10px; } }
 @media (max-width: 420px) { .site-header { padding-top: 18px; padding-bottom: 18px; }.nav-cta { padding: 9px 12px; font-size: .72rem; }.hero-art { transform: scale(.72); min-height: 320px; margin: -38px -55px; }.ticket-card { box-shadow: 12px 14px 0 var(--lime), 0 20px 45px rgb(54 87 232 / 23%); } }
