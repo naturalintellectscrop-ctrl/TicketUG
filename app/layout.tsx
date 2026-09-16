@@ -1,4 +1,4 @@
-import type { Metadata } from "next"
+import type { Metadata, Viewport } from "next"
 import type { ReactNode } from "react"
 import { DM_Sans, Syne } from "next/font/google"
 import { MotionShell } from "@/components/motion-shell"
@@ -10,8 +10,12 @@ const displayFont = Syne({ subsets: ["latin"], variable: "--font-display", weigh
 export const metadata: Metadata = {
   title: "TicketUG",
   description: "A trustworthy ticketing platform for Uganda.",
-  applicationName: "TicketUG",
-  themeColor: "#f3efe5"
+  applicationName: "TicketUG"
+}
+
+export const viewport: Viewport = {
+  themeColor: "#10131a",
+  colorScheme: "dark"
 }
 
 export default function RootLayout({ children }: Readonly<{ children: ReactNode }>) {
