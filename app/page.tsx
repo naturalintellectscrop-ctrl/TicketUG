@@ -1,48 +1,54 @@
 import Link from "next/link"
 
 const pillars = [
-  ["Discover", "Find trusted events across Uganda with clear prices and venue details."],
-  ["Organize", "Give organizers the tools to publish, sell, reconcile, and grow."],
-  ["Verify", "Issue secure tickets and make entry fast for staff and attendees."]
+  { number: "01", title: "Find your people", body: "Discover the nights, rooms, and sounds worth showing up for — with the details you need before you tap buy." },
+  { number: "02", title: "Build the buzz", body: "Publish an event, shape your ticket tiers, and keep the whole door-to-dancefloor story in one place." },
+  { number: "03", title: "Open the door", body: "Secure QR tickets make arrival feel less like a queue and more like the beginning of the night." }
 ]
 
 export default function HomePage() {
   return (
-    <main className="min-h-screen">
-      <header className="mx-auto flex max-w-6xl items-center justify-between px-6 py-6">
-        <Link href="/" className="text-xl font-bold tracking-tight">TicketUG</Link>
-        <nav className="flex items-center gap-5 text-sm text-[var(--muted-foreground)]" aria-label="Primary navigation">
-          <Link href="#how-it-works">How it works</Link>
+    <main className="min-h-screen overflow-hidden">
+      <header className="site-header page-reveal">
+        <Link href="/" className="brand-mark" aria-label="TicketUG home"><span className="brand-dot" />TicketUG</Link>
+        <nav className="site-nav" aria-label="Primary navigation">
+          <Link href="#how-it-works">The rhythm</Link>
           <Link href="/api/health">System status</Link>
-          <Link href="#organizers" className="rounded-full bg-[var(--brand)] px-4 py-2 font-semibold text-[var(--brand-foreground)]">For organizers</Link>
+          <Link href="#organizers" className="nav-cta">Make a night <span aria-hidden="true">↗</span></Link>
         </nav>
       </header>
 
-      <section className="mx-auto grid max-w-6xl gap-12 px-6 pb-24 pt-16 lg:grid-cols-[1.1fr_.9fr] lg:items-center lg:pt-24">
-        <div>
-          <p className="mb-5 text-sm font-semibold uppercase tracking-[0.2em] text-[var(--brand)]">Made for live moments</p>
-          <h1 className="max-w-3xl text-5xl font-semibold leading-[1.05] tracking-[-0.04em] sm:text-7xl">Your next great night starts here.</h1>
-          <p className="mt-7 max-w-xl text-lg leading-8 text-[var(--muted-foreground)]">TicketUG brings attendees, organizers, and secure event entry together in one dependable platform built for Uganda.</p>
-          <div className="mt-9 flex flex-wrap gap-3">
-            <Link href="#events" className="rounded-full bg-[var(--brand)] px-6 py-3 font-semibold text-[var(--brand-foreground)]">Explore events</Link>
-            <Link href="#organizers" className="rounded-full border border-[var(--border)] px-6 py-3 font-semibold">Create an event</Link>
+      <section className="hero-section page-reveal">
+        <div className="hero-copy">
+          <p className="eyebrow"><span className="eyebrow-line" /> Kampala, Uganda · Live now</p>
+          <h1>Make room<br /><em>for more.</em></h1>
+          <p className="hero-lede">TicketUG is where Uganda&apos;s best nights find their people. Buy your seat, build your crowd, and walk in ready.</p>
+          <div className="hero-actions">
+            <Link href="#events" className="button button-primary">Find an event <span aria-hidden="true">↗</span></Link>
+            <Link href="#organizers" className="button button-quiet">I&apos;m an organizer <span aria-hidden="true">→</span></Link>
           </div>
+          <div className="hero-note"><span className="pulse-dot" /> No gatekeeping. Just good nights.</div>
         </div>
-        <div className="rounded-[2rem] bg-[var(--brand)] p-8 text-[var(--brand-foreground)] shadow-2xl shadow-green-950/15">
-          <p className="text-sm font-semibold uppercase tracking-[0.2em] text-green-100">Built for confidence</p>
-          <p className="mt-16 text-3xl font-semibold leading-tight">Simple checkout. Verified tickets. Happier crowds.</p>
-          <div className="mt-20 border-t border-green-200/25 pt-5 text-sm text-green-100">Secure foundations are being assembled in Phase 1.</div>
+        <div className="hero-art" aria-label="Illustration of a live event ticket" role="img">
+          <div className="orbit orbit-one" /><div className="orbit orbit-two" />
+          <div className="ticket-card">
+            <div className="ticket-top"><span>ADMIT ONE</span><span>UG · 001</span></div>
+            <div className="ticket-art"><span className="ticket-spark spark-one">✦</span><span className="ticket-spark spark-two">✦</span><strong>Night<br /><i>shift</i></strong><span className="ticket-ring" /></div>
+            <div className="ticket-bottom"><span>FRI 14 · KLA</span><span className="ticket-barcode" /></div>
+          </div>
+          <span className="float-label label-top">sold out energy</span><span className="float-label label-bottom">good people inside</span>
         </div>
       </section>
 
-      <section id="how-it-works" className="border-y border-[var(--border)] bg-white/45">
-        <div className="mx-auto grid max-w-6xl gap-8 px-6 py-16 md:grid-cols-3">
-          {pillars.map(([title, body]) => <article key={title} className="flex flex-col gap-4"><h2 className="text-2xl font-semibold">{title}</h2><p className="leading-7 text-[var(--muted-foreground)]">{body}</p></article>)}
-        </div>
+      <section id="how-it-works" className="rhythm-section">
+        <div className="section-intro"><p className="eyebrow">The rhythm</p><h2>One platform.<br /><span>Every kind of night.</span></h2></div>
+        <div className="pillar-grid">{pillars.map((pillar) => <article key={pillar.number} className="pillar-card"><span className="pillar-number">{pillar.number}</span><h3>{pillar.title}</h3><p>{pillar.body}</p><span className="pillar-arrow" aria-hidden="true">↗</span></article>)}</div>
       </section>
 
-      <section id="events" className="mx-auto max-w-6xl px-6 py-20"><p className="text-sm font-semibold uppercase tracking-[0.2em] text-[var(--brand)]">Coming together</p><h2 className="mt-3 max-w-2xl text-4xl font-semibold tracking-tight">A better foundation for Uganda&apos;s event economy.</h2></section>
-      <section id="organizers" className="mx-auto max-w-6xl px-6 pb-24"><div className="rounded-3xl border border-[var(--border)] bg-white p-8"><h2 className="text-2xl font-semibold">Organizers, your audience is waiting.</h2><p className="mt-3 max-w-xl leading-7 text-[var(--muted-foreground)]">TicketUG will make publishing, payments, ticket delivery, and event-day operations feel like one connected workflow.</p></div></section>
+      <section id="events" className="events-banner"><div><p className="eyebrow">Coming together</p><h2>The night is<br /><em>already yours.</em></h2></div><div className="banner-side"><p>From rooftop sets to community stages, find your next reason to leave the house.</p><Link href="/sign-up" className="text-link">Get on the list <span aria-hidden="true">↗</span></Link></div></section>
+
+      <section id="organizers" className="organizer-banner"><div className="organizer-stamp">FOR<br />THE<br /><i>makers</i></div><div><p className="eyebrow">Organizers</p><h2>You bring the spark.<br /><span>We&apos;ll handle the door.</span></h2><p>Publishing, payments, ticket delivery, and event-day operations — one connected workflow, without the spreadsheet maze.</p><Link href="/sign-up" className="button button-dark">Start making <span aria-hidden="true">↗</span></Link></div></section>
+      <footer className="site-footer"><span className="brand-mark"><span className="brand-dot" />TicketUG</span><span>Built for the moments that matter.</span><span>© 2026 TicketUG</span></footer>
     </main>
   )
 }
