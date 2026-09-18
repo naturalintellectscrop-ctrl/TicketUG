@@ -17,7 +17,7 @@ export default function HomePage() {
         <nav className="site-nav" aria-label="Primary navigation">
           <Link href="#how-it-works">The rhythm</Link>
           <Link href="/api/health">System status</Link>
-          <Link href="#organizers" className="nav-cta">Make a night <span aria-hidden="true">↗</span></Link>
+          <Link href="#organizers" className="nav-cta">Make a moment <span aria-hidden="true">↗</span></Link>
         </nav>
       </header>
 
