@@ -2,6 +2,7 @@
 
 import type { ReactNode } from "react"
 import { useEffect, useState } from "react"
+import { BackButton } from "@/components/back-button"
 
 export function MotionShell({ children, className = "" }: { children: ReactNode; className?: string }) {
   const [ready, setReady] = useState(false)
@@ -11,5 +12,5 @@ export function MotionShell({ children, className = "" }: { children: ReactNode;
     return () => cancelAnimationFrame(frame)
   }, [])
 
-  return <div className={`motion-shell ${ready ? "motion-shell-ready" : ""} ${className}`}>{children}</div>
+  return <div className={`motion-shell ${ready ? "motion-shell-ready" : ""} ${className}`}><BackButton />{children}</div>
 }

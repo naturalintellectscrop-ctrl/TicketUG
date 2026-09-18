@@ -16,7 +16,7 @@ export default function HomePage() {
         <Link href="/" className="brand-mark" aria-label="TicketUG home"><span className="brand-dot" />TicketUG</Link>
         <nav className="site-nav" aria-label="Primary navigation">
           <Link href="#how-it-works">The rhythm</Link>
-          <Link href="/api/health">System status</Link>
+          <Link href="/contact">Contact</Link>
           <Link href="#organizers" className="nav-cta">Make a moment <span aria-hidden="true">↗</span></Link>
         </nav>
       </header>
