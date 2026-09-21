@@ -2,6 +2,7 @@ import Link from 'next/link'
 import { notFound, redirect } from 'next/navigation'
 import { getTicketUGContext } from '@/lib/request-context'
 import { pool } from '@/lib/db'
+import { EventStaffAssignment } from '@/components/event-staff-assignment'
 
 export default async function OrganizerEventDetailPage({ params }: { params: Promise<{ organizerId: string; eventId: string }> }) {
   const { organizerId, eventId } = await params
@@ -16,5 +17,5 @@ export default async function OrganizerEventDetailPage({ params }: { params: Pro
   )
   const event = result.rows[0]
   if (!event) notFound()
-  return <main className="page-shell"><Link href={`/organizer/${organizerId}/events`}>Back to events</Link><div className="surface" style={{ marginTop: 24 }}><p className="eyebrow">{event.lifecycle_state} · {event.publication_state}</p><h1>{event.title}</h1><p className="lede">{event.description || 'No description added yet.'}</p><div className="event-meta"><span>{new Date(event.starts_at).toLocaleString('en-UG', { timeZone: event.timezone })}</span><span>{new Date(event.ends_at).toLocaleString('en-UG', { timeZone: event.timezone })}</span><span>{event.timezone}</span></div><p>Slug: {event.slug}</p><div className="row"><div className="row"><Link className="button" href={`/organizer/${organizerId}/events/${eventId}/tickets`}>Manage ticket types</Link><Link className="button" href={`/organizer/${organizerId}/events/${eventId}/orders`}>View orders</Link></div><Link className="button" href={`/organizer/${organizerId}/events/${eventId}/orders`}>View orders</Link></div></div></main>
+  return <main className="page-shell"><Link href={`/organizer/${organizerId}/events`}>Back to events</Link><div className="surface" style={{ marginTop: 24 }}><p className="eyebrow">{event.lifecycle_state} · {event.publication_state}</p><h1>{event.title}</h1><p className="lede">{event.description || 'No description added yet.'}</p><div className="event-meta"><span>{new Date(event.starts_at).toLocaleString('en-UG', { timeZone: event.timezone })}</span><span>{new Date(event.ends_at).toLocaleString('en-UG', { timeZone: event.timezone })}</span><span>{event.timezone}</span></div><p>Slug: {event.slug}</p><div className="row"><div className="row"><Link className="button" href={`/organizer/${organizerId}/events/${eventId}/tickets`}>Manage ticket types</Link><Link className="button" href={`/organizer/${organizerId}/events/${eventId}/orders`}>View orders</Link></div><Link className="button" href={`/organizer/${organizerId}/events/${eventId}/orders`}>View orders</Link></div></div><EventStaffAssignment organizerId={organizerId} eventId={eventId} /></main>
 }
