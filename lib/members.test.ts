@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { assertMemberRemoval, assertMemberRoleChange } from './members'
+import { assertMemberRemoval, assertMemberRoleChange, assertOwnershipTransfer } from './members'
 
 const OWNER = 'ORGANIZER_OWNER'
 const MANAGER = 'ORGANIZER_MANAGER'
@@ -45,5 +45,23 @@ describe('member role-change authority', () => {
     expect(() => assertMemberRoleChange(OWNER, OWNER, STAFF)).toThrow('FORBIDDEN')
     expect(() => assertMemberRoleChange(MANAGER, MANAGER, STAFF)).toThrow('FORBIDDEN')
     expect(() => assertMemberRoleChange(STAFF, STAFF, MANAGER)).toThrow('FORBIDDEN')
+  })
+})
+
+describe('ownership transfer authority', () => {
+  it('lets owners hand the seat to any active member', () => {
+    expect(() => assertOwnershipTransfer(OWNER, MANAGER, { self: false, targetOwnsAnotherOrganizer: false })).not.toThrow()
+    expect(() => assertOwnershipTransfer(OWNER, STAFF, { self: false, targetOwnsAnotherOrganizer: false })).not.toThrow()
+  })
+
+  it('rejects non-owners, self-transfers, and recipients who already own a workspace', () => {
+    expect(() => assertOwnershipTransfer(MANAGER, MANAGER, { self: false, targetOwnsAnotherOrganizer: false })).toThrow('FORBIDDEN')
+    expect(() => assertOwnershipTransfer(STAFF, MANAGER, { self: false, targetOwnsAnotherOrganizer: false })).toThrow('FORBIDDEN')
+    expect(() => assertOwnershipTransfer(OWNER, MANAGER, { self: true, targetOwnsAnotherOrganizer: false })).toThrow('FORBIDDEN')
+    expect(() => assertOwnershipTransfer(OWNER, MANAGER, { self: false, targetOwnsAnotherOrganizer: true })).toThrow('TARGET_OWNS_ORGANIZER')
+  })
+
+  it('allows handing the seat to an existing co-owner (the actor simply steps down)', () => {
+    expect(() => assertOwnershipTransfer(OWNER, OWNER, { self: false, targetOwnsAnotherOrganizer: false })).not.toThrow()
   })
 })

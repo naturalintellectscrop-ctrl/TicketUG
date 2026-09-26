@@ -10,9 +10,10 @@ export const memberRoleInput = z.object({
 
 /**
  * Pure removal decision. Managers and staff may leave the workspace on their
- * own; owners cannot — ownership transfer does not exist yet, so an owner seat
- * can never walk out the door and orphan the workspace. Acting on someone
- * else always flows through the shared authority ladder.
+ * own; owners cannot — they must hand the seat to another member first
+ * (see assertOwnershipTransfer), so an owner seat can never walk out the door
+ * and orphan the workspace. Acting on someone else always flows through the
+ * shared authority ladder.
  */
 export function assertMemberRemoval(actorRole: TicketUGRole, targetRole: TicketUGRole, options: { self: boolean }) {
   if (options.self) {
@@ -20,6 +21,18 @@ export function assertMemberRemoval(actorRole: TicketUGRole, targetRole: TicketU
     return
   }
   if (!canManageMemberRole(actorRole, targetRole)) throw new Error('FORBIDDEN')
+}
+
+/**
+ * Pure ownership-transfer decision: only an owner can hand the seat over, and
+ * never to themselves. The recipient may hold any membership role — handing
+ * the seat to an existing co-owner simply means the actor steps down. The
+ * recipient must not already own a DIFFERENT workspace, mirroring the
+ * one-owned-organizer business rule enforced at create time.
+ */
+export function assertOwnershipTransfer(actorRole: TicketUGRole, targetRole: TicketUGRole, options: { self: boolean; targetOwnsAnotherOrganizer: boolean }) {
+  if (actorRole !== 'ORGANIZER_OWNER' || options.self) throw new Error('FORBIDDEN')
+  if (options.targetOwnsAnotherOrganizer) throw new Error('TARGET_OWNS_ORGANIZER')
 }
 
 /**
@@ -114,6 +127,40 @@ export async function changeMemberRole(context: TicketUGContext, organizerId: st
       await recordMembershipChange(client, member.user_profile_id)
     }
     return { member: { id: member.id, user_profile_id: member.user_profile_id, role: nextRole, status: member.status } }
+  })
+}
+
+/**
+ * Hand the owner seat to another active member. Both rows move inside one
+ * transaction (target → ORGANIZER_OWNER, actor → ORGANIZER_MANAGER), so the
+ * workspace always keeps exactly the same number of owners it started with
+ * and no intermediate state is ever visible. Roles are never cached, so the
+ * swap takes effect on both users' next request; the former owner becomes a
+ * manager, which unlocks self-serve leave through the normal removal path.
+ */
+export async function transferOwnership(context: TicketUGContext, organizerId: string, memberId: string) {
+  return withTransaction(async (client) => {
+    const actor = context.organizerMemberships.find((membership) => membership.organizerId === organizerId)
+    if (!actor) throw new Error('FORBIDDEN')
+    const target = await loadMemberForUpdate(client, organizerId, memberId)
+    const otherOwnerRow = await client.query(
+      `SELECT id FROM ticketug.organizer_member WHERE user_profile_id = $1 AND role = 'ORGANIZER_OWNER' AND status = 'ACTIVE' AND organizer_id <> $2 LIMIT 1`,
+      [target.user_profile_id, organizerId],
+    )
+    assertOwnershipTransfer(actor.role, target.role as TicketUGRole, {
+      self: target.user_profile_id === context.profileId,
+      targetOwnsAnotherOrganizer: Boolean(otherOwnerRow.rows[0]),
+    })
+    const actorRow = await client.query(
+      `SELECT id FROM ticketug.organizer_member WHERE organizer_id = $1 AND user_profile_id = $2 AND status = 'ACTIVE' FOR UPDATE`,
+      [organizerId, context.profileId],
+    )
+    if (!actorRow.rows[0]) throw new Error('FORBIDDEN')
+    await client.query(`UPDATE ticketug.organizer_member SET role = 'ORGANIZER_OWNER', updated_at = now() WHERE id = $1`, [target.id])
+    await client.query(`UPDATE ticketug.organizer_member SET role = 'ORGANIZER_MANAGER', updated_at = now() WHERE id = $1`, [actorRow.rows[0].id])
+    await recordMembershipChange(client, target.user_profile_id)
+    await recordMembershipChange(client, context.profileId)
+    return { transferred: true as const, newOwnerId: target.user_profile_id }
   })
 }
 

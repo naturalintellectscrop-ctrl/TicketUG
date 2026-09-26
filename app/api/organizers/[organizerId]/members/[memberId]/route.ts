@@ -19,7 +19,7 @@ function mapMemberError(error: unknown) {
   if (error instanceof Error && error.message === 'FORBIDDEN') return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
   if (error instanceof Error && error.message === 'MEMBER_NOT_FOUND') return NextResponse.json({ error: 'Member not found' }, { status: 404 })
   if (error instanceof Error && error.message === 'LAST_OWNER') return NextResponse.json({ error: 'The workspace must keep at least one owner.' }, { status: 409 })
-  if (error instanceof Error && error.message === 'OWNER_CANNOT_LEAVE') return NextResponse.json({ error: 'The workspace owner cannot leave yet — ownership transfer is not available.' }, { status: 409 })
+  if (error instanceof Error && error.message === 'OWNER_CANNOT_LEAVE') return NextResponse.json({ error: 'Transfer ownership to another member first — then you can leave the workspace.' }, { status: 409 })
   return null
 }
 

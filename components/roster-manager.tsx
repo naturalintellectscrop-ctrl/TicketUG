@@ -95,6 +95,31 @@ export function RosterManager({ organizerId, actorRole, selfProfileId, initialMe
     router.refresh()
   }
 
+  async function transferOwnership(member: MemberRow) {
+    if (!window.confirm(`Transfer ownership to ${memberLabel(member)}? They become the owner immediately and you continue as a manager. You can leave the team afterwards.`)) return
+    setPending(true)
+    setMessage('')
+    try {
+      const response = await fetch(`/api/organizers/${organizerId}/transfer-ownership`, {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ memberId: member.id }),
+      })
+      const result = await response.json().catch(() => null)
+      if (!response.ok) {
+        setMessage(result?.error || 'The transfer did not go through. Try again.')
+        return
+      }
+      setMessage(`Ownership transferred to ${memberLabel(member)}. You are now a manager.`)
+      await refresh()
+      router.refresh()
+    } catch {
+      setMessage('The transfer did not go through. Check your connection.')
+    } finally {
+      setPending(false)
+    }
+  }
+
   return (
     <>
       <div className="roster-rows">
@@ -118,6 +143,9 @@ export function RosterManager({ organizerId, actorRole, selfProfileId, initialMe
               </div>
               <div className="roster-actions">
                 {member.status !== 'ACTIVE' && <span className="status-pill" data-status={member.status}>{member.status}</span>}
+                {isOwner && !self && member.status === 'ACTIVE' && (
+                  <button type="button" className="button button-ownership" onClick={() => transferOwnership(member)} disabled={pending}>Transfer ownership</button>
+                )}
                 {isOwner && member.role === 'ORGANIZER_MANAGER' && (
                   <button type="button" className="button button-quiet" onClick={() => changeRole(member, 'EVENT_STAFF')} disabled={pending}>Demote to staff</button>
                 )}
@@ -136,7 +164,7 @@ export function RosterManager({ organizerId, actorRole, selfProfileId, initialMe
         })}
       </div>
       {isOwner ? (
-        <p className="muted">Owners and managers can invite and remove people. Ownership transfer is not available yet, so the owner seat cannot be removed or changed.</p>
+        <p className="muted">You own this workspace. Use Transfer ownership to hand the seat to any member — afterwards you stay on as a manager and can leave the team whenever you like.</p>
       ) : (
         <p className="muted">You can leave this workspace yourself — you would only get back in through a new invitation.</p>
       )}
