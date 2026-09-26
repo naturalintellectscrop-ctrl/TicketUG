@@ -11,6 +11,7 @@ export class OrdersController {
   constructor(@Inject(OrdersService) private readonly orders: OrdersService) {}
 
   @Post('orders') create(@CurrentUser() user: ApiUser, @Body() body: CreateOrderDto) { return this.orders.create(user, body) }
+  @Post('system/orders/expire-stale') expireStale(@Body() body: { limit?: number } = {}) { return this.orders.expireStale(body?.limit) }
   @Get('orders') list(@CurrentUser() user: ApiUser) { return this.orders.listMine(user) }
   @Get('orders/:publicId') get(@CurrentUser() user: ApiUser, @Param('publicId') publicId: string) { return this.orders.getMine(user, publicId) }
   @Patch('orders/:publicId/cancel') cancel(@CurrentUser() user: ApiUser, @Param('publicId') publicId: string) { return this.orders.cancel(user, publicId) }

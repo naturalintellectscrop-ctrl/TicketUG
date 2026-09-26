@@ -11,6 +11,14 @@ export class NeonAuthGuard implements CanActivate {
     // All /public/orders/* endpoints self-authenticate with the order's guest access
     // token (sha256-compared in the services), so they intentionally bypass cookie auth.
     if (request.path === '/api/v1/health' || request.path === '/api/v1/readiness' || request.path?.startsWith('/api/v1/docs') || request.path?.startsWith('/api/v1/public/events/') || request.path?.startsWith('/api/v1/public/orders/') || request.path?.startsWith('/api/v1/public/payments/webhooks/')) return true
+    // System maintenance endpoints (order expiry sweeper) authenticate with a
+    // shared operator secret instead of a user session. Fail closed when
+    // CRON_SECRET is unset so the surface can never be silently unauthenticated.
+    if (request.path?.startsWith('/api/v1/system/')) {
+      const secret = process.env.CRON_SECRET
+      if (!secret || request.headers['x-cron-secret'] !== secret) throw new UnauthorizedException('System endpoint authentication required')
+      return true
+    }
     const cookie = request.headers.cookie
     if (!cookie) throw new UnauthorizedException('Authentication required')
     const session = await neonAuth.getSession({ fetchOptions: { headers: { cookie } } })
