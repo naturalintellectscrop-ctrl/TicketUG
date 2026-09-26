@@ -1,4 +1,7 @@
 import Link from "next/link"
+import { SiteHeader } from "@/components/site-header"
+
+export const dynamic = "force-dynamic"
 
 const pillars = [
   { number: "01", title: "Find your people", body: "Discover the nights, rooms, and sounds worth showing up for — with the details you need before you tap buy." },
@@ -9,14 +12,10 @@ const pillars = [
 export default function HomePage() {
   return (
     <main className="min-h-screen overflow-hidden">
-      <header className="site-header page-reveal">
-        <Link href="/" className="brand-mark" aria-label="TicketUG home"><span className="brand-dot" />TicketUG</Link>
-        <nav className="site-nav" aria-label="Primary navigation">
-          <Link href="#how-it-works">The rhythm</Link>
-          <Link href="/api/health">System status</Link>
-          <Link href="#organizers" className="nav-cta">Make a night <span aria-hidden="true">↗</span></Link>
-        </nav>
-      </header>
+      <SiteHeader nextPath="/account">
+        <Link href="#how-it-works">The rhythm</Link>
+        <Link href="/api/health">System status</Link>
+      </SiteHeader>
 
       <section className="hero-section page-reveal">
         <div className="hero-copy">

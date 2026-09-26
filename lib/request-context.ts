@@ -13,6 +13,8 @@ export type TicketUGRole =
 
 export type TicketUGContext = {
   authUserId: string
+  /** Session email when the auth user has one; optional so hand-built fixtures stay valid. */
+  authEmail?: string | null
   profileId: string
   roles: TicketUGRole[]
   organizerMemberships: Array<{ organizerId: string; role: TicketUGRole; status: string }>
@@ -45,6 +47,7 @@ export async function getTicketUGContext(): Promise<TicketUGContext | null> {
 
     return {
       authUserId,
+      authEmail: session?.data?.user?.email ?? null,
       profileId: profileResult.rows[0].id,
       roles,
       organizerMemberships: memberships.rows.map((row) => ({
