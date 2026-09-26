@@ -72,4 +72,8 @@ h1 em, h2 em { color: var(--brand); font-style: normal; }
 .countdown { font-variant-numeric: tabular-nums; }
 .countdown strong { color: var(--foreground); }
 .auth-page code { border: 1px solid var(--border); border-radius: 8px; padding: 3px 8px; background: rgb(255 255 255 / 55%); font-size: .8rem; }
+.recovery-row { flex-wrap: wrap; align-items: center; gap: 12px; }
+.recovery-link { flex: 1; min-width: 0; overflow-wrap: anywhere; border: 1px dashed var(--border); border-radius: 8px; padding: 8px 10px; background: rgb(255 255 255 / 55%); font-size: .74rem; color: var(--muted-foreground); }
+.qr-frame { display: grid; place-items: center; align-self: center; border: 1px dashed var(--border); border-radius: 18px; padding: 18px; background: rgb(255 255 255 / 65%); }
+.qr-frame img { border-radius: 8px; }
 @media (max-width: 640px) { .auth-page { padding: 28px 18px 44px; } .ticket-row { flex-direction: column; align-items: flex-start; } }

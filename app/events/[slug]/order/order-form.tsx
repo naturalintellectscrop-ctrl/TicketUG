@@ -2,6 +2,7 @@
 
 import { useRouter } from 'next/navigation'
 import { useState } from 'react'
+import { buildRecoveryPath, guestTokenStorageKey } from '@/lib/guest-order-access'
 
 type Ticket = { public_id: string; name: string; price_minor_units: string; currency: string; remaining_capacity: number }
 
@@ -22,9 +23,11 @@ export function OrderForm({ tickets }: { tickets: Ticket[] }) {
     // "Start payment" retry for orders still awaiting payment.
     await fetch(`/api/orders/${result.publicId}/payment`, { method: 'POST', headers: { 'content-type': 'application/json', 'x-order-access-token': result.guestAccessToken }, body: JSON.stringify({ idempotencyKey: crypto.randomUUID() }) }).catch(() => null)
     // The guest access key is the only credential for this order — keep it in
-    // this tab's session storage, where the status page expects to find it.
-    sessionStorage.setItem(`ticketug:guest-token:${result.publicId}`, result.guestAccessToken)
-    router.push(`/guest/orders/${result.publicId}`)
+    // this tab's session storage, and carry it once in the URL so the status
+    // page can hand back a saveable recovery link (it strips the key from the
+    // address bar immediately after adopting it).
+    sessionStorage.setItem(guestTokenStorageKey(result.publicId), result.guestAccessToken)
+    router.push(buildRecoveryPath(result.publicId, result.guestAccessToken))
   }
   return <form className="stack" action={submit}>
     <label>Name<input name="purchaserName" required /></label>

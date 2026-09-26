@@ -2,6 +2,7 @@
 
 import Link from 'next/link'
 import { useCallback, useEffect, useState } from 'react'
+import { buildRecoveryPath, guestTokenStorageKey, recoveryKeyFromSearch } from '@/lib/guest-order-access'
 
 type GuestOrderItem = { ticketTypeId: string; ticketName: string; quantity: number; unitPriceMinorUnits: number; currency: string; lineTotalMinorUnits: number }
 type GuestOrder = { publicId: string; orderNumber: string; status: string; purchaserName: string; purchaserEmail: string; currency: string; totalMinorUnits: number; createdAt: string; updatedAt: string; cancelledAt: string | null; paymentExpiresAt: string | null; items: GuestOrderItem[] }
@@ -9,7 +10,6 @@ type GuestTicket = { publicId: string; ticketTypeName: string; attendeeName: str
 type PaymentInfo = { provider: string; status: string } | null
 
 const ACTIVE_STATUSES = ['AWAITING_PAYMENT', 'PAYMENT_PROCESSING']
-const tokenKey = (publicId: string) => `ticketug:guest-token:${publicId}`
 
 function formatRemaining(ms: number) {
   const total = Math.max(0, Math.floor(ms / 1000))
@@ -32,23 +32,42 @@ export default function GuestOrderPage({ params }: { params: Promise<{ publicId:
   const [pending, setPending] = useState(false)
   const [now, setNow] = useState(() => Date.now())
   const [publicId, setPublicId] = useState('')
+  const [token, setToken] = useState('')
+  const [adoptedKey, setAdoptedKey] = useState(false)
 
   const loadOrder = useCallback(async (silent = false) => {
     if (!publicId || typeof window === 'undefined') return
-    const token = sessionStorage.getItem(tokenKey(publicId)) ?? ''
-    const response = await fetch(`/api/public/orders/${publicId}`, { headers: { 'x-order-access-token': token }, cache: 'no-store' })
+    const currentToken = sessionStorage.getItem(guestTokenStorageKey(publicId)) ?? ''
+    const response = await fetch(`/api/public/orders/${publicId}`, { headers: { 'x-order-access-token': currentToken }, cache: 'no-store' })
     if (!response.ok) {
       if (!silent) setError(response.status === 404 ? 'Order not found, or the access key does not match this order.' : 'Unable to load your order right now. Please try again.')
       return
     }
     setOrder(await response.json())
+    setToken(currentToken)
     if (!silent) setError('')
   }, [publicId])
 
-  // Resolve the route param, then load once. The token check lives inside the
-  // promise callback so the missing-key state is set asynchronously (no
-  // cascading render from a synchronous effect setState).
-  useEffect(() => { params.then((value) => { setPublicId(value.publicId); if (typeof window !== 'undefined' && !sessionStorage.getItem(tokenKey(value.publicId))) setHasToken(false) }) }, [params])
+  // Resolve the route param and adopt a recovery key from the URL if present:
+  // the key moves into sessionStorage and the address bar is rewritten clean
+  // immediately, so the token never persists in browser history. All state
+  // updates happen inside the promise callback (no synchronous effect
+  // setState).
+  useEffect(() => {
+    params.then((value) => {
+      const id = value.publicId
+      setPublicId(id)
+      if (typeof window === 'undefined') return
+      const fromUrl = recoveryKeyFromSearch(window.location.search)
+      if (fromUrl) {
+        sessionStorage.setItem(guestTokenStorageKey(id), fromUrl)
+        window.history.replaceState(null, '', window.location.pathname)
+        setAdoptedKey(true)
+        return
+      }
+      if (!sessionStorage.getItem(guestTokenStorageKey(id))) setHasToken(false)
+    })
+  }, [params])
   useEffect(() => {
     if (!publicId || hasToken === false) return
     const start = setTimeout(() => { loadOrder() }, 0)
@@ -67,19 +86,19 @@ export default function GuestOrderPage({ params }: { params: Promise<{ publicId:
   // Paid orders: load the issued ticket list for deep links.
   useEffect(() => {
     if (!order || order.status !== 'PAID' || tickets || typeof window === 'undefined') return
-    fetch(`/api/public/orders/${publicId}/tickets`, { headers: { 'x-order-access-token': sessionStorage.getItem(tokenKey(publicId)) ?? '' }, cache: 'no-store' }).then(async (response) => { if (response.ok) setTickets(await response.json()) }).catch(() => null)
+    fetch(`/api/public/orders/${publicId}/tickets`, { headers: { 'x-order-access-token': sessionStorage.getItem(guestTokenStorageKey(publicId)) ?? '' }, cache: 'no-store' }).then(async (response) => { if (response.ok) setTickets(await response.json()) }).catch(() => null)
   }, [order, tickets, publicId])
 
   // Active orders: load payment info (drives the dev test-payment shortcut).
   useEffect(() => {
     if (!order || !ACTIVE_STATUSES.includes(order.status) || typeof window === 'undefined') return
-    fetch(`/api/orders/${publicId}/payment`, { headers: { 'x-order-access-token': sessionStorage.getItem(tokenKey(publicId)) ?? '' }, cache: 'no-store' }).then(async (response) => { setPayment(response.ok ? await response.json() : null) }).catch(() => null)
+    fetch(`/api/orders/${publicId}/payment`, { headers: { 'x-order-access-token': sessionStorage.getItem(guestTokenStorageKey(publicId)) ?? '' }, cache: 'no-store' }).then(async (response) => { setPayment(response.ok ? await response.json() : null) }).catch(() => null)
   }, [order, publicId])
 
   async function cancelOrder() {
     if (!order || !window.confirm('Cancel this order? Your reserved tickets are released back into inventory and this cannot be undone.')) return
     setPending(true); setNotice(''); setError('')
-    const response = await fetch(`/api/public/orders/${publicId}/cancel`, { method: 'PATCH', headers: { 'x-order-access-token': sessionStorage.getItem(tokenKey(publicId)) ?? '' } })
+    const response = await fetch(`/api/public/orders/${publicId}/cancel`, { method: 'PATCH', headers: { 'x-order-access-token': token } })
     const result = await response.json().catch(() => null)
     if (!response.ok) setError(result?.message ?? 'Unable to cancel this order right now.')
     else { setOrder(result); setNotice('Order cancelled. Any reserved tickets were released back into inventory.') }
@@ -89,7 +108,7 @@ export default function GuestOrderPage({ params }: { params: Promise<{ publicId:
   async function retryPayment() {
     if (!order) return
     setPending(true); setNotice(''); setError('')
-    const response = await fetch(`/api/orders/${publicId}/payment`, { method: 'POST', headers: { 'content-type': 'application/json', 'x-order-access-token': sessionStorage.getItem(tokenKey(publicId)) ?? '' }, body: JSON.stringify({ idempotencyKey: crypto.randomUUID() }) })
+    const response = await fetch(`/api/orders/${publicId}/payment`, { method: 'POST', headers: { 'content-type': 'application/json', 'x-order-access-token': token }, body: JSON.stringify({ idempotencyKey: crypto.randomUUID() }) })
     const result = await response.json().catch(() => null)
     if (!response.ok) setError(result?.message ?? 'Unable to start payment. Please try again.')
     else { setPayment(result); setNotice(`Payment started — status ${String(result?.status ?? 'PROCESSING').toLowerCase()}.`) }
@@ -100,7 +119,7 @@ export default function GuestOrderPage({ params }: { params: Promise<{ publicId:
   async function completeTestPayment() {
     if (!payment) return
     setPending(true); setNotice(''); setError('')
-    const response = await fetch(`/api/orders/${publicId}/payment/test-complete`, { method: 'POST', headers: { 'x-order-access-token': sessionStorage.getItem(tokenKey(publicId)) ?? '' } })
+    const response = await fetch(`/api/orders/${publicId}/payment/test-complete`, { method: 'POST', headers: { 'x-order-access-token': token } })
     const result = await response.json().catch(() => null)
     if (!response.ok) setError(result?.message ?? 'Test payment could not be completed.')
     else { setTickets(null); setNotice('Test payment verified. Your tickets are being issued.') }
@@ -113,8 +132,31 @@ export default function GuestOrderPage({ params }: { params: Promise<{ publicId:
     navigator.clipboard?.writeText(order.orderNumber).then(() => setNotice('Order reference copied to clipboard.')).catch(() => null)
   }
 
+  const recoveryLink = order && token ? `${typeof window !== 'undefined' ? window.location.origin : ''}${buildRecoveryPath(order.publicId, token)}` : ''
+
+  function copyRecoveryLink() {
+    if (!recoveryLink) return
+    navigator.clipboard?.writeText(recoveryLink).then(() => setNotice('Recovery link copied. Save it somewhere safe — it reopens this order in any browser.')).catch(() => null)
+  }
+
+  async function rotateKey() {
+    if (!order || !token) return
+    if (!window.confirm('Reset the access key for this order? Every previously shared link stops working, and you will receive a new recovery link to save.')) return
+    setPending(true); setNotice(''); setError('')
+    const response = await fetch(`/api/public/orders/${publicId}/rekey`, { method: 'POST', headers: { 'x-order-access-token': token } })
+    const result = await response.json().catch(() => null)
+    if (!response.ok) setError(result?.message ?? 'Unable to reset the access key right now.')
+    else {
+      sessionStorage.setItem(guestTokenStorageKey(publicId), result.guestAccessToken)
+      setToken(result.guestAccessToken)
+      setTickets(null)
+      setNotice('Access key reset. Previous copies of your order link no longer work — save the new recovery link below.')
+    }
+    setPending(false)
+  }
+
   if (hasToken === false) {
-    return <main className="auth-page stack"><Link className="text-link" href="/">← Return home</Link><p className="eyebrow">Guest order status</p><h1>Access key needed</h1><section className="surface stack" aria-label="Access key required"><p>This order page is protected by a private access key that was issued when the order was created. It lives in this browser only if the order was placed here.</p><p className="muted">Reopen the order confirmation in the browser you used to order, or contact the event organizer with your order reference for help.</p></section></main>
+    return <main className="auth-page stack"><Link className="text-link" href="/">← Return home</Link><p className="eyebrow">Guest order status</p><h1>Access key needed</h1><section className="surface stack" aria-label="Access key required"><p>This order page is unlocked by a private access key. It lives in this browser if the order was placed here, or inside a recovery link like <code>/guest/orders/…?key=…</code>.</p><p className="muted">Reopen the confirmation page from the browser you ordered in, or ask the event organizer for help with your order reference.</p></section></main>
   }
   if (error) return <main className="auth-page stack"><Link className="text-link" href="/">← Return home</Link><p className="eyebrow">Guest order status</p><h1>Order unavailable</h1><p role="alert" className="error-text">{error}</p></main>
   if (!order) return <main className="auth-page"><p>Loading order…</p></main>
@@ -130,6 +172,7 @@ export default function GuestOrderPage({ params }: { params: Promise<{ publicId:
       <h1>{order.orderNumber}</h1>
       <span className="status-pill" data-status={order.status}>{order.status.replace(/_/g, ' ').toLowerCase()}</span>
     </div>
+    {adoptedKey && <p role="status" className="muted">Access key restored from your recovery link — the address bar has been cleaned up. Consider saving the link below.</p>}
     {notice && <p role="status">{notice}</p>}
 
     <section className="surface stack" aria-label="Order summary">
@@ -172,6 +215,13 @@ export default function GuestOrderPage({ params }: { params: Promise<{ publicId:
 
     {order.status === 'CANCELLED' && <section className="surface stack" aria-label="Cancelled order"><h2>Order cancelled</h2><p className="muted">This order was cancelled{order.cancelledAt ? ` on ${new Date(order.cancelledAt).toLocaleString('en-UG')}` : ''} and its reserved tickets were released back into inventory. Place a new order from the event page if you still want to attend.</p></section>}
     {order.status === 'EXPIRED' && <section className="surface stack" aria-label="Expired order"><h2>Order expired</h2><p className="muted">The payment window lapsed before payment completed, so the reservation was released automatically. Place a new order from the event page if tickets remain.</p></section>}
+
+    {token && <section className="surface stack" aria-label="Order recovery">
+      <h2>Keep access to this order</h2>
+      <p className="muted">This order is unlocked by a private access key stored in this browser. Save the recovery link — it reopens this order in any browser, even after this tab is closed.</p>
+      <div className="row-between recovery-row"><code className="recovery-link">{recoveryLink}</code><button type="button" className="button button-quiet" onClick={copyRecoveryLink}>Copy link</button></div>
+      <div className="row-between recovery-row"><span className="muted">Shared the link by mistake?</span><button type="button" className="button button-quiet" onClick={rotateKey} disabled={pending}>Reset access key</button></div>
+    </section>}
 
     <footer className="auth-footer muted">TicketUG · Natural Intellects Ltd — keep this tab&apos;s access key private; anyone with it can view this order.</footer>
   </main>

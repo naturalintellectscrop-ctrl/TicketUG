@@ -136,6 +136,19 @@ export class OrdersService {
     })
   }
 
+  // Access-key rotation ("single-use re-key"): a guest who still holds a valid
+  // key can retire it and receive a fresh one. Every previously shared
+  // recovery link for the order stops working immediately, which both restores
+  // access (save the new link) and revokes accidental exposure.
+  async rekeyGuest(publicId: string, token: string) {
+    const result = await this.db.query<OrderRow>(`SELECT ${orderSummary}, o.guest_access_token_hash FROM ticketug.order o WHERE o.public_id=$1`, [publicId])
+    const order = result.rows[0]
+    if (!order || !order.guest_access_token_hash || order.guest_access_token_hash !== this.tokenHash(token)) throw new NotFoundException('Order not found')
+    const nextToken = randomBytes(32).toString('base64url')
+    await this.db.query('UPDATE ticketug.order SET guest_access_token_hash=$2, updated_at=now() WHERE id=$1', [order.id, this.tokenHash(nextToken)])
+    return { publicId: order.public_id, orderNumber: order.order_number, guestAccessToken: nextToken }
+  }
+
   async listForEvent(user: ApiUser, eventId: string) {
     const access = await this.db.query<{ organizer_id: string }>('SELECT organizer_id FROM ticketug.event WHERE id=$1', [eventId]); const organizerId = access.rows[0]?.organizer_id
     if (!organizerId) throw new NotFoundException('Event not found')

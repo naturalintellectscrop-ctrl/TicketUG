@@ -19,4 +19,5 @@ export class OrdersController {
   @Post('public/orders/guest') guest(@Body() body: CreateOrderDto) { return this.orders.create(null, body, true) }
   @Get('public/orders/:publicId') guestGet(@Param('publicId') publicId: string, @Headers('x-order-access-token') token?: string) { if (!token) throw new UnauthorizedException('Guest access token required'); return this.orders.getGuest(publicId, token) }
   @Patch('public/orders/:publicId/cancel') guestCancel(@Param('publicId') publicId: string, @Headers('x-order-access-token') token?: string) { if (!token) throw new UnauthorizedException('Guest access token required'); return this.orders.cancelGuest(publicId, token) }
+  @Post('public/orders/:publicId/rekey') guestRekey(@Param('publicId') publicId: string, @Headers('x-order-access-token') token?: string) { if (!token) throw new UnauthorizedException('Guest access token required'); return this.orders.rekeyGuest(publicId, token) }
 }
