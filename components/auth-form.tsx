@@ -3,10 +3,11 @@
 import { FormEvent, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { authClient } from '@/lib/auth-client'
+import { safeInternalPath } from '@/lib/safe-redirect'
 
 type Mode = 'sign-in' | 'sign-up'
 
-export function AuthForm({ mode }: { mode: Mode }) {
+export function AuthForm({ mode, nextPath }: { mode: Mode; nextPath?: string }) {
   const router = useRouter()
   const [error, setError] = useState<string | null>(null)
   const [pending, setPending] = useState(false)
@@ -27,7 +28,9 @@ export function AuthForm({ mode }: { mode: Mode }) {
         setError('Unable to authenticate with those details. Check your information and try again.')
         return
       }
-      router.push('/account')
+      // Honour ?next= when the caller passed a safe internal path (e.g. the
+      // event order page), so buyers return to checkout instead of /account.
+      router.push(safeInternalPath(nextPath, '/account'))
       router.refresh()
     } catch {
       setError('Authentication is temporarily unavailable. Please try again.')

@@ -76,4 +76,11 @@ h1 em, h2 em { color: var(--brand); font-style: normal; }
 .recovery-link { flex: 1; min-width: 0; overflow-wrap: anywhere; border: 1px dashed var(--border); border-radius: 8px; padding: 8px 10px; background: rgb(255 255 255 / 55%); font-size: .74rem; color: var(--muted-foreground); }
 .qr-frame { display: grid; place-items: center; align-self: center; border: 1px dashed var(--border); border-radius: 18px; padding: 18px; background: rgb(255 255 255 / 65%); }
 .qr-frame img { border-radius: 8px; }
+/* Shared inline action rows + account forms (previously styled nowhere) */
+.row { display: flex; align-items: center; flex-wrap: wrap; gap: 12px; }
+.auth-form, .profile-form { display: flex; flex-direction: column; gap: 18px; max-width: 420px; margin-top: 26px; }
+.auth-form label, .profile-form label { display: flex; flex-direction: column; gap: 7px; font-weight: 700; }
+.auth-form input, .profile-form input { border: 1px solid var(--border); border-radius: 12px; background: var(--background); color: var(--foreground); padding: 12px 14px; font: inherit; }
+.auth-form button, .profile-form button { align-self: flex-start; border: 0; border-radius: 999px; background: var(--ink); color: #fff8ed; padding: 13px 20px; font: inherit; font-weight: 700; cursor: pointer; transition: transform .25s cubic-bezier(.2,.8,.2,1), box-shadow .25s ease; }
+.auth-form button:hover, .profile-form button:hover { transform: translateY(-3px); box-shadow: 0 10px 24px rgb(23 23 20 / 14%); }
 @media (max-width: 640px) { .auth-page { padding: 28px 18px 44px; } .ticket-row { flex-direction: column; align-items: flex-start; } }

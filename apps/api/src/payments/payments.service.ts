@@ -38,7 +38,20 @@ export class PaymentsService {
   async simulateTestSuccess(publicId: string, token: string) {
     if (process.env.NODE_ENV === 'production' || process.env.PAYMENT_MODE !== 'test') throw new ServiceUnavailableException('TEST_PAYMENT_DISABLED')
     const order = await this.guestOrder(publicId, token)
-    const result = await this.db.query<{ provider_attempt_reference: string; amount_minor_units: string; currency: string; public_id: string }>(`SELECT a.provider_attempt_reference,a.amount_minor_units,a.currency,o.public_id FROM ticketug.payment_attempt a JOIN ticketug.payment p ON p.id=a.payment_id JOIN ticketug.order o ON o.id=p.order_id WHERE a.payment_id=(SELECT id FROM ticketug.payment WHERE order_id=$1) ORDER BY a.initiated_at DESC LIMIT 1`, [order.id])
+    return this.testCompleteForOrder(order.id)
+  }
+
+  // Same dev-only simulation for signed-in buyers (orders with no guest token
+  // hash can never pass guestOrder, so the authenticated surface needs its
+  // own ownership check before the shared webhook path runs).
+  async simulateTestSuccessForUser(user: ApiUser, publicId: string) {
+    if (process.env.NODE_ENV === 'production' || process.env.PAYMENT_MODE !== 'test') throw new ServiceUnavailableException('TEST_PAYMENT_DISABLED')
+    const order = await this.orderForAccess(publicId, user)
+    return this.testCompleteForOrder(order.id)
+  }
+
+  private async testCompleteForOrder(orderId: string) {
+    const result = await this.db.query<{ provider_attempt_reference: string; amount_minor_units: string; currency: string; public_id: string }>(`SELECT a.provider_attempt_reference,a.amount_minor_units,a.currency,o.public_id FROM ticketug.payment_attempt a JOIN ticketug.payment p ON p.id=a.payment_id JOIN ticketug.order o ON o.id=p.order_id WHERE a.payment_id=(SELECT id FROM ticketug.payment WHERE order_id=$1) ORDER BY a.initiated_at DESC LIMIT 1`, [orderId])
     const attempt = result.rows[0]
     if (!attempt?.provider_attempt_reference) throw new NotFoundException('PAYMENT_ATTEMPT_NOT_FOUND')
     const event = { eventId: `test_evt_${randomUUID()}`, type: 'payment.succeeded', attemptReference: attempt.provider_attempt_reference, orderReference: attempt.public_id, amountMinorUnits: Number(attempt.amount_minor_units), currency: attempt.currency, status: 'SUCCEEDED' }
