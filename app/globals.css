@@ -103,3 +103,21 @@ h1 em, h2 em { color: var(--brand); font-style: normal; }
 .invite-token { overflow-wrap: anywhere; border: 1px dashed var(--border); border-radius: 10px; padding: 10px 12px; background: rgb(255 255 255 / 65%); font-size: .76rem; }
 .form-stack select { border: 1px solid var(--border); border-radius: 12px; background: var(--background); color: var(--foreground); padding: 12px 14px; font: inherit; }
 @media (max-width: 640px) { .invite-row { flex-direction: column; align-items: flex-start; } }
+/* Member roster management ----------------------------------------------------- */
+.roster-rows { display: grid; gap: 10px; }
+.roster-row { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 12px; border: 1px solid var(--border); border-radius: 16px; padding: 14px 16px; background: rgb(255 255 255 / 45%); transition: transform .25s cubic-bezier(.2,.8,.2,1), box-shadow .25s ease, border-color .25s ease; }
+.roster-row:hover { transform: translateY(-2px); border-color: var(--brand); box-shadow: 0 10px 24px rgb(23 23 20 / 10%); }
+.roster-row[data-self='true'] { border-color: rgb(239 91 67 / 45%); background: rgb(239 91 67 / 5%); }
+.member-identity { display: flex; align-items: center; gap: 12px; min-width: 0; }
+.member-identity > div { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+.member-avatar { display: inline-flex; align-items: center; justify-content: center; width: 42px; height: 42px; flex: 0 0 auto; border-radius: 50%; background: rgb(239 91 67 / 12%); color: #b23a24; border: 1px solid rgb(239 91 67 / 35%); font-family: var(--font-display), sans-serif; font-weight: 800; font-size: .95rem; letter-spacing: -.02em; }
+.member-avatar[data-role='ORGANIZER_OWNER'] { background: rgb(23 23 20 / 8%); color: var(--ink); border-color: rgb(23 23 20 / 32%); }
+.member-name { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; font-weight: 700; overflow-wrap: anywhere; }
+.member-self-tag { border: 1px solid var(--border); border-radius: 999px; padding: 2px 8px; font-size: .66rem; font-weight: 800; letter-spacing: .09em; text-transform: uppercase; color: var(--brand); background: rgb(239 91 67 / 8%); }
+.member-meta { display: flex; align-items: center; flex-wrap: wrap; gap: 7px; font-size: .78rem; color: var(--muted-foreground); }
+.role-badge { border: 1px solid var(--border); border-radius: 999px; padding: 2px 9px; font-size: .68rem; font-weight: 800; letter-spacing: .06em; text-transform: uppercase; color: var(--muted-foreground); background: rgb(255 255 255 / 55%); }
+.role-badge[data-role='ORGANIZER_OWNER'] { background: var(--ink); border-color: var(--ink); color: var(--lime); }
+.role-badge[data-role='ORGANIZER_MANAGER'] { background: rgb(239 91 67 / 10%); border-color: rgb(239 91 67 / 40%); color: #b23a24; }
+.roster-actions { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; }
+.roster-actions .button { padding: 9px 14px; font-size: .78rem; }
+@media (max-width: 640px) { .roster-row { flex-direction: column; align-items: flex-start; } .roster-actions { width: 100%; } }
