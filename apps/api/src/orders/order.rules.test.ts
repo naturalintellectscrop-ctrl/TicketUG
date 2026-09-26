@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { calculateLineTotal, calculateOrderTotal, isOrderExpiryDue, paymentDeadline, PAYMENT_WINDOW_MINUTES, validateOrderItems } from './order.rules'
+import { assertOrderTransition, calculateLineTotal, calculateOrderTotal, isOrderExpiryDue, paymentDeadline, PAYMENT_WINDOW_MINUTES, validateOrderItems, type OrderStatus } from './order.rules'
 
 describe('order rules', () => {
   it('requires positive unique quantities', () => {
@@ -39,5 +39,27 @@ describe('payment window / expiry rules', () => {
   it('treats deadline equality as due (boundary)', () => {
     const at = '2026-01-01T00:00:00.000Z'
     expect(isOrderExpiryDue({ status: 'AWAITING_PAYMENT', payment_expires_at: at }, new Date(at))).toBe(true)
+  })
+})
+
+describe('order lifecycle state machine', () => {
+  it('allows every path out of the pre-payment states', () => {
+    expect(() => assertOrderTransition('AWAITING_PAYMENT', 'PAYMENT_PROCESSING')).not.toThrow()
+    expect(() => assertOrderTransition('AWAITING_PAYMENT', 'PAID')).not.toThrow()
+    expect(() => assertOrderTransition('AWAITING_PAYMENT', 'CANCELLED')).not.toThrow()
+    expect(() => assertOrderTransition('AWAITING_PAYMENT', 'EXPIRED')).not.toThrow()
+    expect(() => assertOrderTransition('PAYMENT_PROCESSING', 'PAID')).not.toThrow()
+    expect(() => assertOrderTransition('PAYMENT_PROCESSING', 'CANCELLED')).not.toThrow()
+    expect(() => assertOrderTransition('PAYMENT_PROCESSING', 'EXPIRED')).not.toThrow()
+  })
+  it('rejects payment processing started twice and same-state writes', () => {
+    expect(() => assertOrderTransition('AWAITING_PAYMENT', 'AWAITING_PAYMENT')).toThrow()
+    expect(() => assertOrderTransition('PAYMENT_PROCESSING', 'PAYMENT_PROCESSING')).toThrow()
+    expect(() => assertOrderTransition('PAYMENT_PROCESSING', 'AWAITING_PAYMENT')).toThrow()
+  })
+  it('treats PAID, CANCELLED and EXPIRED as terminal', () => {
+    const terminal: OrderStatus[] = ['PAID', 'CANCELLED', 'EXPIRED']
+    const all: OrderStatus[] = ['AWAITING_PAYMENT', 'PAYMENT_PROCESSING', 'PAID', 'CANCELLED', 'EXPIRED']
+    for (const from of terminal) for (const to of all) expect(() => assertOrderTransition(from, to)).toThrow()
   })
 })

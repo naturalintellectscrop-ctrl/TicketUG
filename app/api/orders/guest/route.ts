@@ -2,6 +2,11 @@ import { NextRequest } from 'next/server'
 import { z } from 'zod'
 import { pool } from '@/lib/db'
 import { randomBytes, randomUUID, createHash } from 'node:crypto'
+import { checkRateLimit, rateLimitKey } from '@/lib/rate-limit'
+
+// Response shape mirrors the canonical Nest presenter (orders.service.ts
+// present()): camelCase JSON. The order form consumes publicId/orderNumber/
+// paymentExpiresAt/guestAccessToken — keep both surfaces identical.
 
 // Payment window for the inventory reservation. Keep in sync with the
 // canonical definition in apps/api/src/orders/order.rules.ts
@@ -11,6 +16,8 @@ const PAYMENT_WINDOW_MINUTES = Math.min(120, Math.max(1, Number(process.env.PAYM
 const payload = z.object({ items: z.array(z.object({ ticketTypeId: z.string().min(1), quantity: z.number().int().positive().max(100) })).min(1).superRefine((items, context) => { const ids = new Set<string>(); for (const item of items) { if (ids.has(item.ticketTypeId)) context.addIssue({ code: 'custom', message: 'Each ticket type may appear once per order' }); ids.add(item.ticketTypeId) } }), purchaserName: z.string().trim().min(1).max(180), purchaserEmail: z.string().email().max(320), idempotencyKey: z.string().max(128).optional() })
 
 export async function POST(request: NextRequest) {
+  const limited = checkRateLimit(rateLimitKey(request, 'guest-order-create'), 10)
+  if (!limited.allowed) return Response.json({ message: 'Too many order attempts. Please wait a minute and try again.' }, { status: 429, headers: { 'retry-after': String(Math.ceil((limited.retryAfterMs ?? 60_000) / 1000)) } })
   const parsed = payload.safeParse(await request.json())
   if (!parsed.success) return Response.json({ message: parsed.error.issues[0]?.message ?? 'Invalid order' }, { status: 400 })
   const { items, purchaserName, purchaserEmail, idempotencyKey } = parsed.data
@@ -41,13 +48,28 @@ export async function POST(request: NextRequest) {
     const total = lines.reduce((sum, line) => sum + line.line, BigInt(0))
     const token = randomBytes(32).toString('base64url')
     const orderId = randomUUID()
-    const order = await client.query('INSERT INTO ticketug.order (id,public_id,order_number,purchaser_name,purchaser_email,guest_access_token_hash,total_minor_units,idempotency_key,payment_expires_at) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9) RETURNING public_id,order_number,status,total_minor_units,currency,payment_expires_at', [orderId, `ord_${randomBytes(12).toString('hex')}`, `UG-${new Date().getUTCFullYear()}-${randomBytes(5).toString('hex').toUpperCase()}`, purchaserName, purchaserEmail.toLowerCase(), createHash('sha256').update(token).digest('hex'), total.toString(), idempotencyKey ?? null, new Date(Date.now() + PAYMENT_WINDOW_MINUTES * 60_000)])
+    const order = await client.query('INSERT INTO ticketug.order (id,public_id,order_number,purchaser_name,purchaser_email,guest_access_token_hash,total_minor_units,idempotency_key,payment_expires_at) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9) RETURNING public_id,order_number,status,purchaser_name,purchaser_email,total_minor_units,currency,payment_expires_at,created_at,updated_at', [orderId, `ord_${randomBytes(12).toString('hex')}`, `UG-${new Date().getUTCFullYear()}-${randomBytes(5).toString('hex').toUpperCase()}`, purchaserName, purchaserEmail.toLowerCase(), createHash('sha256').update(token).digest('hex'), total.toString(), idempotencyKey ?? null, new Date(Date.now() + PAYMENT_WINDOW_MINUTES * 60_000)])
     for (const line of lines) {
       const updated = await client.query('UPDATE ticketug.ticket_type SET remaining_capacity=remaining_capacity-$2 WHERE id=$1 AND remaining_capacity >= $2', [line.ticket.id, line.item.quantity])
       if (updated.rowCount !== 1) throw new Error('Insufficient ticket inventory')
       await client.query('INSERT INTO ticketug.order_item (id,order_id,ticket_type_id,quantity,ticket_name_snapshot,unit_price_minor_units,currency_snapshot,line_total_minor_units) VALUES ($1,$2,$3,$4,$5,$6,$7,$8)', [randomUUID(), orderId, line.ticket.id, line.item.quantity, line.ticket.name, line.ticket.price_minor_units, line.ticket.currency, line.line.toString()])
     }
     await client.query('COMMIT')
-    return Response.json({ ...order.rows[0], guestAccessToken: token }, { status: 201 })
+    const row = order.rows[0]
+    return Response.json({
+      publicId: row.public_id,
+      orderNumber: row.order_number,
+      status: row.status,
+      purchaserName: row.purchaser_name,
+      purchaserEmail: row.purchaser_email,
+      currency: row.currency,
+      totalMinorUnits: Number(row.total_minor_units),
+      createdAt: row.created_at,
+      updatedAt: row.updated_at,
+      cancelledAt: null,
+      paymentExpiresAt: row.payment_expires_at,
+      items: lines.map((line) => ({ ticketTypeId: line.ticket.id, ticketName: line.ticket.name, quantity: line.item.quantity, unitPriceMinorUnits: Number(line.ticket.price_minor_units), currency: line.ticket.currency, lineTotalMinorUnits: Number(line.line) })),
+      guestAccessToken: token,
+    }, { status: 201 })
   } catch (error) { await client.query('ROLLBACK'); return Response.json({ message: error instanceof Error ? error.message : 'Unable to create order' }, { status: 409 }) } finally { client.release() }
 }

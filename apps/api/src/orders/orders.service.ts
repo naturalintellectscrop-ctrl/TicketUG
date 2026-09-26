@@ -2,8 +2,9 @@ import { BadRequestException, ConflictException, ForbiddenException, NotFoundExc
 import { createHash, randomBytes, randomUUID } from 'node:crypto'
 import type { ApiUser } from '../auth/auth.types'
 import { DatabaseService } from '../common/database.service'
-import { calculateLineTotal, calculateOrderTotal, validateOrderItems, PAYMENT_WINDOW_MINUTES, paymentDeadline, type OrderStatus } from './order.rules'
-import { expireStaleOrders } from './order-expiry'
+import { assertOrderTransition, calculateLineTotal, calculateOrderTotal, validateOrderItems, PAYMENT_WINDOW_MINUTES, paymentDeadline, type OrderStatus } from './order.rules'
+import { expireOrderIfDue, expireStaleOrders } from './order-expiry'
+import { assertPaymentTransition, type PaymentStatus } from '../payments/payment.rules'
 import type { CreateOrderDto } from './order.dto'
 
 type OrderRow = { id: string; public_id: string; order_number: string; user_profile_id: string | null; purchaser_name: string; purchaser_email: string; guest_access_token_hash?: string | null; status: OrderStatus; currency: string; total_minor_units: string; idempotency_key?: string | null; created_at: string; updated_at: string; cancelled_at: string | null; payment_expires_at: string | null }
@@ -82,20 +83,56 @@ export class OrdersService {
   // Exposed at POST /api/v1/system/orders/expire-stale (x-cron-secret guarded).
   async expireStale(limit?: number) { const orders = await expireStaleOrders(this.db, limit); return { expiredCount: orders.length, windowMinutes: PAYMENT_WINDOW_MINUTES, orders } }
   async getMine(user: ApiUser, publicId: string) { const order = await this.findByPublicId(publicId); if (order.user_profile_id !== user.profileId) throw new NotFoundException('Order not found'); return this.withItems(order) }
-  async getGuest(publicId: string, token: string) { const result = await this.db.query<OrderRow>(`SELECT ${orderSummary}, o.guest_access_token_hash FROM ticketug.order o WHERE o.public_id=$1`, [publicId]); const order = result.rows[0]; if (!order || !order.guest_access_token_hash || order.guest_access_token_hash !== this.tokenHash(token)) throw new NotFoundException('Order not found'); return this.withItems(order) }
+  async getGuest(publicId: string, token: string) {
+    // Lazy expiry hook so guest status reads reflect a lapsed payment window
+    // exactly like the operator sweep would (same pattern as payments.service).
+    await expireOrderIfDue(this.db, publicId)
+    const result = await this.db.query<OrderRow>(`SELECT ${orderSummary}, o.guest_access_token_hash FROM ticketug.order o WHERE o.public_id=$1`, [publicId]); const order = result.rows[0]; if (!order || !order.guest_access_token_hash || order.guest_access_token_hash !== this.tokenHash(token)) throw new NotFoundException('Order not found'); return this.withItems(order)
+  }
 
   private async findByPublicId(publicId: string) { const result = await this.db.query<OrderRow>(`SELECT ${orderSummary} FROM ticketug.order o WHERE o.public_id=$1`, [publicId]); if (!result.rows[0]) throw new NotFoundException('Order not found'); return result.rows[0] }
+
+  // Caller must already hold FOR UPDATE on the order row and have asserted the
+  // CANCELLED transition. Restores inventory with the same guarded increment
+  // used by expiry and terminates any in-flight payment/attempt so late
+  // webhooks observe a terminal attempt state instead of re-driving the order.
+  private async cancelLockedOrder(client: { query: <T>(text: string, values?: unknown[]) => Promise<{ rows: T[] }> }, orderId: string): Promise<ItemRow[]> {
+    const items = (await client.query<ItemRow>('SELECT ticket_type_id, ticket_name_snapshot, quantity, unit_price_minor_units, currency_snapshot, line_total_minor_units FROM ticketug.order_item WHERE order_id=$1 ORDER BY created_at', [orderId])).rows
+    for (const item of items) await client.query('UPDATE ticketug.ticket_type SET remaining_capacity=remaining_capacity+$2, updated_at=now() WHERE id=$1 AND remaining_capacity + $2 <= capacity', [item.ticket_type_id, item.quantity])
+    const updated = (await client.query<OrderRow>(`UPDATE ticketug.order SET status='CANCELLED', payment_state='CANCELLED', cancelled_at=now(), updated_at=now() WHERE id=$1 RETURNING ${orderSummary}`, [orderId])).rows[0]
+    const payments = (await client.query<{ id: string; status: string }>("SELECT id, status FROM ticketug.payment WHERE order_id=$1 AND status IN ('PENDING','PROCESSING')", [orderId])).rows
+    for (const payment of payments) {
+      assertPaymentTransition(payment.status as PaymentStatus, 'CANCELLED')
+      await client.query("UPDATE ticketug.payment SET status='CANCELLED', updated_at=now() WHERE id=$1", [payment.id])
+      await client.query("UPDATE ticketug.payment_attempt SET status='CANCELLED', completed_at=now() WHERE payment_id=$1 AND status IN ('PENDING','PROCESSING')", [payment.id])
+    }
+    return items
+  }
 
   async cancel(user: ApiUser, publicId: string) {
     const order = await this.findByPublicId(publicId)
     if (order.user_profile_id !== user.profileId) throw new NotFoundException('Order not found')
     return this.db.transaction(async (client) => {
       const locked = (await client.query<OrderRow>(`SELECT ${orderSummary} FROM ticketug.order o WHERE o.id=$1 FOR UPDATE`, [order.id])).rows[0]
-      if (locked.status !== 'AWAITING_PAYMENT') throw new ConflictException('Order cannot be cancelled in its current state')
-      const items = (await client.query<ItemRow>('SELECT ticket_type_id, ticket_name_snapshot, quantity, unit_price_minor_units, currency_snapshot, line_total_minor_units FROM ticketug.order_item WHERE order_id=$1 ORDER BY created_at', [order.id])).rows
-      for (const item of items) await client.query('UPDATE ticketug.ticket_type SET remaining_capacity=remaining_capacity+$2, updated_at=now() WHERE id=$1 AND remaining_capacity + $2 <= capacity', [item.ticket_type_id, item.quantity])
-      const updated = (await client.query<OrderRow>(`UPDATE ticketug.order SET status='CANCELLED', cancelled_at=now(), updated_at=now() WHERE id=$1 RETURNING ${orderSummary}`, [order.id])).rows[0]
-      return this.present(updated, items)
+      assertOrderTransition(locked.status, 'CANCELLED')
+      const items = await this.cancelLockedOrder(client, locked.id)
+      return this.present(locked, items)
+    })
+  }
+
+  // Guest self-service cancellation. The access token (sha256-compared against
+  // guest_access_token_hash) is the only credential — guest orders have no
+  // owning user, so the authenticated cancel path can never see them.
+  async cancelGuest(publicId: string, token: string) {
+    await expireOrderIfDue(this.db, publicId)
+    const result = await this.db.query<OrderRow>(`SELECT ${orderSummary}, o.guest_access_token_hash FROM ticketug.order o WHERE o.public_id=$1`, [publicId])
+    const order = result.rows[0]
+    if (!order || !order.guest_access_token_hash || order.guest_access_token_hash !== this.tokenHash(token)) throw new NotFoundException('Order not found')
+    return this.db.transaction(async (client) => {
+      const locked = (await client.query<OrderRow>(`SELECT ${orderSummary} FROM ticketug.order o WHERE o.id=$1 FOR UPDATE`, [order.id])).rows[0]
+      try { assertOrderTransition(locked.status, 'CANCELLED') } catch { throw new ConflictException('Order cannot be cancelled in its current state') }
+      const items = await this.cancelLockedOrder(client, locked.id)
+      return this.present(locked, items)
     })
   }
 

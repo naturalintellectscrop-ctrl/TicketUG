@@ -18,4 +18,5 @@ export class OrdersController {
   @Get('organizer/events/:eventId/orders') eventOrders(@CurrentUser() user: ApiUser, @Param('eventId') eventId: string) { return this.orders.listForEvent(user, eventId) }
   @Post('public/orders/guest') guest(@Body() body: CreateOrderDto) { return this.orders.create(null, body, true) }
   @Get('public/orders/:publicId') guestGet(@Param('publicId') publicId: string, @Headers('x-order-access-token') token?: string) { if (!token) throw new UnauthorizedException('Guest access token required'); return this.orders.getGuest(publicId, token) }
+  @Patch('public/orders/:publicId/cancel') guestCancel(@Param('publicId') publicId: string, @Headers('x-order-access-token') token?: string) { if (!token) throw new UnauthorizedException('Guest access token required'); return this.orders.cancelGuest(publicId, token) }
 }

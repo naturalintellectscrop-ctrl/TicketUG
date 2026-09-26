@@ -37,6 +37,20 @@ export function paymentDeadline(from: Date = new Date()): Date {
   return new Date(from.getTime() + PAYMENT_WINDOW_MINUTES * 60_000)
 }
 
+// --- Order lifecycle state machine -----------------------------------------
+// Every mutation path (webhook PAID, cancel, expiry, payment initiation) must
+// assert through this map so the order column can never drift outside what the
+// 008 order_status_valid CHECK allows.
+const orderTransitions: Record<OrderStatus, readonly OrderStatus[]> = {
+  AWAITING_PAYMENT: ['PAYMENT_PROCESSING', 'PAID', 'CANCELLED', 'EXPIRED'],
+  PAYMENT_PROCESSING: ['PAID', 'CANCELLED', 'EXPIRED'],
+  PAID: [], CANCELLED: [], EXPIRED: [],
+}
+
+export function assertOrderTransition(from: OrderStatus, to: OrderStatus) {
+  if (!orderTransitions[from] || !orderTransitions[from].includes(to)) throw new Error(`ORDER_STATE_TRANSITION_INVALID: ${from} -> ${to}`)
+}
+
 export function isOrderExpiryDue(order: { status: string; payment_expires_at: string | Date | null }, now: Date = new Date()): boolean {
   if (order.status !== 'AWAITING_PAYMENT' && order.status !== 'PAYMENT_PROCESSING') return false
   if (!order.payment_expires_at) return false
