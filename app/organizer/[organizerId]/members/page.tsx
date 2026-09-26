@@ -31,7 +31,7 @@ export default async function MembersPage({ params }: { params: Promise<{ organi
   const invitations = canManage ? await listInvitations(context, organizerId) : []
   return (
     <main className="page-shell">
-      <p><Link href="/organizer" className="text-link">← Organizer workspaces</Link></p>
+      <p><Link href="/organizer" className="text-link">← Organizer workspaces</Link> · <Link href={`/organizer/${organizerId}/settings`} className="text-link">Workspace settings</Link></p>
       <p className="eyebrow">Team</p>
       <h1>{organizer.rows[0].name}</h1>
       <p className="lede">Everyone with access to this workspace, plus the invitations on their way in.</p>
