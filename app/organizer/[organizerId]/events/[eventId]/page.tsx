@@ -2,6 +2,7 @@ import Link from 'next/link'
 import { notFound, redirect } from 'next/navigation'
 import { getTicketUGContext } from '@/lib/request-context'
 import { canManageOrganizer } from '@/lib/organizer-authorization'
+import { EventLifecycleControls } from '@/components/event-lifecycle-controls'
 import { EventStaffManager } from '@/components/event-staff-manager'
 import { pool } from '@/lib/db'
 
@@ -19,6 +20,7 @@ export default async function OrganizerEventDetailPage({ params }: { params: Pro
   const event = result.rows[0]
   if (!event) notFound()
   const canManage = canManageOrganizer(context, organizerId)
+  const isOwner = context.organizerMemberships.find((membership) => membership.organizerId === organizerId && membership.status === 'ACTIVE')?.role === 'ORGANIZER_OWNER'
   const staff = (await pool.query(
     `SELECT a.id, a.user_profile_id AS "userProfileId", up.display_name AS "displayName", om.role AS "memberRole", a.status
        FROM ticketug.event_staff_assignment a
@@ -47,9 +49,12 @@ export default async function OrganizerEventDetailPage({ params }: { params: Pro
         <div className="event-meta"><span>{new Date(event.starts_at).toLocaleString('en-UG', { timeZone: event.timezone })}</span><span>{new Date(event.ends_at).toLocaleString('en-UG', { timeZone: event.timezone })}</span><span>{event.timezone}</span></div>
         <p>Slug: {event.slug}</p>
         <div className="row">
-          <Link className="button" href={`/organizer/${organizerId}/events/${eventId}/tickets`}>Manage ticket types</Link>
+          <Link className="button" href={`/organizer/${organizerId}/events/${eventId}/tickets`}>Issued tickets</Link>
           <Link className="button" href={`/organizer/${organizerId}/events/${eventId}/orders`}>View orders</Link>
         </div>
+      </div>
+      <div style={{ marginTop: 24 }}>
+        <EventLifecycleControls organizerId={organizerId} eventId={eventId} currentState={event.lifecycle_state} canManage={canManage} isOwner={isOwner} />
       </div>
       <div style={{ marginTop: 24 }}>
         <EventStaffManager organizerId={organizerId} eventId={eventId} initialStaff={staff} members={members} />

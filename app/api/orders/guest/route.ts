@@ -27,6 +27,8 @@ export async function POST(request: NextRequest) {
       const ticket = locked.find((row) => row.public_id === item.ticketTypeId)
       if (!ticket) throw new Error('Ticket type not found')
       if (!ticket.active || ticket.lifecycle_state !== 'SALES_OPEN' || ticket.publication_state !== 'PUBLIC') throw new Error('Event is not accepting orders')
+      if (ticket.sale_starts_at && Date.now() < Date.parse(ticket.sale_starts_at)) throw new Error('Ticket sales have not started')
+      if (ticket.sale_ends_at && Date.now() >= Date.parse(ticket.sale_ends_at)) throw new Error('Ticket sales have ended')
       if (ticket.remaining_capacity < item.quantity) throw new Error('Insufficient ticket inventory')
       const line = BigInt(ticket.price_minor_units) * BigInt(item.quantity)
       return { item, ticket, line }
