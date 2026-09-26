@@ -1,7 +1,13 @@
+BEGIN;
+
 CREATE SCHEMA IF NOT EXISTS ticketug;
 
 ALTER TABLE ticketug.order ADD COLUMN IF NOT EXISTS payment_state text NOT NULL DEFAULT 'AWAITING_PAYMENT';
 ALTER TABLE ticketug.order ADD COLUMN IF NOT EXISTS payment_expires_at timestamptz;
+-- 007 created an UNNAMED inline status CHECK that Postgres auto-names `order_status_check`.
+-- Drop BOTH candidate names so a strict 007→008 replay cannot leave the stale two-state
+-- check alongside the five-state constraint added below.
+ALTER TABLE ticketug.order DROP CONSTRAINT IF EXISTS order_status_check;
 ALTER TABLE ticketug.order DROP CONSTRAINT IF EXISTS order_status_valid;
 ALTER TABLE ticketug.order ADD CONSTRAINT order_status_valid CHECK (status IN ('AWAITING_PAYMENT','PAYMENT_PROCESSING','PAID','CANCELLED','EXPIRED'));
 ALTER TABLE ticketug.order ADD CONSTRAINT order_payment_state_valid CHECK (payment_state IN ('AWAITING_PAYMENT','PAYMENT_PROCESSING','PAID','CANCELLED','EXPIRED'));
@@ -63,3 +69,5 @@ CREATE TABLE IF NOT EXISTS ticketug.webhook_event (
   UNIQUE(provider, provider_event_id)
 );
 CREATE INDEX IF NOT EXISTS webhook_processing_idx ON ticketug.webhook_event(processing_status, received_at);
+
+COMMIT;

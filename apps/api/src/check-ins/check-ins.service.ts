@@ -27,7 +27,7 @@ export class CheckInsService {
 
   private async authorized(client: PoolClient, user: ApiUser, eventId: string) {
     if (user.roles.some((role) => role === 'PLATFORM_ADMIN' || role === 'SUPER_ADMIN')) return true
-    const event = (await client.query<{ organizer_id: string; status: string }>('SELECT organizer_id,status FROM ticketug.event WHERE id=$1', [eventId])).rows[0]
+    const event = (await client.query<{ organizer_id: string; status: string }>('SELECT organizer_id,lifecycle_state AS status FROM ticketug.event WHERE id=$1', [eventId])).rows[0]
     if (!event) throw new NotFoundException('Event not found')
     const membership = user.organizerMemberships.find((item) => item.organizerId === event.organizer_id && item.status === 'ACTIVE')
     if (!membership || !allowedRoles.has(membership.role)) throw new ForbiddenException('Scanner is not authorized for this event')
@@ -40,7 +40,9 @@ export class CheckInsService {
   }
 
   async listAssignedEvents(user: ApiUser) {
-    const result = await this.db.query<{ id: string; title: string; starts_at: string; status: string }>(`SELECT e.id,e.title,e.starts_at,e.status FROM ticketug.event e JOIN ticketug.event_staff_assignment a ON a.event_id=e.id WHERE a.user_profile_id=$1 AND a.status='ACTIVE' ORDER BY e.starts_at`, [user.profileId])
+    // Assigned event staff see their assignments; organizer owners/managers also see every
+    // event of organizers they actively manage (they pass scan authorization without an assignment).
+    const result = await this.db.query<{ id: string; title: string; starts_at: string; status: string }>(`SELECT DISTINCT e.id,e.title,e.starts_at,e.lifecycle_state AS status FROM ticketug.event e LEFT JOIN ticketug.event_staff_assignment a ON a.event_id=e.id AND a.user_profile_id=$1 AND a.status='ACTIVE' WHERE a.id IS NOT NULL OR EXISTS (SELECT 1 FROM ticketug.organizer_member om WHERE om.organizer_id=e.organizer_id AND om.user_profile_id=$1 AND om.status='ACTIVE' AND om.role IN ('ORGANIZER_OWNER','ORGANIZER_MANAGER')) ORDER BY e.starts_at`, [user.profileId])
     return result.rows
   }
 
