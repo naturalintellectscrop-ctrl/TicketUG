@@ -23,7 +23,7 @@ export default async function HomePage() {
     <main className="min-h-screen overflow-hidden">
       <SiteHeader nextPath="/account">
         <Link href="#how-it-works">The rhythm</Link>
-        <Link href="/api/health">System status</Link>
+        <Link href="#trust">Why TicketUG</Link>
       </SiteHeader>
 
       <section className="hero-section page-reveal">
@@ -32,10 +32,10 @@ export default async function HomePage() {
           <h1>Make room<br /><em>for more.</em></h1>
           <p className="hero-lede">TicketUG is where Uganda&apos;s best nights find their people. Buy your seat, build your crowd, and walk in ready.</p>
           <div className="hero-actions">
-            <Link href="#events" className="button button-primary">Find an event <span aria-hidden="true">↗</span></Link>
+            <Link href="/events" className="button button-primary">Find an event <span aria-hidden="true">↗</span></Link>
             <Link href="#organizers" className="button button-quiet">I&apos;m an organizer <span aria-hidden="true">→</span></Link>
           </div>
-          <div className="hero-note"><span className="pulse-dot" /> No gatekeeping. Just good nights.</div>
+          <div className="hero-note"><span className="pulse-dot" /> Secure QR tickets, verified at the gate.</div>
         </div>
         <div className="hero-art" aria-label="Illustration of a live event ticket" role="img">
           <div className="orbit orbit-one" /><div className="orbit orbit-two" />
@@ -72,7 +72,17 @@ export default async function HomePage() {
       </section>
 
       <section id="organizers" className="organizer-banner"><div className="organizer-stamp">FOR<br />THE<br /><i>makers</i></div><div><p className="eyebrow">Organizers</p><h2>You bring the spark.<br /><span>We&apos;ll handle the door.</span></h2><p>Publishing, payments, ticket delivery, and event-day operations — one connected workflow, without the spreadsheet maze.</p><Link href="/sign-up" className="button button-dark">Start making <span aria-hidden="true">↗</span></Link></div></section>
-      <footer className="site-footer"><span className="brand-mark"><span className="brand-dot" />TicketUG</span><span>Built for the moments that matter.</span><span>© 2026 TicketUG</span></footer>
+
+      <section id="trust" className="trust-section">
+        <div className="section-intro"><p className="eyebrow">Why TicketUG</p><h2>Fun on the surface.<br /><span>Serious underneath.</span></h2></div>
+        <div className="trust-grid">
+          <article className="trust-card"><h3>Verified at the gate</h3><p>Every QR is checked against the ticket registry on our servers — validity, status, and gate — before entry is confirmed, and a ticket checks in exactly once.</p></article>
+          <article className="trust-card"><h3>Doors that know their tiers</h3><p>Tickets can be scoped to specific gates, so a standard ticket can&apos;t wander into VIP — enforced by the scanner, not the honor system.</p></article>
+          <article className="trust-card"><h3>Orders you can get back</h3><p>Lose your phone or your session? A secure recovery link brings your order and tickets back.</p></article>
+        </div>
+      </section>
+
+      <footer className="site-footer"><span className="brand-mark"><span className="brand-dot" />TicketUG</span><span>Built for the moments that matter.</span><Link href="/contact">Contact</Link><span>© 2026 TicketUG</span></footer>
     </main>
   )
 }

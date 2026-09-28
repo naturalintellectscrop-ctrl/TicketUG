@@ -190,3 +190,16 @@ h1 em, h2 em { color: var(--brand); font-style: normal; }
 .gate-empty { padding: 22px; border: 1px dashed var(--border); border-radius: 16px; color: var(--muted-foreground); font-size: .92rem; }
 .scanner-context { margin: 0; }
 @media (max-width: 640px) { .event-card-grid { grid-template-columns: 1fr; } .events-toolbar input[type="search"] { flex-basis: 100%; } .pagination { flex-wrap: wrap; gap: 10px; } .gate-card-head { align-items: flex-start; } }
+/* Landing trust band (root-page correction) ------------------------------------ */
+.trust-section { max-width: 1180px; margin: 0 auto; padding: 110px 32px 96px; background: var(--ink); color: #fff8ed; }
+.trust-section .eyebrow { color: var(--lime); }
+.trust-section .section-intro h2 span { color: var(--lime); }
+.trust-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; }
+.trust-card { padding: 25px; border: 1px solid rgb(255 248 237 / 22%); border-radius: 22px; background: rgb(255 248 237 / 6%); transition: transform .35s ease, border-color .35s ease, background .35s ease; }
+.trust-card:hover { transform: translateY(-6px); border-color: var(--lime); background: rgb(255 248 237 / 10%); }
+.trust-card h3 { margin: 0 0 12px; font-size: 1.35rem; letter-spacing: -.05em; }
+.trust-card p { margin: 0; color: rgb(255 248 237 / 68%); font-size: .9rem; line-height: 1.65; }
+.trust-section { animation: reveal .8s .25s cubic-bezier(.2,.8,.2,1) both; }
+.site-footer a { border-bottom: 2px solid currentColor; padding-bottom: 2px; font-weight: 700; transition: color .2s ease; }
+.site-footer a:hover { color: var(--brand); }
+@media (max-width: 760px) { .trust-section { padding: 70px 20px; } .trust-grid { grid-template-columns: 1fr; } }

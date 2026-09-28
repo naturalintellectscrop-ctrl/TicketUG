@@ -282,10 +282,10 @@ See §10 (numbered 1–11). Rule: two-feature batches resume ONLY after the core
 Symptom (2026-09-28): Vercel build failed with `BETTER_AUTH_SECRET is required in production` while building **branch `cron/round-10-settings` @ `85c22fc`**.
 
 1. **Wrong branch.** The Vercel project's Production Branch is still `cron/round-10-settings` (a historical backup). Switch it: Vercel → Project → Settings → Git → Production Branch → **`main`**. `85c22fc` is 4+ commits behind current main.
-2. **Missing env vars (the actual build error).** `BETTER_AUTH_SECRET` is enforced at module evaluation with a ≥32-char production floor — **fail-closed by design on both tiers**; the build SHOULD fail without it. Set in Vercel (Production + Preview):
+2. **Missing env vars (the original build error — see §15 for the code-side correction).** `BETTER_AUTH_SECRET` is enforced with a ≥32-char production floor — **fail-closed by design on both tiers at RUNTIME**: without it every auth-dependent request fails loudly, sessions cannot be forged. Since the lazy-auth correction the frontend BUILD no longer requires the secret (a build without it deploys the marketing surfaces with auth dead, fail-closed); the API tier still boot-fails without it by design. Set in Vercel (Production + Preview):
    - `BETTER_AUTH_SECRET` (≥32 chars) · `DATABASE_URL` (Neon Postgres) · `NEON_AUTH_BASE_URL` (or `VITE_NEON_AUTH_URL`) · `API_ORIGIN` (public URL of the hosted Nest API) · `CRON_SECRET` (sweeper) · optional `PAYMENT_WINDOW_MINUTES`. Template: `.env.example` (committed; values only in the secret store).
 3. **apps/api is NOT deployed by Vercel** — host it separately (Render/Railway/Fly/VPS), set `WEB_ORIGIN` there for CORS, and point Vercel's `API_ORIGIN` at it. The default `http://localhost:4000` only works locally.
-4. Do NOT weaken the fail-closed secret check to "fix" builds.
+4. Do NOT weaken the fail-closed secret check to "fix" builds. (The lazy-auth change in §15 does NOT weaken it: identical floor, identical error, enforced at the request boundary; builds simply no longer evaluate auth modules.)
 
 ## 14. Pair 1 implementation record (2026-09-28)
 
@@ -303,6 +303,26 @@ Decisions (RETAIN/COMPLETE/BUILD):
 **Verification**: root **97/1** (+33), api **32/1** (+9), typecheck, lint, api:build — ALL GREEN. Browser (sandbox, DB-less): `/` and `/events` 200 with honest fallback/error states, `/events?q=` 200, `/scanner` `/organizer` `/admin` 307 guards intact — **all DB-backed journeys (real event cards, organizer gate UI, scanner scans) are BROWSER/DB VERIFICATION BLOCKED** until the real Neon environment exists. Nothing is claimed production-ready.
 
 **Next recommended pair (Pair 2)**: PDF ticket generation (#8) + first-run DB verification of migration 011 when a staging database exists.
+
+## 15. Root-route (landing page) investigation & correction (2026-09-28)
+
+**Trigger:** product review reported `/` was not showing the intended TicketUG marketing homepage; the previous round's "HTTP 200 + honest fallback" evidence was judged insufficient. Targeted investigate-and-fix run only.
+
+**Root-route diagnosis (answered precisely):**
+- **What serves `/`:** `app/page.tsx` — the ONLY root page in the repo (no `src/app`, no route groups, no duplicate `page.tsx` anywhere; verified by glob). It IS the marketing homepage: hero, "The rhythm" pillars, Upcoming events, organizer banner, footer. Wrapped by `app/layout.tsx` (fonts + metadata only).
+- **Middleware/redirects affecting it:** NONE — no `middleware.ts/js`, no `proxy.ts`, no rewrites/redirects in `next.config.ts` (headers only), no `vercel.json`.
+- **Git history verdict:** continuous evolution, never replaced — `107cd31` (initial) → `888621f` → `4327e73` → `6622e40` (dark-mode deepen) → `d35735f` → `e91c819` → `5977651` → `3ad8873`. **Pair 1 caused NO regression:** its only landing change swapped a static "Coming together" banner for the real discovery section; hero/pillars/organizer/footer were untouched, and the events fetch sits in try/catch so a DB failure degrades ONLY that section (browser-proven in the DB-less sandbox).
+
+**Actual cause of the "missing homepage":** the deployment, not the code. (1) Vercel Production Branch pointed at stale `cron/round-10-settings` @ `85c22fc`; (2) the build aborted at "Collecting page data" because `lib/auth.ts` called `resolveAuthSecret()` at module import and the auth catch-all constructed `auth.handler()` at module scope — `next build` imports route modules, so the production secret check threw during the build (`BETTER_AUTH_SECRET is required in production` → ELIFECYCLE 1) and no deployment ever went live.
+
+**Corrective action:**
+- `lib/auth.ts`: auth client constructed lazily via `getAuth()` on first use; `app/api/auth/[...path]/route.ts`: handlers built on first request; `lib/request-context.ts` updated. The ≥32-char fail-closed floor is UNCHANGED — it now fires at the request boundary (same error, no fallback secret, sessions cannot be forged); only builds no longer evaluate auth modules. Proven: full `next build` with an EMPTY environment is green.
+- `app/layout.tsx`: `themeColor` moved to the `viewport` export (removes the Next 16 metadata warning).
+- Landing quality (directive §10): nav "System status" (raw `/api/health` JSON) removed; hero note reworded to the factual "Secure QR tickets, verified at the gate."; "Find an event" CTA now targets `/events` (marketing `/` vs discovery `/events` separation); new honest "Why TicketUG" trust band (`.trust-*` styles) stating only shipped capabilities (server-verified QR, one-time check-in, gate-scoped tickets, order recovery); footer gained a Contact link.
+
+**Verification:** root 97/1, api 32/1, typecheck, lint, api:build, env-less `next build` — ALL GREEN. Browser: `/` desktop + 390px mobile fully rendered, zero console errors/warnings, "Why TicketUG" anchor scrolls to the trust band; `/events` remains the separate discovery page (search + honest DB-less error state); `/sign-in` 200; `/account` `/organizer` `/admin` 307 to sign-in; `/scanner` 307 with `next=/scanner`.
+
+**Remaining limitations:** DB-backed event cards on `/` + `/events` UNVERIFIED until Neon exists (honest fallbacks proven only); production readiness unchanged (NOT READY — 011 unapplied, provider GATE, Levels 3–6 unproven). Vercel still REQUIRES the §13 config switch (branch + env) — the code fix only removes the build-time abort.
 
 ## References
 

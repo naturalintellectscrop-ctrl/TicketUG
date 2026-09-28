@@ -1,5 +1,5 @@
 import { cookies } from 'next/headers'
-import { auth } from './auth'
+import { getAuth } from './auth'
 import { pool } from './db'
 
 export type TicketUGRole =
@@ -22,7 +22,7 @@ export type TicketUGContext = {
 
 export async function getTicketUGContext(): Promise<TicketUGContext | null> {
   const cookieHeader = (await cookies()).toString()
-  const session = await auth.getSession({ fetchOptions: { headers: { cookie: cookieHeader } } })
+  const session = await getAuth().getSession({ fetchOptions: { headers: { cookie: cookieHeader } } })
   const authUserId = session?.data?.user?.id
   if (!authUserId) return null
 
