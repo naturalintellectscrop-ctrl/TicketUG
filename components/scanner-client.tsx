@@ -5,8 +5,8 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import type { FormEvent } from 'react'
 import QrScanner from 'qr-scanner'
 
-type Event = { id: string; title: string; starts_at: string; status: string }
-type Result = { outcome: string; ticket_type_name?: string; attendee_name?: string; checkedInAt?: string }
+type Event = { id: string; title: string; starts_at: string; status: string; gateId?: string | null; gateName?: string | null }
+type Result = { outcome: string; ticketTypeName?: string; attendeeName?: string; eventTitle?: string; checkedInAt?: string; permittedGates?: string[] }
 type CameraState = 'idle' | 'starting' | 'scanning' | 'denied' | 'unavailable' | 'unsupported'
 
 export const TICKETUG_QR_PREFIX = 'ticketug:v1:'
@@ -17,7 +17,7 @@ export function extractTicketCredential(value: string) {
   return /^tkt_[A-Za-z0-9_-]{16,120}$/.test(credential) ? credential : null
 }
 
-const messages: Record<string, string> = { VALID: 'Ticket accepted and checked in.', ALREADY_CHECKED_IN: 'Already checked in.', INVALID_QR: 'Invalid TicketUG QR.', INVALID_TICKET: 'Ticket could not be found.', WRONG_EVENT: 'Wrong event.', CANCELLED_TICKET: 'This ticket has been cancelled.', REFUNDED_TICKET: 'This ticket has been refunded.', VOID_TICKET: 'This ticket is void.', UNAUTHORIZED_SCANNER: 'Scanner not authorized for this event.', VERIFICATION_UNAVAILABLE: 'Unable to verify ticket. Check your connection and try again.' }
+const messages: Record<string, string> = { VALID: 'Ticket accepted and checked in.', ALREADY_CHECKED_IN: 'Already checked in.', INVALID_QR: 'Invalid TicketUG QR.', INVALID_TICKET: 'Ticket could not be found.', WRONG_EVENT: 'Wrong event.', WRONG_GATE: 'This ticket is not valid for this gate.', EVENT_NOT_AVAILABLE: 'This event is not available for scanning.', CANCELLED_TICKET: 'This ticket has been cancelled.', REFUNDED_TICKET: 'This ticket has been refunded.', VOID_TICKET: 'This ticket is void.', UNAUTHORIZED_SCANNER: 'Scanner not authorized for this event.', VERIFICATION_UNAVAILABLE: 'Unable to verify ticket. Check your connection and try again.' }
 
 export function ScannerPage() {
   const [events, setEvents] = useState<Event[]>([])
@@ -79,6 +79,7 @@ export function ScannerPage() {
 
   async function verify(event: FormEvent) { event.preventDefault(); if (payload.trim()) await submitPayload(payload) }
   const cameraMessage = cameraState === 'denied' ? 'Camera permission is blocked. Allow camera access in your browser settings or use manual entry.' : cameraState === 'unsupported' || cameraState === 'unavailable' ? 'No camera is available in this browser. Use manual entry below.' : ''
+  const activeEvent = events.find((item) => item.id === eventId)
 
   return (
     <main className="auth-page stack">
@@ -88,6 +89,7 @@ export function ScannerPage() {
       <p className="muted">TicketUG verifies every scan online. No offline acceptance is available.</p>
       {events.length ? <>
         <label>Event<select value={eventId} onChange={(e) => { stopCamera(); setEventId(e.target.value) }}>{events.map((item) => <option key={item.id} value={item.id}>{item.title} · {new Date(item.starts_at).toLocaleDateString('en-UG')}</option>)}</select></label>
+        {activeEvent && <div className="event-meta scanner-context" aria-label="Scanner assignment"><span>Event: <strong>{activeEvent.title}</strong></span><span>Gate: <strong>{activeEvent.gateName ?? 'All gates'}</strong></span></div>}
         <section className="surface stack" aria-label="Camera scanner">
           <div className="row-between"><div><h2>Camera scanner</h2><p className="muted">Point the camera at a TicketUG QR code.</p></div>{cameraState !== 'scanning' ? <button type="button" onClick={enableCamera} disabled={cameraState === 'starting'}>{cameraState === 'starting' ? 'Starting camera…' : 'Enable camera'}</button> : <button type="button" onClick={stopCamera}>Stop camera</button>}</div>
           <div className="scanner-viewport"><video ref={videoRef} muted playsInline aria-label="Live QR scanner camera preview" /><span className="scanner-guide" aria-hidden="true" /></div>
@@ -96,7 +98,7 @@ export function ScannerPage() {
           {cameraState === 'scanning' && <p className="muted">Scanning…</p>}
         </section>
         <form className="surface stack" onSubmit={verify}><label htmlFor="payload">Enter QR manually</label><input id="payload" value={payload} onChange={(e) => setPayload(e.target.value)} placeholder="ticketug:v1:tkt_..." autoComplete="off"/><button type="submit" disabled={loading || !payload.trim()}>{loading ? 'Verifying…' : 'Verify and check in'}</button></form>
-        {result && <section className={`surface stack ${result.outcome === 'VALID' ? 'success' : ''}`} aria-live="polite"><strong>{messages[result.outcome] ?? 'Ticket rejected.'}</strong>{result.ticket_type_name && <p>{result.ticket_type_name}{result.attendee_name ? ` · ${result.attendee_name}` : ''}</p>}{result.checkedInAt && <p className="muted">Checked in at {new Date(result.checkedInAt).toLocaleString('en-UG')}</p>}<button type="button" onClick={() => { setResult(null); setPayload(''); lastCredentialRef.current = null; cooldownRef.current = 0; void enableCamera() }}>Scan next</button></section>}
+        {result && <section className={`surface stack ${result.outcome === 'VALID' ? 'success' : ''}`} aria-live="polite"><strong>{messages[result.outcome] ?? 'Ticket rejected.'}</strong>{result.ticketTypeName && <p>{result.ticketTypeName}{result.attendeeName ? ` · ${result.attendeeName}` : ''}</p>}{result.outcome === 'WRONG_GATE' && <p className="muted">{result.permittedGates?.length ? `Permitted gates: ${result.permittedGates.join(', ')}` : 'No active gates are configured for this ticket type.'}</p>}{result.checkedInAt && <p className="muted">Checked in at {new Date(result.checkedInAt).toLocaleString('en-UG')}</p>}<button type="button" onClick={() => { setResult(null); setPayload(''); lastCredentialRef.current = null; cooldownRef.current = 0; void enableCamera() }}>Scan next</button></section>}
       </> : <section className="surface"><p>No assigned events are available for scanning.</p></section>}
     </main>
   )

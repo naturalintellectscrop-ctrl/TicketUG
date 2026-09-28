@@ -1,5 +1,7 @@
 import Link from "next/link"
 import { SiteHeader } from "@/components/site-header"
+import { EventCard } from "@/components/event-card"
+import { getUpcomingPublicEvents, type PublicEventCard } from "@/lib/public-events"
 
 export const dynamic = "force-dynamic"
 
@@ -9,7 +11,14 @@ const pillars = [
   { number: "03", title: "Open the door", body: "Secure QR tickets make arrival feel less like a queue and more like the beginning of the night." }
 ]
 
-export default function HomePage() {
+export default async function HomePage() {
+  let upcoming: PublicEventCard[] = []
+  let eventsUnavailable = false
+  try {
+    upcoming = await getUpcomingPublicEvents(6)
+  } catch {
+    eventsUnavailable = true
+  }
   return (
     <main className="min-h-screen overflow-hidden">
       <SiteHeader nextPath="/account">
@@ -44,7 +53,23 @@ export default function HomePage() {
         <div className="pillar-grid">{pillars.map((pillar) => <article key={pillar.number} className="pillar-card"><span className="pillar-number">{pillar.number}</span><h3>{pillar.title}</h3><p>{pillar.body}</p><span className="pillar-arrow" aria-hidden="true">↗</span></article>)}</div>
       </section>
 
-      <section id="events" className="events-banner"><div><p className="eyebrow">Coming together</p><h2>The night is<br /><em>already yours.</em></h2></div><div className="banner-side"><p>From rooftop sets to community stages, find your next reason to leave the house.</p><Link href="/sign-up" className="text-link">Get on the list <span aria-hidden="true">↗</span></Link></div></section>
+      <section id="events" className="events-banner events-real">
+        <div className="section-intro"><p className="eyebrow">Upcoming events</p><h2>The night is<br /><em>already yours.</em></h2></div>
+        {eventsUnavailable ? (
+          <p className="muted">Event listings are temporarily unavailable. Please try again shortly.</p>
+        ) : upcoming.length ? (
+          <>
+            <div className="event-card-grid">{upcoming.map((event) => <EventCard key={event.publicId} event={event} />)}</div>
+            <div className="row"><Link href="/events" className="button button-dark">Browse all events <span aria-hidden="true">↗</span></Link></div>
+          </>
+        ) : (
+          <div className="events-empty surface">
+            <p><strong>No upcoming events are available right now.</strong></p>
+            <p className="muted">Organizers publish events here the moment they go on sale. Check back soon — or be the one who puts the next night on the board.</p>
+            <Link href="/sign-up" className="text-link">Get on the list <span aria-hidden="true">↗</span></Link>
+          </div>
+        )}
+      </section>
 
       <section id="organizers" className="organizer-banner"><div className="organizer-stamp">FOR<br />THE<br /><i>makers</i></div><div><p className="eyebrow">Organizers</p><h2>You bring the spark.<br /><span>We&apos;ll handle the door.</span></h2><p>Publishing, payments, ticket delivery, and event-day operations — one connected workflow, without the spreadsheet maze.</p><Link href="/sign-up" className="button button-dark">Start making <span aria-hidden="true">↗</span></Link></div></section>
       <footer className="site-footer"><span className="brand-mark"><span className="brand-dot" />TicketUG</span><span>Built for the moments that matter.</span><span>© 2026 TicketUG</span></footer>

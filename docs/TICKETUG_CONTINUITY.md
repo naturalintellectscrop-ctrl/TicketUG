@@ -31,8 +31,8 @@ docs/                    PHASE_3…PHASE_11 specs + audits, migrations/, API_AUT
 ## 2. Current branch / commit / canonical state
 
 - **Canonical branch: `main`** on `https://github.com/naturalintellectscrop-ctrl/TicketUG`.
-- **HEAD: `f5e31de` — local main = origin/main (push RESTORED; push auth lives only in the clone's `.git/config`, never in tracked files).**
-- Commit chain: `85c22fc` (round 10) → `80f7936` (reconciliation: continuity docs, auth-secret floor, copy fixes) → `5e7f80b` (contact page ported from v0 with real NI numbers + header link) → `f5e31de` (v0 retired via `git merge -s ours` — tree byte-identical, branch now a true ancestor; every remote branch is merged into main).
+- **HEAD: Pair 1 (this commit) — local main = origin/main (push auth lives only in the clone's `.git/config`, never in tracked files).**
+- Pair-1 chain: `dbca44c` (dependency audit) → **this commit** (public event discovery + gate-level access; see §14 + CHANGELOG).
 - Working tree policy: main is always pushed after every verified round; backup branches `cron/round-N-*` exist per round.
 
 ### Branch reconciliation table (directive §4 — completed 2026-09-26)
@@ -105,13 +105,13 @@ Sandbox ceiling: **Level 2 + targeted auth-guard live smoke (401/307/429)**. Lev
 | Payments (live provider) | MISSING | 0 | Blocked on provider decision matrix (§15): MTN MoMo/Airtel/split settlement research |
 | Tickets + QR (digital) | IMPLEMENTED | 2 | Issued on PAID, QR PNG data URL, guest+account surfaces, calendar export |
 | **PDF tickets** | **MISSING** | 0 | No pdf lib anywhere. Roadmap Pair 2B; backend stays authoritative |
-| Scanner & check-in (event-level) | IMPLEMENTED | 2 (+ live smoke) | Assignment (staff must hold ACTIVE assignment), token checks, duplicate/used handling, history |
-| **Gate-level access model** (scanner→gate, ticket→permitted gates) | **MISSING** | 0 | Current assignment is event-level only. Roadmap Pair 3A. Do not duplicate existing logic when adding |
+| Scanner & check-in (event-level + gate-aware) | IMPLEMENTED | 2 (+ live smoke) | Assignment (ACTIVE + optional gate scope), token checks, duplicate/used handling, history, WRONG_GATE rejection, cancelled event answers EVENT_NOT_AVAILABLE |
+| **Gate-level access model** (scanner→gate, ticket→permitted gates) | **IMPLEMENTED** (Pair 1B) | 2 (pure-rule matrix tests) | `event_gate` + `ticket_type_gate` + assignment `gate_id` (migration 011, NOT production-applied); server-side enforcement in BOTH tiers via shared `gate.rules.ts`; fail-closed for unmapped types; DB verification BLOCKED |
 | Platform admin | PARTIAL | 2 | Read-only real-metric overview + role gate (PLATFORM_SUPPORT/ADMIN/SUPER_ADMIN); no management surfaces, no moderation actions |
 | Event moderation/review workflow | MISSING | 0 | Lifecycle has SUSPENDED but no platform review states (UNDER_REVIEW/NEEDS_CHANGES). Roadmap Pair 8B |
 | Organizer KYC / agreements | MISSING | 0 | Roadmap Pair 8A + §18–20; LEGAL/COMPLIANCE DECISION REQUIRED markers mandatory |
 | Notifications (email/SMS) | MISSING | 0 | Invitations/recovery are link-based today. Roadmap Pair 5; build channel abstraction |
-| Public event discovery/browse | **MISSING** | 0 | No /events index or search; landing does not list events. Events reachable by direct URL only |
+| Public event discovery/browse | **IMPLEMENTED** (Pair 1A) | 2 (+ honest fallback browser smoke) | Shared query module `lib/public-events.ts` (single visibility predicate), `/events` index (search + pagination + honest empty/error states), landing "Upcoming events". Real-data DB/browser verification BLOCKED (no DB in sandbox) |
 | Support/legal static pages | PARTIAL | 1 | `/contact` live on main (`5e7f80b`: real NI numbers +256752256576 / +256762449504, header link); privacy/terms/refund-policy pages still missing (wording = NI/legal) |
 | Migrations | PARTIAL | 1 (source) | 005–010 present, deterministic, manual psql; **001–004 untracked; NO runner** — see §9 |
 | Security hardening | STRONG | 2 | Rate limits per surface, secrets fail-closed, token hashing, webhooks verified, PII gates, security_event audit trail |
@@ -167,6 +167,8 @@ Then Phase D (full core journey test, needs real env) → Phase E (readiness gat
 - Production fail-closed secrets (both tiers), rate limits, invited-email binding, safe `?next=`.
 - The **gate conceptual model**: staff assignment → event+gate; ticket type → permitted gates; backend decides gate permission (implement in Pair 3A without duplicating scanner logic).
 - No fake metrics, no placeholder buttons, no invented business/status values, no committed secrets, no new `apps/api/dist` artifacts.
+- The **shared public-visibility predicate** (`lib/public-events.ts` `PUBLIC_EVENT_VISIBILITY_SQL`) — every public listing/filter must go through it; never fork a second visibility rule.
+- The **shared gate rules seam** (`apps/api/src/check-ins/gate.rules.ts`) — both scanners import it; the fail-closed semantics (unmapped ticket type = rejected at every active gate; deleted/disabled gate = scanners fail closed, assignments never widened) must survive any refactor.
 
 ## 12. Core Completion Dependency Matrix (Phase C audit, 2026-09-28)
 
@@ -176,16 +178,16 @@ Key code anchors: issuance is **webhook-only** (`payments.service.ts:57–81` �
 
 | # | Requirement | Current implementation | Verification level | Dependency | Blocker | Recommended action |
 |---|---|---|---|---|---|---|
-| 1 | Public event discovery | MISSING — no `/events` index, no list endpoint anywhere, landing lists zero events | SOURCE-verified absence | Nothing upstream — visibility predicate already exists | None (in-sandbox buildable) | **BUILD — single next batch** (see D) |
-| 2 | Public visibility/query architecture | PARTIAL — predicate enforced on public detail (Next + Nest), `discoverable` set on PUBLISHED; no list/search/pagination | L2 (predicate mapping unit-tested; detail live-smoked) | Feeds discovery (#1) and moderation (#3) | None | Extend the same predicate into ONE shared list-query module (single source of truth) |
+| 1 | Public event discovery | IMPLEMENTED (Pair 1A) — shared `lib/public-events.ts` + `/events` index (search, pagination, honest empty/error) + landing listing | L2 (pure logic unit-tested) + honest fallback browser smoke; real-data DB/browser BLOCKED | — | Real DB (verification only) | DB verification when Neon reachable |
+| 2 | Public visibility/query architecture | IMPLEMENTED (Pair 1A) — ONE shared predicate (`PUBLIC_EVENT_VISIBILITY_SQL`) feeds detail + index + landing | L2 | Feeds moderation (#3) | None | Keep moderation states (#3) extending this same predicate |
 | 3 | Event moderation/governance | MISSING — 9 lifecycle states incl. SUSPENDED; no UNDER_REVIEW/NEEDS_CHANGES; admin has zero mutating endpoints | SOURCE-verified absence | Admin mutation surfaces (#12); new forward-only migration; publication predicate (exists) | NI policy decision: pre-publication review vs trust-first | Build structure after discovery; extend (never alter) the 005 CHECK |
 | 4 | Organizer verification/KYC foundation | MISSING — no verification step or columns; organizer creation ungated | SOURCE-verified absence | Gates unrestricted publishing (product decision); admin review queue (#12); migration | NI KYC policy/legal (external) | Schema + queue foundation once policy decided; do not invent requirements |
 | 5 | Organizer agreement/terms acceptance | MISSING — no agreement/consent capture anywhere | SOURCE-verified absence | Gates publishing; mechanism = versioned acceptance record (version + timestamp + text hash) | Approved agreement text (NI/legal — external) | Build acceptance-record mechanism with LEGAL/COMPLIANCE DECISION REQUIRED markers; never invent contract language |
 | 6 | Live payment provider | Test pathway IMPLEMENTED on a real seam (adapter interface, prod-refused test provider, raw-body webhook verify, `webhook_event` idempotency, amount/currency/reference cross-checks); live adapter absent | L2 (adapter + HMAC webhook contract unit-tested) | Root of the money chain | **PROVIDER SELECTION GATE**: Uganda, MTN/Airtel MoMo, cards, webhooks, signature verification, idempotency, refunds, split settlement, settlement timing, reconciliation, sandbox, production, fees, support, compliance | Produce ≥3-provider decision matrix; integrate through the existing seam; NyloPay/Nylon Pay = candidate only, NOT approved |
 | 7 | Model A split-settlement | MISSING — fee/settlement deliberately deferred (PHASE_8/11) | SOURCE-verified absence | Provider capability proof (#6): organizer settlement + platform fee; NI must not custody funds unnecessarily | Provider selection + capability verification | Design after provider confirmed; no settlement-timing claims until provider-documented |
 | 8 | PDF/digital ticket generation | MISSING — zero pdf libraries; digital = QR data-URL page + ICS only | SOURCE-verified absence | Ticket snapshots + QR payload exist (`ticketug:v1:<credential>`); independent of live payments | None for build; L3+ verification needs real env | BUILD: server-side PDF with embedded QR; backend stays authoritative; QR remains the opaque credential |
-| 9 | Gate-level ticket access permissions | MISSING — no gate tables/columns; `event_staff_assignment` is event-level only | SOURCE-verified absence | `ticket_type` (exists) + assignment (exists, extend) + new forward-only migration | None code-wise | BUILD with #10 as one batch; extend the 010 model, never duplicate scan logic |
-| 10 | Scanner/check-in + gate integration | PARTIAL — event-level scanner IMPLEMENTED (platform bypass / active membership / EVENT_STAFF needs ACTIVE assignment; validates payload shape + credential hash + event match + ISSUED status; `UNIQUE(ticket_id)` + `FOR UPDATE` replay protection; `check_in` log; online-only) | L2 + live guard smoke | Gate filtering depends on #9 | None | Extend scan authorization with a permitted-gate predicate after #9; fix minor mapping gap (cancelled event surfaces UNAUTHORIZED_SCANNER instead of EVENT_NOT_AVAILABLE) |
+| 9 | Gate-level ticket access permissions | IMPLEMENTED (Pair 1B) — `event_gate`, `ticket_type_gate`, assignment `gate_id` (011, forward-only, NOT production-applied) | L2 (pure rules) + source; DB VERIFICATION BLOCKED | — | Real DB | Apply 011 + verify constraints on the first real-env run |
+| 10 | Scanner/check-in + gate integration | IMPLEMENTED (Pair 1B) — gate-scoped authorization in both tiers via shared `gate.rules.ts`; WRONG_GATE rejection with permitted-gate names; EVENT_NOT_AVAILABLE mapping fixed | L2 (rule matrix) + source; live-gated scans need real DB | — | Real DB (Level 3+) | DB + browser verification of scan journeys when Neon reachable |
 | 11 | Essential notifications | MISSING — no email/SMS providers or SDKs; invites + recovery are copyable link/token flows | SOURCE-verified absence | Delivery hooks would attach to issuance; channel abstraction independent | External provider choice (email/SMS for Uganda) | Build channel abstraction + in-app notifications now; wire provider when selected |
 | 12 | Platform admin functionality | PARTIAL — `/admin` read-only aggregate counts behind PLATFORM_SUPPORT/ADMIN/SUPER_ADMIN; `platform_role` DB-seeded only (no bootstrap path); zero mutating admin endpoints on both tiers | L2 + guard smoke | Moderation/KYC queues extend this; seeding procedure needed | None for expansion | Expand admin with moderation/verification queues (#3/#4); document `platform_role` seeding (no code bypass, no env backdoor) |
 | 13 | Refund architecture | MISSING — `REFUNDED` ticket status + `refunded_at` reserved, never set; no refund tables/endpoints; PAID is terminal in `assertOrderTransition` | SOURCE-verified absence | Live provider refund APIs (#6); order/payment state-machine extension | Provider selection + refund capability verification | Design refunds after provider; keep CHECK-constraint caution (never invent status values) |
@@ -273,7 +275,34 @@ L3 DB → L4 browser → L5 E2E → L6 production
 
 See §10 (numbered 1–11). Rule: two-feature batches resume ONLY after the core production gate passes (§28).
 
-**SINGLE NEXT IMPLEMENTATION BATCH: Public event discovery + visibility list architecture.** Rationale: zero external blockers; the visibility predicate is already implemented and unit-tested (set on the PUBLISHED transition, enforced on the public detail route); it extends one predicate into a shared list module (single source of truth for #2 before moderation lands); it unlocks the platform's storefront; deterministic signals only (SALES_OPEN first), honest empty states, no fake data. Scope: shared list-query module + Next route handler + `/events` index + landing "Upcoming events" section + tests.
+~~SINGLE NEXT IMPLEMENTATION BATCH: Public event discovery + visibility list architecture~~ — **SHIPPED as Pair 1 (together with gate-level access)**; see §14. **Next recommended pair (Pair 2): PDF ticket generation** (#8 — server-side PDF with embedded QR, backend authoritative) + first-run DB verification of migration 011 the moment a staging database exists. Everything money-related remains behind the provider GATE; governance wording remains NI/legal.
+
+## 13. Deployment (Vercel) runbook — diagnosing the failing deploy
+
+Symptom (2026-09-28): Vercel build failed with `BETTER_AUTH_SECRET is required in production` while building **branch `cron/round-10-settings` @ `85c22fc`**.
+
+1. **Wrong branch.** The Vercel project's Production Branch is still `cron/round-10-settings` (a historical backup). Switch it: Vercel → Project → Settings → Git → Production Branch → **`main`**. `85c22fc` is 4+ commits behind current main.
+2. **Missing env vars (the actual build error).** `BETTER_AUTH_SECRET` is enforced at module evaluation with a ≥32-char production floor — **fail-closed by design on both tiers**; the build SHOULD fail without it. Set in Vercel (Production + Preview):
+   - `BETTER_AUTH_SECRET` (≥32 chars) · `DATABASE_URL` (Neon Postgres) · `NEON_AUTH_BASE_URL` (or `VITE_NEON_AUTH_URL`) · `API_ORIGIN` (public URL of the hosted Nest API) · `CRON_SECRET` (sweeper) · optional `PAYMENT_WINDOW_MINUTES`. Template: `.env.example` (committed; values only in the secret store).
+3. **apps/api is NOT deployed by Vercel** — host it separately (Render/Railway/Fly/VPS), set `WEB_ORIGIN` there for CORS, and point Vercel's `API_ORIGIN` at it. The default `http://localhost:4000` only works locally.
+4. Do NOT weaken the fail-closed secret check to "fix" builds.
+
+## 14. Pair 1 implementation record (2026-09-28)
+
+**Pair 1 = Public Event Discovery (1A) + Gate-Level Ticket Access & Scanner Integration (1B).** Directive scope honored: nothing else implemented.
+
+Decisions (RETAIN/COMPLETE/BUILD):
+- RETAINED: the check-in architecture (transaction, `FOR UPDATE`, `UNIQUE(ticket_id)`, immutable `check_in`, online-only), the authorization ladder, the dual-tier pattern, the event lifecycle.
+- **Visibility**: ONE shared predicate `PUBLIC_EVENT_VISIBILITY_SQL` in `lib/public-events.ts` now feeds detail + `/events` + landing. Verified from `event-lifecycle.ts`: CANCELLED/SUSPENDED events keep `publication_state='PUBLIC'` + `discoverable=true` BY DESIGN (the detail page renders them with a status notice) — the listing therefore shows them with lifecycle labels instead of inventing a stricter, contradictory rule. `/events` is `force-dynamic` (no build-time DB access) with honest loading/empty/error states and zero fabricated data.
+- **Gates**: `event_gate`, `ticket_type_gate` (PK pair), `event_staff_assignment.gate_id` (nullable; `UNIQUE(event_id,user_profile_id)` retained — one gate scope per member). Semantics: no active gates → legacy event-wide scanning; event-wide assignment → not gate-filtered (trusted staff); gate-scoped assignment → the ticket type must be permitted through THAT gate (active gates only) else `WRONG_GATE` with permitted-gate names; **unmapped ticket type on an event with active gates → rejected everywhere (fail-closed)**; disabled gate → its scanners fail closed; deleted gate → CASCADE deletes its assignments (never widened).
+- **Shared rules seam**: `apps/api/src/check-ins/gate.rules.ts` (pure, api-suite-tested) is imported by BOTH the Nest service and the Next `/api/check-ins` mirror — closing the documented dual-path drift for scan semantics; Next scan responses were normalized to the Nest camelCase DTO (scanner client updated accordingly).
+- **Mapping-gap fix (directive §16, verified still valid)**: a cancelled event now answers `EVENT_NOT_AVAILABLE` (was `UNAUTHORIZED_SCANNER`); platform-admin bypass behavior preserved; the summary endpoint keeps its strict Forbidden behavior.
+- **`lib/db.ts` hardening** (found during browser QA): an unset `DATABASE_URL` now yields a stub pool whose queries reject with a clear error (honest error states) instead of pg's uncatchable aggregate crash; the real pool gains `connectionTimeoutMillis: 10_000` + an idle-client error handler. Note: this sandbox inherits a non-postgres `DATABASE_URL` (`file:` URL) from the control room — TicketUG dev runs with it unset.
+- **Migration 011**: forward-only, follows repo conventions, **NOT production-applied** — `DATABASE VERIFICATION: BLOCKED` (no DB in sandbox; do not fabricate). Manual application: `psql $DATABASE_URL -f docs/migrations/011-gates.sql` on a THROWAWAY/staging DB first.
+
+**Verification**: root **97/1** (+33), api **32/1** (+9), typecheck, lint, api:build — ALL GREEN. Browser (sandbox, DB-less): `/` and `/events` 200 with honest fallback/error states, `/events?q=` 200, `/scanner` `/organizer` `/admin` 307 guards intact — **all DB-backed journeys (real event cards, organizer gate UI, scanner scans) are BROWSER/DB VERIFICATION BLOCKED** until the real Neon environment exists. Nothing is claimed production-ready.
+
+**Next recommended pair (Pair 2)**: PDF ticket generation (#8) + first-run DB verification of migration 011 when a staging database exists.
 
 ## References
 

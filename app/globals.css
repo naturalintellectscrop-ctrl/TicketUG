@@ -149,3 +149,44 @@ h1 em, h2 em { color: var(--brand); font-style: normal; }
 .contact-card-muted strong { max-width: 170px; }
 .contact-card small { line-height: 1.45; }
 @media (max-width: 640px) { .contact-grid { grid-template-columns: 1fr; } .contact-page { padding-top: 40px; } }
+/* Public event discovery (Pair 1A) ---------------------------------------------- */
+.events-index .page-shell { padding-top: 42px; padding-bottom: 84px; }
+.events-toolbar { display: flex; flex-wrap: wrap; gap: 10px; margin: 26px 0 10px; }
+.events-toolbar input[type="search"] { flex: 1 1 260px; min-height: 48px; padding: 12px 18px; border: 1px solid var(--border); border-radius: 999px; background: rgb(255 255 255 / 75%); font: inherit; }
+.events-count { margin: 8px 2px 18px; }
+.event-card-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(290px, 1fr)); gap: 22px; margin: 18px 0 30px; }
+.event-card { overflow: hidden; padding: 0; border: 1px solid var(--border); border-radius: 20px; background: #fffaf1; transition: transform .25s cubic-bezier(.2,.8,.2,1), box-shadow .25s ease; }
+.event-card:hover { transform: translateY(-4px); box-shadow: 0 16px 34px rgb(23 23 20 / 10%); }
+.event-card-link { display: flex; flex-direction: column; width: 100%; }
+.event-card-media { position: relative; aspect-ratio: 16 / 9; background: var(--muted); overflow: hidden; }
+.event-card-media img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.event-card-fallback { position: absolute; inset: 0; display: grid; place-items: center; font-family: var(--font-display), sans-serif; font-weight: 800; letter-spacing: -.04em; color: var(--muted-foreground); background: repeating-linear-gradient(-45deg, var(--muted) 0 14px, #efe8da 14px 28px); }
+.availability-chip { position: absolute; left: 12px; top: 12px; padding: 6px 12px; border-radius: 999px; background: var(--ink); color: #fff8ed; font-size: .66rem; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; }
+.availability-open { background: #3f7d2c; }
+.availability-cancelled { background: var(--brand); }
+.event-card-body { display: flex; flex-direction: column; gap: 10px; padding: 18px 18px 20px; }
+.event-card-body h3 { margin: 0; font-size: 1.35rem; letter-spacing: -.02em; }
+.event-card-desc { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; margin: 0; color: var(--muted-foreground); font-size: .9rem; line-height: 1.55; }
+.event-card-foot { margin-top: auto; padding-top: 6px; }
+.events-empty { padding: 34px; text-align: center; display: grid; gap: 10px; justify-items: center; }
+.pagination { justify-content: space-between; align-items: center; margin-top: 8px; }
+.skeleton-card { aspect-ratio: 16 / 11; animation: pulse 1.6s ease-in-out infinite; }
+/* Gate management (Pair 1B) ----------------------------------------------------- */
+.gate-list { display: grid; gap: 16px; }
+.gate-card { border: 1px solid var(--border); border-radius: 16px; padding: 18px; background: rgb(255 255 255 / 55%); display: grid; gap: 12px; }
+.gate-card-head { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 10px; }
+.gate-card-head h3 { margin: 0; }
+.gate-state { font-size: .66rem; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; padding: 5px 10px; border-radius: 999px; }
+.gate-on { background: var(--lime); color: var(--ink); }
+.gate-off { background: var(--muted); color: var(--muted-foreground); }
+.gate-desc { margin: 0; color: var(--muted-foreground); font-size: .9rem; }
+.gate-perms { display: flex; flex-wrap: wrap; gap: 8px; }
+.perm-chip { display: inline-flex; align-items: center; gap: 7px; padding: 8px 13px; border: 1px solid var(--border); border-radius: 999px; background: #fff; font-size: .82rem; cursor: pointer; user-select: none; transition: border-color .2s ease, background .2s ease, color .2s ease; }
+.perm-chip input { accent-color: var(--brand); margin: 0; }
+.perm-chip:hover { border-color: var(--brand); }
+.perm-chip.is-checked { border-color: var(--ink); background: var(--ink); color: #fff8ed; }
+.gate-actions { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.gate-actions .button { padding: 9px 14px; font-size: .78rem; }
+.gate-empty { padding: 22px; border: 1px dashed var(--border); border-radius: 16px; color: var(--muted-foreground); font-size: .92rem; }
+.scanner-context { margin: 0; }
+@media (max-width: 640px) { .event-card-grid { grid-template-columns: 1fr; } .events-toolbar input[type="search"] { flex-basis: 100%; } .pagination { flex-wrap: wrap; gap: 10px; } .gate-card-head { align-items: flex-start; } }

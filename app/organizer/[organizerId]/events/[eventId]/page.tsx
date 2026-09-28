@@ -4,6 +4,7 @@ import { getTicketUGContext } from '@/lib/request-context'
 import { canManageOrganizer } from '@/lib/organizer-authorization'
 import { EventLifecycleControls } from '@/components/event-lifecycle-controls'
 import { EventStaffManager } from '@/components/event-staff-manager'
+import { GateManager } from '@/components/gate-manager'
 import { loadEventSalesMetrics } from '@/lib/event-sales-metrics'
 import { pool } from '@/lib/db'
 
@@ -23,10 +24,11 @@ export default async function OrganizerEventDetailPage({ params }: { params: Pro
   const canManage = canManageOrganizer(context, organizerId)
   const isOwner = context.organizerMemberships.find((membership) => membership.organizerId === organizerId && membership.status === 'ACTIVE')?.role === 'ORGANIZER_OWNER'
   const staff = (await pool.query(
-    `SELECT a.id, a.user_profile_id AS "userProfileId", up.display_name AS "displayName", om.role AS "memberRole", a.status
+    `SELECT a.id, a.user_profile_id AS "userProfileId", up.display_name AS "displayName", om.role AS "memberRole", a.status, a.gate_id AS "gateId", eg.name AS "gateName"
        FROM ticketug.event_staff_assignment a
        JOIN ticketug.user_profile up ON up.id = a.user_profile_id
        LEFT JOIN ticketug.organizer_member om ON om.organizer_id = $2 AND om.user_profile_id = a.user_profile_id
+       LEFT JOIN ticketug.event_gate eg ON eg.id = a.gate_id
       WHERE a.event_id = $1 AND a.status = 'ACTIVE'
       ORDER BY a.created_at`,
     [eventId, organizerId],
@@ -43,6 +45,18 @@ export default async function OrganizerEventDetailPage({ params }: { params: Pro
   // Sales aggregates are owner/manager data (same gate as the sales API and the
   // orders/issued-tickets pages); fetched server-side, aggregate numbers only.
   const sales = canManage ? await loadEventSalesMetrics(eventId) : null
+  // Gate management + gate-scoped staff assignment (Pair 1B) — owner/manager only.
+  const gates = canManage
+    ? (await pool.query(
+        `SELECT g.id, g.name, g.description, g.is_active AS "isActive", g.created_at AS "createdAt", COALESCE(json_agg(ttg.ticket_type_id) FILTER (WHERE ttg.ticket_type_id IS NOT NULL), '[]') AS "ticketTypeIds"
+           FROM ticketug.event_gate g LEFT JOIN ticketug.ticket_type_gate ttg ON ttg.gate_id = g.id
+          WHERE g.event_id = $1 GROUP BY g.id ORDER BY g.created_at, g.name`,
+        [eventId],
+      )).rows
+    : []
+  const ticketTypes = canManage
+    ? (await pool.query('SELECT id, public_id AS "publicId", name, active FROM ticketug.ticket_type WHERE event_id = $1 ORDER BY sort_order, created_at', [eventId])).rows
+    : []
   return (
     <main className="page-shell">
       <Link href={`/organizer/${organizerId}/events`}>Back to events</Link>
@@ -116,8 +130,13 @@ export default async function OrganizerEventDetailPage({ params }: { params: Pro
           </section>
         </div>
       )}
+      {canManage && (
+        <div style={{ marginTop: 24 }}>
+          <GateManager organizerId={organizerId} eventId={eventId} initialGates={gates} ticketTypes={ticketTypes} />
+        </div>
+      )}
       <div style={{ marginTop: 24 }}>
-        <EventStaffManager organizerId={organizerId} eventId={eventId} initialStaff={staff} members={members} />
+        <EventStaffManager organizerId={organizerId} eventId={eventId} initialStaff={staff} members={members} gates={gates.map((gate) => ({ id: gate.id, name: gate.name, isActive: gate.isActive }))} />
       </div>
     </main>
   )
