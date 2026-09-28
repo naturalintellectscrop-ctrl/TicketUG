@@ -1,11 +1,11 @@
 import { BadRequestException, ConflictException, ForbiddenException, Injectable, NotFoundException } from '@nestjs/common'
 import { createHash, randomBytes, randomUUID } from 'node:crypto'
-import type { ApiUser } from '../auth/auth.types'
-import { DatabaseService } from '../common/database.service'
-import { assertOrderTransition, calculateLineTotal, calculateOrderTotal, validateOrderItems, PAYMENT_WINDOW_MINUTES, paymentDeadline, type OrderStatus } from './order.rules'
-import { expireOrderIfDue, expireStaleOrders } from './order-expiry'
-import { assertPaymentTransition, type PaymentStatus } from '../payments/payment.rules'
-import type { CreateOrderDto } from './order.dto'
+import type { ApiUser } from '../auth/auth.types.js'
+import { DatabaseService } from '../common/database.service.js'
+import { assertOrderTransition, calculateLineTotal, calculateOrderTotal, validateOrderItems, PAYMENT_WINDOW_MINUTES, paymentDeadline, type OrderStatus } from './order.rules.js'
+import { expireOrderIfDue, expireStaleOrders } from './order-expiry.js'
+import { assertPaymentTransition, type PaymentStatus } from '../payments/payment.rules.js'
+import type { CreateOrderDto } from './order.dto.js'
 
 type OrderRow = { id: string; public_id: string; order_number: string; user_profile_id: string | null; purchaser_name: string; purchaser_email: string; guest_access_token_hash?: string | null; status: OrderStatus; currency: string; total_minor_units: string; idempotency_key?: string | null; created_at: string; updated_at: string; cancelled_at: string | null; payment_expires_at: string | null }
 type ItemRow = { ticket_type_id: string; ticket_name_snapshot: string; quantity: number; unit_price_minor_units: string; currency_snapshot: string; line_total_minor_units: string }

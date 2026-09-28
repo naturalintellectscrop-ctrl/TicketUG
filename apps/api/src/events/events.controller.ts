@@ -1,11 +1,11 @@
 import { Body, Controller, Delete, ForbiddenException, Get, Inject, Param, Patch, Post, NotFoundException, BadRequestException } from '@nestjs/common'
 import { ApiTags } from '@nestjs/swagger'
 import { randomUUID } from 'node:crypto'
-import { CurrentUser } from '../auth/current-user.decorator'
-import type { ApiUser } from '../auth/auth.types'
-import { DatabaseService } from '../common/database.service'
-import { assertTransition, EVENT_STATES, publicationStateForTransition, type EventLifecycleState } from './event-lifecycle'
-import { CreateEventDto, CreateMediaDto, CreateVenueDto, TransitionEventDto, UpdateEventDto } from './event.dto'
+import { CurrentUser } from '../auth/current-user.decorator.js'
+import type { ApiUser } from '../auth/auth.types.js'
+import { DatabaseService } from '../common/database.service.js'
+import { assertTransition, EVENT_STATES, publicationStateForTransition, type EventLifecycleState } from './event-lifecycle.js'
+import { CreateEventDto, CreateMediaDto, CreateVenueDto, TransitionEventDto, UpdateEventDto } from './event.dto.js'
 
 const writeRoles = ['ORGANIZER_OWNER', 'ORGANIZER_MANAGER']
 const ownerRoles = ['ORGANIZER_OWNER']

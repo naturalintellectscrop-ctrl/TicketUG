@@ -1,13 +1,13 @@
 import { ConflictException, ForbiddenException, Inject, Injectable, NotFoundException, ServiceUnavailableException, UnprocessableEntityException } from '@nestjs/common'
 import { createHash, randomBytes, randomUUID } from 'node:crypto'
-import type { ApiUser } from '../auth/auth.types'
-import { DatabaseService } from '../common/database.service'
-import { assertPaymentTransition, type PaymentStatus } from './payment.rules'
-import { ProviderRegistry } from './payment.provider'
-import type { InitiatePaymentDto } from './payment.dto'
-import { TicketsService } from '../tickets/tickets.service'
-import { expireOrderIfDue } from '../orders/order-expiry'
-import { paymentDeadline } from '../orders/order.rules'
+import type { ApiUser } from '../auth/auth.types.js'
+import { DatabaseService } from '../common/database.service.js'
+import { assertPaymentTransition, type PaymentStatus } from './payment.rules.js'
+import { ProviderRegistry } from './payment.provider.js'
+import type { InitiatePaymentDto } from './payment.dto.js'
+import { TicketsService } from '../tickets/tickets.service.js'
+import { expireOrderIfDue } from '../orders/order-expiry.js'
+import { paymentDeadline } from '../orders/order.rules.js'
 
 type PaymentRow = { id: string; public_id: string; order_id: string; order_public_id: string; order_number: string; amount_minor_units: string; currency: string; provider: string; status: PaymentStatus; payment_expires_at: string | null; provider_attempt_reference?: string | null; attempt_public_id?: string | null; attempt_status?: PaymentStatus | null }
 const paymentSelect = `p.id,p.public_id,p.order_id,o.public_id AS order_public_id,o.order_number,p.amount_minor_units,p.currency,p.provider,p.status,o.payment_expires_at`

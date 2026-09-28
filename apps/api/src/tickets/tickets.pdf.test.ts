@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
-import { buildTicketPdf, ticketPdfFilename, type TicketPdfSource } from './ticket.pdf'
-import { ticketQrPng, ticketQrPayload } from './ticket.qr'
+import { buildTicketPdf, ticketPdfFilename, type TicketPdfSource } from './ticket.pdf.js'
+import { ticketQrPng, ticketQrPayload } from './ticket.qr.js'
 
 const baseSource = async (): Promise<TicketPdfSource> => ({
   ticket: { publicId: 'tkt_0123456789abcdef0123456789abcdef', ticketTypeName: 'Regular', attendeeName: 'Sarah Nakato', attendeeEmail: 'sarah@example.com', status: 'ISSUED', issuedAt: '2026-09-28T10:00:00Z' },

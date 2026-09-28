@@ -1,9 +1,9 @@
 import { BadRequestException, ForbiddenException, Injectable, NotFoundException } from '@nestjs/common'
 import { randomUUID } from 'node:crypto'
-import type { ApiUser } from '../auth/auth.types'
-import { DatabaseService } from '../common/database.service'
-import { getTicketAvailability, validateSaleWindow, validateTicketNumbers } from './ticket-type.rules'
-import { CreateTicketTypeDto, SetTicketTypeActiveDto, TicketCurrency, UpdateTicketTypeDto } from './ticket-type.dto'
+import type { ApiUser } from '../auth/auth.types.js'
+import { DatabaseService } from '../common/database.service.js'
+import { getTicketAvailability, validateSaleWindow, validateTicketNumbers } from './ticket-type.rules.js'
+import { CreateTicketTypeDto, SetTicketTypeActiveDto, TicketCurrency, UpdateTicketTypeDto } from './ticket-type.dto.js'
 
 const manageRoles = ['ORGANIZER_OWNER', 'ORGANIZER_MANAGER']
 

@@ -1,9 +1,9 @@
 import { Controller, Get, Headers, Param, Res } from '@nestjs/common'
 import { ApiTags } from '@nestjs/swagger'
 import type { Response } from 'express'
-import { CurrentUser } from '../auth/current-user.decorator'
-import type { ApiUser } from '../auth/auth.types'
-import { TicketsService } from './tickets.service'
+import { CurrentUser } from '../auth/current-user.decorator.js'
+import type { ApiUser } from '../auth/auth.types.js'
+import { TicketsService } from './tickets.service.js'
 
 @ApiTags('tickets')
 @Controller()

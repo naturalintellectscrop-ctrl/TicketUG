@@ -1,10 +1,10 @@
 import { Body, Controller, Delete, Get, Inject, Param, Patch, Post } from '@nestjs/common'
 import { ApiTags } from '@nestjs/swagger'
-import { CurrentUser } from '../auth/current-user.decorator'
-import type { ApiUser } from '../auth/auth.types'
-import { DatabaseService } from '../common/database.service'
-import { CreateTicketTypeDto, SetTicketTypeActiveDto, UpdateTicketTypeDto } from './ticket-type.dto'
-import { TicketTypesService } from './ticket-types.service'
+import { CurrentUser } from '../auth/current-user.decorator.js'
+import type { ApiUser } from '../auth/auth.types.js'
+import { DatabaseService } from '../common/database.service.js'
+import { CreateTicketTypeDto, SetTicketTypeActiveDto, UpdateTicketTypeDto } from './ticket-type.dto.js'
+import { TicketTypesService } from './ticket-types.service.js'
 
 @ApiTags('ticket-types')
 @Controller()

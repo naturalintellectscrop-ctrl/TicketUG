@@ -1,12 +1,12 @@
 import { ForbiddenException, Inject, Injectable, NotFoundException } from '@nestjs/common'
 import { createHash, randomBytes, randomUUID } from 'node:crypto'
 import type { PoolClient } from 'pg'
-import type { ApiUser } from '../auth/auth.types'
-import { DatabaseService } from '../common/database.service'
-import { assertOrganizerRole, assertPaidOrder } from './ticket.rules'
-import { ticketCredentialHash, ticketQrDataUrl, ticketQrPng } from './ticket.qr'
-import { buildTicketPdf, ticketPdfFilename, type TicketPdfSource } from './ticket.pdf'
-import type { TicketProjection } from './ticket.contracts'
+import type { ApiUser } from '../auth/auth.types.js'
+import { DatabaseService } from '../common/database.service.js'
+import { assertOrganizerRole, assertPaidOrder } from './ticket.rules.js'
+import { ticketCredentialHash, ticketQrDataUrl, ticketQrPng } from './ticket.qr.js'
+import { buildTicketPdf, ticketPdfFilename, type TicketPdfSource } from './ticket.pdf.js'
+import type { TicketProjection } from './ticket.contracts.js'
 
 const projection = `t.public_id,t.order_id,o.public_id AS order_public_id,o.order_number,t.event_id,t.event_title_snapshot AS event_title,t.event_starts_at,t.event_ends_at,t.venue_name_snapshot AS venue_name,t.venue_city_snapshot AS venue_city,t.ticket_type_name_snapshot AS ticket_type_name,t.attendee_name,t.attendee_email,t.status,t.issued_at`
 type Row = { public_id: string; order_id: string; order_public_id: string; order_number: string; event_id: string; event_title: string; event_starts_at: string; event_ends_at: string; venue_name: string | null; venue_city: string | null; ticket_type_name: string; attendee_name: string; attendee_email: string; status: TicketProjection['status']; issued_at: string }

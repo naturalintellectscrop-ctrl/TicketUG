@@ -1,9 +1,9 @@
 import { Body, Controller, Get, Inject, Patch, UnauthorizedException } from '@nestjs/common'
 import { ApiTags } from '@nestjs/swagger'
 import { IsEmail, IsOptional, IsString, MaxLength } from 'class-validator'
-import { CurrentUser } from '../auth/current-user.decorator'
-import type { ApiUser } from '../auth/auth.types'
-import { DatabaseService } from '../common/database.service'
+import { CurrentUser } from '../auth/current-user.decorator.js'
+import type { ApiUser } from '../auth/auth.types.js'
+import { DatabaseService } from '../common/database.service.js'
 
 class UpdateProfileDto { @IsOptional() @IsString() @MaxLength(120) displayName?: string; @IsOptional() @IsString() @MaxLength(30) phone?: string; @IsOptional() @IsEmail() deliveryEmail?: string; @IsOptional() @IsString() @MaxLength(30) deliveryPhone?: string }
 @ApiTags('users')

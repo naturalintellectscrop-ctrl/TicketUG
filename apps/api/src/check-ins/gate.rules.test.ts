@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { assignmentGrantsScanning, gateAllowsTicketType } from './gate.rules'
+import { assignmentGrantsScanning, gateAllowsTicketType } from './gate.rules.js'
 
 describe('assignmentGrantsScanning', () => {
   it('grants scanning for the legacy event-wide assignment (no gate)', () => {

@@ -1,9 +1,9 @@
 import { Body, Controller, Get, Headers, Inject, Param, Patch, Post, UnauthorizedException } from '@nestjs/common'
 import { ApiTags } from '@nestjs/swagger'
-import { CurrentUser } from '../auth/current-user.decorator'
-import type { ApiUser } from '../auth/auth.types'
-import { CreateOrderDto } from './order.dto'
-import { OrdersService } from './orders.service'
+import { CurrentUser } from '../auth/current-user.decorator.js'
+import type { ApiUser } from '../auth/auth.types.js'
+import { CreateOrderDto } from './order.dto.js'
+import { OrdersService } from './orders.service.js'
 
 @ApiTags('orders')
 @Controller()

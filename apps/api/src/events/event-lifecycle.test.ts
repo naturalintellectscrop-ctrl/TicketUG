@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { assertTransition, canTransition, publicationStateForTransition } from './event-lifecycle'
+import { assertTransition, canTransition, publicationStateForTransition } from './event-lifecycle.js'
 
 describe('event lifecycle', () => {
   it('allows the canonical forward flow', () => {

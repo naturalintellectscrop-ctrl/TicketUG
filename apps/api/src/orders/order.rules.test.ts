@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { assertOrderTransition, calculateLineTotal, calculateOrderTotal, isOrderExpiryDue, paymentDeadline, PAYMENT_WINDOW_MINUTES, validateOrderItems, type OrderStatus } from './order.rules'
+import { assertOrderTransition, calculateLineTotal, calculateOrderTotal, isOrderExpiryDue, paymentDeadline, PAYMENT_WINDOW_MINUTES, validateOrderItems, type OrderStatus } from './order.rules.js'
 
 describe('order rules', () => {
   it('requires positive unique quantities', () => {

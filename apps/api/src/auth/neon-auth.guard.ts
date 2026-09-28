@@ -1,13 +1,38 @@
 import { CanActivate, ExecutionContext, Inject, Injectable, UnauthorizedException } from '@nestjs/common'
-import { neonAuth } from './neon-auth'
-import { DatabaseService } from '../common/database.service'
-import { ApiUser, API_USER } from './auth.types'
+import type { Request, Response } from 'express'
+import { neonAuth, neonAuthScope } from './neon-auth.js'
+import { DatabaseService } from '../common/database.service.js'
+import { ApiUser, API_USER } from './auth.types.js'
+
+type Headers = Request['headers']
+
+function firstHeader(headers: Headers, name: string): string | null {
+  const value = headers[name.toLowerCase()]
+  if (Array.isArray(value)) return value[0] ?? null
+  return value ?? null
+}
+
+function resolveOrigin(headers: Headers): string {
+  const origin = firstHeader(headers, 'origin')
+  if (origin) return origin
+  const referer = firstHeader(headers, 'referer')
+  if (referer) {
+    try {
+      return new URL(referer).origin
+    } catch {
+      return ''
+    }
+  }
+  return ''
+}
 
 @Injectable()
 export class NeonAuthGuard implements CanActivate {
   constructor(@Inject(DatabaseService) private readonly db: DatabaseService) {}
   async canActivate(context: ExecutionContext) {
-    const request = context.switchToHttp().getRequest<{ headers: Record<string, string | undefined>; path?: string; [API_USER]?: ApiUser }>()
+    const http = context.switchToHttp()
+    const request = http.getRequest<Request & { path?: string; [API_USER]?: ApiUser }>()
+    const response = http.getResponse<Response>()
     // All /public/orders/* endpoints self-authenticate with the order's guest access
     // token (sha256-compared in the services), so they intentionally bypass cookie auth.
     if (request.path === '/api/v1/health' || request.path === '/api/v1/readiness' || request.path?.startsWith('/api/v1/docs') || request.path?.startsWith('/api/v1/public/events/') || request.path?.startsWith('/api/v1/public/orders/') || request.path?.startsWith('/api/v1/public/payments/webhooks/')) return true
@@ -21,7 +46,13 @@ export class NeonAuthGuard implements CanActivate {
     }
     const cookie = request.headers.cookie
     if (!cookie) throw new UnauthorizedException('Authentication required')
-    const session = await neonAuth.getSession({ fetchOptions: { headers: { cookie } } })
+    // Run the SDK call inside the per-request AsyncLocalStorage scope so the
+    // framework-agnostic Neon Auth context can read this request's cookies and
+    // surface any refreshed session cookies on the response. (The SDK ignores
+    // per-call fetchOptions for cookies — its context is the only cookie source.)
+    const scope = { cookieHeader: cookie, origin: resolveOrigin(request.headers), getHeader: (name: string) => firstHeader(request.headers, name), responseCookies: [] }
+    const session = await neonAuthScope.run(scope, () => neonAuth.getSession({}))
+    for (const setCookie of scope.responseCookies) response.append('Set-Cookie', setCookie)
     const authUserId = session?.data?.user?.id
     if (!authUserId) throw new UnauthorizedException('Authentication required')
     const profile = await this.db.query<{ id: string }>('SELECT id FROM ticketug.user_profile WHERE auth_user_id = $1 LIMIT 1', [authUserId])

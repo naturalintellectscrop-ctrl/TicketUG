@@ -1,5 +1,5 @@
 import { createParamDecorator, ExecutionContext, UnauthorizedException } from '@nestjs/common'
-import { ApiUser, API_USER } from './auth.types'
+import { ApiUser, API_USER } from './auth.types.js'
 
 export const CurrentUser = createParamDecorator((_data: unknown, context: ExecutionContext): ApiUser => {
   const request = context.switchToHttp().getRequest<{ [API_USER]?: ApiUser }>()

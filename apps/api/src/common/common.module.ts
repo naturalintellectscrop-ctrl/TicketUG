@@ -1,6 +1,6 @@
 import { Global, Module } from '@nestjs/common'
-import { DatabaseService } from './database.service'
-import { HealthController } from './health.controller'
+import { DatabaseService } from './database.service.js'
+import { HealthController } from './health.controller.js'
 
 @Global()
 @Module({ controllers: [HealthController], providers: [DatabaseService], exports: [DatabaseService] })

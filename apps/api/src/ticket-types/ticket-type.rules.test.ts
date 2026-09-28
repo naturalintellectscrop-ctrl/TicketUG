@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { getTicketAvailability, validateSaleWindow, validateTicketNumbers } from './ticket-type.rules'
+import { getTicketAvailability, validateSaleWindow, validateTicketNumbers } from './ticket-type.rules.js'
 
 describe('ticket type rules', () => {
   it('rejects invalid sale windows', () => {

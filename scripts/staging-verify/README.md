@@ -33,6 +33,14 @@ bun scripts/staging-verify/verify-gates.ts --url="$THROWAWAY_URL"
 The runner is rerun-safe (it truncates its own throwaway data first) and exits
 non-zero on any failure.
 
+**Pair 3 note:** the stub now also mirrors the untracked-001–004 tables the
+authenticated UI journey proved the app reads/writes (`platform_role`,
+`security_event`, `organizer_invitation`, `attendee_profile`) plus
+`organizer_member.updated_at` + `UNIQUE(organizer_id, user_profile_id)` — the
+invitation-acceptance upsert fails without them. For authenticated browser
+journeys, see `scripts/local-auth-standin/README.md` (local Better Auth engine
+on the exact Neon Auth wire contract).
+
 ## What it proves (46 checks)
 
 - **A — migration 011 objects:** `event_gate`, `ticket_type_gate`,

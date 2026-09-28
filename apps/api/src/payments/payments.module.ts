@@ -1,8 +1,8 @@
 import { Module } from '@nestjs/common'
-import { PaymentsController } from './payments.controller'
-import { PaymentsService } from './payments.service'
-import { ProviderRegistry } from './payment.provider'
-import { TicketsModule } from '../tickets/tickets.module'
+import { PaymentsController } from './payments.controller.js'
+import { PaymentsService } from './payments.service.js'
+import { ProviderRegistry } from './payment.provider.js'
+import { TicketsModule } from '../tickets/tickets.module.js'
 
 @Module({ imports: [TicketsModule], controllers: [PaymentsController], providers: [PaymentsService, ProviderRegistry] })
 export class PaymentsModule {}

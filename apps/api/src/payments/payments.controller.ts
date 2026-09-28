@@ -1,9 +1,9 @@
 import { Body, Controller, Get, Headers, Inject, Param, Post, Req, UnprocessableEntityException } from '@nestjs/common'
 import { ApiTags } from '@nestjs/swagger'
-import { CurrentUser } from '../auth/current-user.decorator'
-import type { ApiUser } from '../auth/auth.types'
-import { InitiatePaymentDto } from './payment.dto'
-import { PaymentsService } from './payments.service'
+import { CurrentUser } from '../auth/current-user.decorator.js'
+import type { ApiUser } from '../auth/auth.types.js'
+import { InitiatePaymentDto } from './payment.dto.js'
+import { PaymentsService } from './payments.service.js'
 
 @ApiTags('payments')
 @Controller()

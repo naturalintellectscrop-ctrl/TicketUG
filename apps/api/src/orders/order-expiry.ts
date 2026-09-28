@@ -1,6 +1,6 @@
 import type { PoolClient } from 'pg'
-import { assertPaymentTransition, type PaymentStatus } from '../payments/payment.rules'
-import { isOrderExpiryDue } from './order.rules'
+import { assertPaymentTransition, type PaymentStatus } from '../payments/payment.rules.js'
+import { isOrderExpiryDue } from './order.rules.js'
 
 // Transactional order-expiry engine shared by the lazy read-path hook and the
 // operator sweep endpoint. Canonical expiry logic lives here (Nest is the

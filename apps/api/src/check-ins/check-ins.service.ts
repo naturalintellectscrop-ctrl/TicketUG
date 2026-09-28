@@ -1,9 +1,9 @@
 import { BadRequestException, ForbiddenException, Injectable, NotFoundException } from '@nestjs/common'
 import { createHash, randomUUID } from 'node:crypto'
 import type { PoolClient } from 'pg'
-import type { ApiUser } from '../auth/auth.types'
-import { DatabaseService } from '../common/database.service'
-import { assignmentGrantsScanning, gateAllowsTicketType } from './gate.rules'
+import type { ApiUser } from '../auth/auth.types.js'
+import { DatabaseService } from '../common/database.service.js'
+import { assignmentGrantsScanning, gateAllowsTicketType } from './gate.rules.js'
 
 const QR_PREFIX = 'ticketug:v1:'
 const allowedRoles = new Set(['EVENT_STAFF', 'ORGANIZER_OWNER', 'ORGANIZER_MANAGER', 'PLATFORM_ADMIN', 'SUPER_ADMIN'])

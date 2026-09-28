@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { assertPaymentTransition } from './payment.rules'
+import { assertPaymentTransition } from './payment.rules.js'
 
 describe('payment transitions', () => {
   it('allows processing to succeed', () => expect(() => assertPaymentTransition('PROCESSING', 'SUCCEEDED')).not.toThrow())

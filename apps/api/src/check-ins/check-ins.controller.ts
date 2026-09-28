@@ -1,8 +1,8 @@
 import { Body, Controller, Get, Param, Post } from '@nestjs/common'
 import { ApiTags } from '@nestjs/swagger'
-import { CurrentUser } from '../auth/current-user.decorator'
-import type { ApiUser } from '../auth/auth.types'
-import { CheckInsService } from './check-ins.service'
+import { CurrentUser } from '../auth/current-user.decorator.js'
+import type { ApiUser } from '../auth/auth.types.js'
+import { CheckInsService } from './check-ins.service.js'
 
 @ApiTags('check-ins')
 @Controller('check-ins')

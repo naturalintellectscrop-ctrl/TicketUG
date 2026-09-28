@@ -1,6 +1,6 @@
 import { Controller, Get, Inject } from '@nestjs/common'
 import { ApiTags } from '@nestjs/swagger'
-import { DatabaseService } from './database.service'
+import { DatabaseService } from './database.service.js'
 
 @ApiTags('health')
 @Controller()

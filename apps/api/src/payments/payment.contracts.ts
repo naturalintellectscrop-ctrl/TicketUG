@@ -1,4 +1,4 @@
-import type { PaymentStatus } from './payment.rules'
+import type { PaymentStatus } from './payment.rules.js'
 
 export type ProviderInitiation = { providerAttemptReference: string; redirectUrl?: string; instructions?: string; metadata?: Record<string, string> }
 export type VerifiedProviderEvent = { providerEventId: string; eventType: string; providerAttemptReference: string; status: PaymentStatus; amountMinorUnits: bigint; currency: string; orderReference: string }

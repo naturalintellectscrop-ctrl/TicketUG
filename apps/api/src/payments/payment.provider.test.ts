@@ -1,7 +1,7 @@
 import { createHmac } from 'node:crypto'
 import { describe, expect, it, beforeEach, afterEach } from 'vitest'
 import { BadRequestException, ServiceUnavailableException } from '@nestjs/common'
-import { TestPaymentProvider } from './payment.provider'
+import { TestPaymentProvider } from './payment.provider.js'
 
 const payload = { eventId: 'evt_1', type: 'payment.updated', attemptReference: 'pat_1', orderReference: 'ord_1', amountMinorUnits: 12500, currency: 'UGX', status: 'SUCCEEDED' }
 

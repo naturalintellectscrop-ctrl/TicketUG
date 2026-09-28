@@ -2,9 +2,9 @@ import { Body, Controller, Get, Inject, Param, Post, ForbiddenException } from '
 import { ApiTags } from '@nestjs/swagger'
 import { IsNotEmpty, IsString, Matches, MaxLength } from 'class-validator'
 import { randomUUID } from 'node:crypto'
-import { CurrentUser } from '../auth/current-user.decorator'
-import type { ApiUser } from '../auth/auth.types'
-import { DatabaseService } from '../common/database.service'
+import { CurrentUser } from '../auth/current-user.decorator.js'
+import type { ApiUser } from '../auth/auth.types.js'
+import { DatabaseService } from '../common/database.service.js'
 
 class CreateOrganizerDto { @IsString() @IsNotEmpty() @MaxLength(120) name!: string; @IsString() @Matches(/^[a-z0-9-]+$/) slug!: string }
 @ApiTags('organizers')

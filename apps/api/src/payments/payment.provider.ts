@@ -1,7 +1,7 @@
 import { createHmac, timingSafeEqual } from 'node:crypto'
 import { BadRequestException, Injectable, ServiceUnavailableException } from '@nestjs/common'
-import type { PaymentProviderAdapter, ProviderInitiation, VerifiedProviderEvent } from './payment.contracts'
-import type { PaymentStatus } from './payment.rules'
+import type { PaymentProviderAdapter, ProviderInitiation, VerifiedProviderEvent } from './payment.contracts.js'
+import type { PaymentStatus } from './payment.rules.js'
 
 export class TestPaymentProvider implements PaymentProviderAdapter {
   readonly name = 'test'
