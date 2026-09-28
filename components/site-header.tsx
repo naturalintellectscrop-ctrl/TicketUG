@@ -26,6 +26,7 @@ export async function SiteHeader({ nextPath, children }: { nextPath?: string; ch
       <Link href="/" className="brand-mark" aria-label="TicketUG home"><span className="brand-dot" />TicketUG</Link>
       <nav className="site-nav" aria-label="Primary navigation">
         {children}
+        <Link href="/contact" className="nav-always">Contact</Link>
         {context ? (
           <>
             {isOrganizer && <Link href="/organizer" className="nav-always">Organizer</Link>}
