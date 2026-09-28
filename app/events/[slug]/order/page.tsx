@@ -19,7 +19,7 @@ export default async function PublicOrderPage({ params }: { params: Promise<{ sl
     return <main className="auth-page">
       <p className="eyebrow">Order request</p>
       <h1>{event.title}</h1>
-      <p className="lede">Create an order now. Payment will be added in a later phase.</p>
+      <p className="lede">Create an order now — the payment window opens automatically right after you place it.</p>
       <section className="surface stack" aria-label="Signed-in checkout">
         <div className="row-between"><span className="muted">Ordering as</span><strong>{session?.user?.name || session?.user?.email}</strong></div>
         <p className="muted">This order attaches to your TicketUG account — you will find it under <Link className="text-link" href="/account/orders">My orders</Link> with live payment status, no access key required.</p>
@@ -30,7 +30,7 @@ export default async function PublicOrderPage({ params }: { params: Promise<{ sl
   return <main className="auth-page">
     <p className="eyebrow">Order request</p>
     <h1>{event.title}</h1>
-    <p className="lede">Create an order now. Payment will be added in a later phase.</p>
+    <p className="lede">Create an order now — the payment window opens automatically right after you place it.</p>
     <section className="surface stack" aria-label="Account option">
       <div className="row-between"><span className="muted">Have an account?</span><Link className="button button-quiet" href={`/sign-in?next=${encodeURIComponent(`/events/${slug}/order`)}`}>Sign in</Link></div>
       <p className="muted">Signed-in buyers keep orders on their profile with saved tickets — no order link to look after.</p>

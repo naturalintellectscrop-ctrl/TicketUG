@@ -1,8 +1,8 @@
 import { createNeonAuth } from '@neondatabase/auth/next/server'
+import { resolveAuthSecret } from '@/lib/auth-secret'
 
 const baseUrl = process.env.NEON_AUTH_BASE_URL ?? process.env.VITE_NEON_AUTH_URL ?? 'http://localhost:3000'
-const secret = process.env.BETTER_AUTH_SECRET ?? (process.env.NODE_ENV === 'development' ? 'ticketug-local-development-secret-32-chars' : null)
-if (!secret) throw new Error('BETTER_AUTH_SECRET is required in production')
+const secret = resolveAuthSecret(process.env)
 
 export const auth = createNeonAuth({
   baseUrl,

@@ -48,7 +48,7 @@ export default async function AdminPage() {
       <div className="row-between"><span className="status-pill">{isSuperAdmin ? 'Super admin' : 'Platform support'}</span><Link href="/account">My account</Link></div>
     </header>
     <nav className="surface admin-nav" aria-label="Platform areas">
-      <Link className="active" href="/admin">Overview</Link><span>Users</span><span>Organizers</span><span>Events</span><span>Orders</span><span>Tickets</span><span className="muted">Payments · unavailable</span>
+      <Link className="active" href="/admin">Overview</Link><span className="muted">Deeper user, organizer, event, order and payment tooling arrives with live payments and event moderation</span>
     </nav>
     <section className="metric-grid" aria-label="Platform metrics">
       {cards.map(([key, label, description]) => <article className="surface metric-card" key={key}><p className="eyebrow">{label}</p><strong>{metrics[key].toLocaleString('en-UG')}</strong><p className="muted">{description}</p></article>)}
