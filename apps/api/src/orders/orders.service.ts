@@ -1,4 +1,4 @@
-import { BadRequestException, ConflictException, ForbiddenException, NotFoundException } from '@nestjs/common'
+import { BadRequestException, ConflictException, ForbiddenException, Injectable, NotFoundException } from '@nestjs/common'
 import { createHash, randomBytes, randomUUID } from 'node:crypto'
 import type { ApiUser } from '../auth/auth.types'
 import { DatabaseService } from '../common/database.service'
@@ -12,6 +12,7 @@ type ItemRow = { ticket_type_id: string; ticket_name_snapshot: string; quantity:
 
 const orderSummary = `o.id, o.public_id, o.order_number, o.user_profile_id, o.purchaser_name, o.purchaser_email, o.status, o.currency, o.total_minor_units, o.created_at, o.updated_at, o.cancelled_at, o.payment_expires_at`
 
+@Injectable()
 export class OrdersService {
   constructor(private readonly db: DatabaseService) {}
 

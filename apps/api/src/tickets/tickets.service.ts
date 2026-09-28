@@ -4,11 +4,13 @@ import type { PoolClient } from 'pg'
 import type { ApiUser } from '../auth/auth.types'
 import { DatabaseService } from '../common/database.service'
 import { assertOrganizerRole, assertPaidOrder } from './ticket.rules'
-import { ticketCredentialHash, ticketQrDataUrl } from './ticket.qr'
+import { ticketCredentialHash, ticketQrDataUrl, ticketQrPng } from './ticket.qr'
+import { buildTicketPdf, ticketPdfFilename, type TicketPdfSource } from './ticket.pdf'
 import type { TicketProjection } from './ticket.contracts'
 
 const projection = `t.public_id,t.order_id,o.public_id AS order_public_id,o.order_number,t.event_id,t.event_title_snapshot AS event_title,t.event_starts_at,t.event_ends_at,t.venue_name_snapshot AS venue_name,t.venue_city_snapshot AS venue_city,t.ticket_type_name_snapshot AS ticket_type_name,t.attendee_name,t.attendee_email,t.status,t.issued_at`
 type Row = { public_id: string; order_id: string; order_public_id: string; order_number: string; event_id: string; event_title: string; event_starts_at: string; event_ends_at: string; venue_name: string | null; venue_city: string | null; ticket_type_name: string; attendee_name: string; attendee_email: string; status: TicketProjection['status']; issued_at: string }
+type PdfRow = Row & { credential: string; timezone: string; organizer_name: string | null; event_has_gates: boolean; permitted_gates: string[] | null }
 
 @Injectable()
 export class TicketsService {
@@ -29,7 +31,7 @@ export class TicketsService {
     await client.query(`INSERT INTO ticketug.ticket_issuance_event(id,order_id,payment_id,provider_reference,status,ticket_count,completed_at) VALUES($1,$2,$3,$4,'ISSUED',$5,now())`, [randomUUID(), context.orderId, context.paymentId, context.providerReference, total])
     return this.rowsForOrder(client, context.orderId)
   }
-  private async rowsForOrder(client: PoolClient, orderId: string) { return (await client.query<Row>(`SELECT ${projection} FROM ticketug.ticket t JOIN ticketug.order o ON o.id=t.order_id WHERE t.order_id=$1 ORDER BY t.event_id,t.ticket_type_name,t.issued_at,t.public_id`, [orderId])).rows.map((row) => this.present(row)) }
+  private async rowsForOrder(client: PoolClient, orderId: string) { return (await client.query<Row>(`SELECT ${projection} FROM ticketug.ticket t JOIN ticketug.order o ON o.id=t.order_id WHERE t.order_id=$1 ORDER BY t.event_id,t.ticket_type_name_snapshot,t.issued_at,t.public_id`, [orderId])).rows.map((row) => this.present(row)) }
   async listMine(user: ApiUser) { return (await this.db.query<Row>(`SELECT ${projection} FROM ticketug.ticket t JOIN ticketug.order o ON o.id=t.order_id WHERE t.owner_profile_id=$1 ORDER BY t.event_starts_at DESC,t.issued_at DESC`, [user.profileId])).rows.map((row) => this.present(row)) }
   async getMine(user: ApiUser, publicId: string) { const row = (await this.db.query<Row>(`SELECT ${projection} FROM ticketug.ticket t JOIN ticketug.order o ON o.id=t.order_id WHERE t.public_id=$1 AND t.owner_profile_id=$2`, [publicId, user.profileId])).rows[0]; if (!row) throw new NotFoundException('Ticket not found'); return this.present(row) }
   async listOrderMine(user: ApiUser, orderPublicId: string) { const result = await this.db.query<Row>(`SELECT ${projection} FROM ticketug.ticket t JOIN ticketug.order o ON o.id=t.order_id WHERE o.public_id=$1 AND o.user_profile_id=$2 ORDER BY t.issued_at`, [orderPublicId, user.profileId]); return result.rows.map((row) => this.present(row)) }
@@ -37,4 +39,37 @@ export class TicketsService {
   async digitalGuest(orderPublicId: string, ticketPublicId: string, token: string) { if (!token) throw new ForbiddenException('Guest access token required'); const hash = createHash('sha256').update(token).digest('hex'); const row = (await this.db.query<Row & { credential: string }>(`SELECT ${projection},t.credential FROM ticketug.ticket t JOIN ticketug.order o ON o.id=t.order_id WHERE o.public_id=$1 AND t.public_id=$2 AND o.guest_access_token_hash=$3`, [orderPublicId, ticketPublicId, hash])).rows[0]; if (!row) throw new NotFoundException('Ticket not found'); return { ...this.present(row), qrDataUrl: await ticketQrDataUrl(row.credential) } }
   async listEvent(user: ApiUser, eventId: string) { const event = (await this.db.query<{ organizer_id: string }>('SELECT organizer_id FROM ticketug.event WHERE id=$1', [eventId])).rows[0]; if (!event) throw new NotFoundException('Event not found'); assertOrganizerRole(user.organizerMemberships.find((item) => item.organizerId === event.organizer_id && item.status === 'ACTIVE')?.role); return (await this.db.query<Row>(`SELECT ${projection} FROM ticketug.ticket t JOIN ticketug.order o ON o.id=t.order_id WHERE t.event_id=$1 ORDER BY t.issued_at DESC`, [eventId])).rows.map((row) => this.present(row)) }
   async digital(user: ApiUser, publicId: string) { const ticket = await this.getMine(user, publicId); const secret = (await this.db.query<{ credential: string }>('SELECT credential FROM ticketug.ticket WHERE public_id=$1 AND owner_profile_id=$2', [publicId, user.profileId])).rows[0]; return { ...ticket, qrDataUrl: secret?.credential ? await ticketQrDataUrl(secret.credential) : undefined } }
+
+  // --- PDF tickets -----------------------------------------------------------
+  // One authoritative query per access path (owner / guest token) that joins the
+  // same rows the digital ticket uses, plus the print-relevant context (event
+  // timezone, organizer name, gate permissions). The PDF builder receives ONLY
+  // this server-loaded data — no client-supplied ticket details.
+  private pdfProjection = `${projection},t.credential,e.timezone,org.name AS organizer_name,EXISTS(SELECT 1 FROM ticketug.event_gate g WHERE g.event_id = e.id AND g.is_active = true) AS event_has_gates,(SELECT array_agg(g.name ORDER BY g.name) FROM ticketug.ticket_type_gate ttg JOIN ticketug.event_gate g ON g.id = ttg.gate_id WHERE ttg.ticket_type_id = t.ticket_type_id AND g.event_id = e.id AND g.is_active = true) AS permitted_gates`
+  private pdfFrom = ` FROM ticketug.ticket t JOIN ticketug.order o ON o.id = t.order_id JOIN ticketug.event e ON e.id = t.event_id LEFT JOIN ticketug.organizer org ON org.id = e.organizer_id`
+  private async pdfFromRow(row: PdfRow): Promise<{ buffer: Buffer; filename: string }> {
+    if (!row.credential) throw new NotFoundException('Ticket credential unavailable')
+    const source: TicketPdfSource = {
+      ticket: { publicId: row.public_id, ticketTypeName: row.ticket_type_name, attendeeName: row.attendee_name, attendeeEmail: row.attendee_email, status: row.status, issuedAt: row.issued_at },
+      order: { orderNumber: row.order_number },
+      event: { title: row.event_title, startsAt: row.event_starts_at, endsAt: row.event_ends_at, timezone: row.timezone || 'Africa/Kampala', venueName: row.venue_name, venueCity: row.venue_city },
+      organizerName: row.organizer_name,
+      eventHasGates: row.event_has_gates === true,
+      permittedGates: row.permitted_gates ?? [],
+      qrPng: await ticketQrPng(row.credential),
+    }
+    return { buffer: await buildTicketPdf(source), filename: ticketPdfFilename(row.public_id) }
+  }
+  async pdfMine(user: ApiUser, publicId: string) {
+    const row = (await this.db.query<PdfRow>(`SELECT ${this.pdfProjection}${this.pdfFrom} WHERE t.public_id=$1 AND t.owner_profile_id=$2`, [publicId, user.profileId])).rows[0]
+    if (!row) throw new NotFoundException('Ticket not found')
+    return this.pdfFromRow(row)
+  }
+  async pdfGuest(orderPublicId: string, ticketPublicId: string, token: string) {
+    if (!token) throw new ForbiddenException('Guest access token required')
+    const hash = createHash('sha256').update(token).digest('hex')
+    const row = (await this.db.query<PdfRow>(`SELECT ${this.pdfProjection}${this.pdfFrom} WHERE o.public_id=$1 AND t.public_id=$2 AND o.guest_access_token_hash=$3`, [orderPublicId, ticketPublicId, hash])).rows[0]
+    if (!row) throw new NotFoundException('Ticket not found')
+    return this.pdfFromRow(row)
+  }
 }

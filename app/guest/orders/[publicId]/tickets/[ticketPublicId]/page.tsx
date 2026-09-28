@@ -5,6 +5,7 @@ import Link from 'next/link'
 import { useEffect, useState } from 'react'
 import { buildEventIcs } from '@/lib/ics'
 import { guestTokenStorageKey } from '@/lib/guest-order-access'
+import { DownloadTicketPdfButton } from '@/components/download-ticket-pdf'
 
 type Ticket = { eventTitle: string; eventStartsAt: string; eventEndsAt: string; venueName: string | null; venueCity: string | null; ticketTypeName: string; attendeeName: string; status: string; publicId: string; qrDataUrl?: string }
 
@@ -59,9 +60,11 @@ export default function GuestTicketPage({ params }: { params: Promise<{ publicId
       <p className="muted">Present this QR code at the entrance scan point. Each credential scans once — keep it private until you arrive.</p>
     </section>
     <section className="surface stack" aria-label="Ticket actions">
-      <h2>Add to your plans</h2>
+      <h2>Keep this ticket</h2>
       <p className="muted">Download a calendar file so the event lands in your phone or laptop calendar with the exact times and venue.</p>
       <div className="hero-actions"><button type="button" className="button button-primary" onClick={downloadCalendar}>Add to calendar (.ics)</button></div>
+      <p className="muted">Need a printable copy? The PDF carries the same secure QR — the gate verifies it server-side, exactly like this page.</p>
+      <DownloadTicketPdfButton path={`/api/public/orders/${orderPublicId}/tickets/${ticket.publicId}/pdf`} filename={`ticketug-ticket-${ticket.publicId}.pdf`} getHeaders={() => ({ 'x-order-access-token': sessionStorage.getItem(guestTokenStorageKey(orderPublicId)) ?? '' })} />
     </section>
     <footer className="auth-footer muted">TicketUG · Natural Intellects Ltd — keep this ticket private; anyone with the QR credential could scan it first.</footer>
   </main>

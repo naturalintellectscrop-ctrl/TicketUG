@@ -1,4 +1,4 @@
-import { BadRequestException, ForbiddenException, NotFoundException } from '@nestjs/common'
+import { BadRequestException, ForbiddenException, Injectable, NotFoundException } from '@nestjs/common'
 import { randomUUID } from 'node:crypto'
 import type { ApiUser } from '../auth/auth.types'
 import { DatabaseService } from '../common/database.service'
@@ -9,6 +9,7 @@ const manageRoles = ['ORGANIZER_OWNER', 'ORGANIZER_MANAGER']
 
 type TicketRow = { id: string; event_id: string; public_id: string; name: string; description: string; price_minor_units: string; currency: string; capacity: number; sale_starts_at: string | null; sale_ends_at: string | null; active: boolean; sort_order: number; created_at: string; updated_at: string }
 
+@Injectable()
 export class TicketTypesService {
   constructor(private readonly db: DatabaseService) {}
 
