@@ -1,11 +1,14 @@
 # TicketUG — manual deployment steps requiring NI account access
 
-> Pair 6 revision (2026-09-29). The separately hosted NestJS API was REMOVED —
+> Production-gate revision (2026-09-29). The separately hosted NestJS API was REMOVED —
 > the deployment shape is now **Vercel (Next.js) + Supabase only** (the old
 > BLOCKER 3 "host the API" is obsolete). Every Pair 5/5.1 claim was
-> independently re-verified against the real Supabase project, and the Pair 6
+> independently re-verified against the real Supabase project, the Pair 6
 > migration was verified end-to-end (57-check behavioral harness + 28-check
-> SQL-function matrix + full guest journey) against the real database.
+> SQL-function matrix + full guest journey) against the real database, and the
+> production gate re-ran the full harness suite + local build pipeline.
+> **BLOCKER 2a now carries the NEW Supabase API-key configuration**
+> (`sb_publishable_…` → `SUPABASE_ANON_KEY`; do NOT add `sb_secret_…`).
 > **Do not paste secret values into chat/Git** — set them in the provider's
 > secret store.
 
@@ -64,36 +67,69 @@ OBSOLETE          — the old BLOCKER 3 (host apps/api): Pair 6 removed the
   `main` at the pushed tip (the old stale `cron/round-10-settings` target must
   no longer be referenced).
 
-## BLOCKER 2a — Vercel environment variables
+## BLOCKER 2a — Vercel environment variables (NEW Supabase API keys)
 
 - **SERVICE / DASHBOARD LOCATION:** Vercel → Project → Settings → Environment
-  Variables (Production + Preview).
+  Variables (Production + Preview + Development as desired; Production is
+  what matters).
+- **WHERE THE VALUES COME FROM:** Supabase Dashboard → Project Settings →
+  **API Keys** — the NEW key system: **Publishable key** (`sb_publishable_…`)
+  and **Secret keys** (`sb_secret_…`). Copy values with each row's copy
+  button; never paste them into chat, Git or docs.
 - **EXACT SETTINGS** (full reference: `docs/DEPLOYMENT_ENVIRONMENT.md`):
 
   ```text
-  DATABASE_URL           = <Supabase session-pooler URL>   (the one NI supplied)
+  DATABASE_URL           = <Supabase session-pooler URL>   (Project Settings →
+                                                           Database → Connect;
+                                                           unchanged by the key
+                                                           migration)
   SUPABASE_URL           = https://vmebmexwqfpnlioicqgj.supabase.co
-  SUPABASE_ANON_KEY      = <publishable key>               (see BLOCKER 2b)
+  SUPABASE_ANON_KEY      = sb_publishable_…                (the NEW publishable
+                                                           key — this variable
+                                                           name is the slot the
+                                                           app reads; its role
+                                                           IS the publishable
+                                                           key)
+  CRON_SECRET            = <long random string>            (guards the expiry
+                                                           sweep; e.g. openssl
+                                                           rand -hex 32)
   PAYMENT_WINDOW_MINUTES = 15 (optional)
   ```
 
+  **Environment column:** tick Production (and Preview/Development if wanted).
+  **Do NOT add any `NEXT_PUBLIC_` variable** — the browser never talks to
+  Supabase directly in this architecture; every Supabase/auth call is
+  server-side inside Next.js.
+  **Do NOT set `SUPABASE_SECRET_KEY` (sb_secret_…)** — the application has no
+  code path that uses privileged Supabase REST access; all privileged work
+  terminates in PostgreSQL via `DATABASE_URL` (SECURITY DEFINER functions).
+  Adding it would only widen the secret surface.
   Do NOT set `API_ORIGIN` (obsolete since Pair 6 — there is no API host any
-  more). Do NOT set `PAYMENT_MODE` or `PAYMENT_PROVIDER` in Production.
+  more). Do NOT set `PAYMENT_MODE` or `PAYMENT_PROVIDER` in Production —
+  their absence IS the production payment fail-closed boundary
+  (503 TEST_PAYMENT_DISABLED).
+- **AFTER SAVING:** Deployments → ⋯ on the latest Production deploy →
+  **Redeploy** (env-var changes do not apply to already-built deployments).
 - **HOW TO VERIFY (after deploy):** `/events` shows real event rows;
   sign-up works (`sb-<ref>-auth-token` cookie, HttpOnly + Secure);
   `POST /api/public/orders/…/payment/test-complete` → 503 TEST_PAYMENT_DISABLED.
 
-## BLOCKER 2b — Enable live Supabase Auth verification
+## BLOCKER 2b — Enable live Supabase Auth verification (NEW publishable key)
 
-- Unchanged from Pair 5: copy the **anon/publishable** key from Supabase
-  Dashboard → Project Settings → API into Vercel `SUPABASE_ANON_KEY`
-  (secret store only). Verify:
+- Copy the NEW **publishable key** (`sb_publishable_…`) from Supabase
+  Dashboard → Project Settings → **API Keys** into Vercel `SUPABASE_ANON_KEY`
+  (secret store only; the app passes it to `@supabase/ssr` server-side).
+  Supported natively by `@supabase/ssr@0.12.7` / `@supabase/supabase-js@2.117.2`
+  — no code change required. Verify:
 
   ```bash
-  curl -s "https://vmebmexwqfpnlioicqgj.supabase.co/auth/v1/health" -H "apikey: <anon key>"
+  curl -s "https://vmebmexwqfpnlioicqgj.supabase.co/auth/v1/health" -H "apikey: sb_publishable_…"
   # → {"version":"...","name":"GoTrue",...}
   ```
 
+- Legacy `anon` / `service_role` JWT keys are NOT needed by this application;
+  once Vercel runs on the publishable key they can be retired in the Supabase
+  dashboard (do this only AFTER the hosted auth pass is green).
 - Recommended dashboard settings: Auth → Sessions → Access Token TTL ≤ 3600 s;
   confirm "Confirm email" state (SMTP before public launch if enabled).
 
@@ -117,10 +153,16 @@ OBSOLETE          — the old BLOCKER 3 (host apps/api): Pair 6 removed the
 
 ## NON-BLOCKING RECOMMENDATIONS
 
-1. **Scheduler wiring:** an external cron calling
-   `POST /api/system/orders/expire-stale` with `x-cron-secret: <CRON_SECRET>`
-   so expired orders self-sweep (lazy per-read expiry already bounds the blast
-   radius).
+1. **Expiry sweep — WIRED (production gate):** `vercel.json` now schedules
+   Vercel Cron every 5 minutes against `/api/system/orders/expire-stale`.
+   The route accepts both `x-cron-secret` (operator/external schedulers) and
+   Vercel Cron's automatic `Authorization: Bearer <CRON_SECRET>`; it stays
+   fail-closed (401) when `CRON_SECRET` is unset. **Operational note:** on the
+   Vercel Hobby plan cron schedules are clamped to once per day — either
+   upgrade to Pro for the 5-minute cadence, or point an external scheduler
+   (cron-job.org, GitHub Actions) at the same endpoint with
+   `x-cron-secret: <CRON_SECRET>`. Lazy per-read expiry bounds the blast
+   radius either way.
 2. **CA rotation watch:** Supabase Root 2021 CA pinned in
    `certs/supabase-root-2021-ca.pem` (fingerprint in `certs/README.md`); if
    rotated, set `SUPABASE_CA_CERT`.

@@ -783,6 +783,99 @@ verification run flips §21's local rows to HOSTED. Future extension points
 (documented, not built): Edge Function for a live provider webhook; PostgREST
 read views + RLS for a future mobile client; scheduler wiring for the sweep.
 
+## 22. Production deployment gate (2026-09-29) — final readiness pass
+
+Starting commit `41f01a3` (the forensic-audit baseline). Directive: final
+production deployment/verification gate — audit first, change only what the
+evidence requires; preserve all working functionality; no new features, no
+live payments, no architecture change.
+
+### 22.1 Forensic re-audit (what the tree actually looked like)
+
+- `HEAD = 41f01a3`, clean tree, `main` = `origin/main` (0 unpushed) at gate
+  start — the verified baseline was intact.
+- NestJS residue re-checked from the working tree: **zero** tracked NestJS
+  code/deps/config (`git ls-files apps/` = 0; no `@nestjs/*`, `NestFactory`,
+  `API_ORIGIN`, `/api/v1` in tracked files; `package.json` clean). Only
+  untracked `apps/api/dist/` + `apps/api/node_modules/` build artifacts and
+  the obsolete `.gitignore` rule remained — both REMOVED (sandbox working
+  tree + `.gitignore` line). Historical NestJS mentions in `docs/` left
+  untouched (records).
+- Supabase key usage (CASE analysis): the app is **CASE C** —
+  `SUPABASE_URL` + `SUPABASE_ANON_KEY` (the publishable-key slot) server-side
+  via `@supabase/ssr`; the browser never calls Supabase (zero
+  `NEXT_PUBLIC_*`); **no secret key is required** because all privileged
+  operations are PostgreSQL via `DATABASE_URL` + SECURITY DEFINER functions
+  (`lib/supabase-config.ts`, `lib/supabase/server.ts`, `lib/db.ts` are the
+  complete Supabase surface). New `sb_publishable_…` keys drop into
+  `SUPABASE_ANON_KEY` with no code change (ssr@0.12.7 / supabase-js@2.117.2
+  support them natively). Legacy anon/service_role are documentation/history
+  only.
+- Pre-gate data safety census (real DB): all ticketug data tables 0 rows,
+  ledger 9/9 (000, 005–012), `auth.users` = 0 — pre-launch empty; harness
+  runs were safe.
+
+### 22.2 Environment-variable audit (§5 matrix in PRODUCTION_READINESS_REPORT)
+
+Runtime truth from `process.env` references + zod schema: `DATABASE_URL`
+(required, pg Pool, TLS-pinned CA), `SUPABASE_URL` + `SUPABASE_ANON_KEY`
+(required in production — fail-closed throw in `resolveSupabaseConfig`),
+`CRON_SECRET` (optional, sweep 401s without it), `PAYMENT_WINDOW_MINUTES`
+(optional), `PAYMENT_TEST_WEBHOOK_SECRET`/`PAYMENT_MODE`/`PAYMENT_PROVIDER`
+(must be unset in production), `SUPABASE_CA_CERT` (optional override),
+`TEST_DATABASE_URL` (tests only). Exactly ONE database URL is used at
+runtime (`DATABASE_URL`); `DIRECT_DATABASE_URL`/`POSTGRES_URL` appear
+nowhere. Obsolete `API_ORIGIN` removed from the local `.env`.
+
+### 22.3 Database guarantee re-verification (§6 — real DB, no schema changes)
+
+- **SQL-function harness: 28/28 PASSED** (oversell barrier, cancel/expire
+  state machines, idempotent issuance, lifecycle) — same result as Pair 6.
+- **Behavioral harness: 57/57 PASSED** (signed-webhook issuance, 18-scanner
+  matrix, CASCADE fail-closed, PDFs) — same result as Pair 6.
+- Post-harness census re-verified: **0 data rows, ledger untouched,
+  `auth.users` = 0** (harness artifacts truncated via the harness's own
+  documented reset list).
+- Sandbox note worth keeping: the dev-sandbox shell exports its own
+  `DATABASE_URL` (`file:/home/z/my-project/db/custom.db`), and real
+  environment variables override Bun's `.env` auto-load — harness runs must
+  pass the real URL explicitly (`DATABASE_URL=$(grep '^DATABASE_URL=' .env |
+  cut -d= -f2-) bun scripts/… `) or lib/db silently targets the sandbox file
+  (observed as ECONNREFUSED localhost:5432 before diagnosis).
+
+### 22.4 Expiry sweep — WIRED (§8 BUILD, smallest safe implementation)
+
+- `vercel.json` (NEW): Vercel Cron `*/5 * * * *` →
+  `/api/system/orders/expire-stale`.
+- Route: shared auth helper; accepts `x-cron-secret` (external schedulers)
+  AND `Authorization: Bearer <CRON_SECRET>` (Vercel Cron's automatic form);
+  added GET handler (Vercel Cron dispatches GET); fail-closed 401 when
+  `CRON_SECRET` unset — unchanged. Idempotency of the sweep was already
+  proven (SKIP LOCKED + second-call no-op in the SQL harness).
+- Operational condition: Vercel Hobby clamps cron schedules to daily —
+  documented with the external-scheduler fallback (same endpoint, same
+  secret header).
+
+### 22.5 Local pipeline + payment boundary (§7, §10)
+
+- vitest **103/103**, typecheck PASS, lint PASS, `next build` PASS.
+- Payment boundary retained: simulated provider 503 `TEST_PAYMENT_DISABLED`
+  on any production runtime; issuance only via the verified webhook path;
+  replay/amount/currency/order mismatches rejected (harness-verified).
+
+### 22.6 Deployment status
+
+- No Vercel project changes were needed (GitHub-connected auto-deploy on
+  `main`; previously observed ~20 s deploys). The gate commit pushes and
+  auto-deploys.
+- BLOCKER 2a/2b rewritten in `DEPLOYMENT_MANUAL_STEPS.md` for the NEW
+  Supabase API keys: `sb_publishable_…` → `SUPABASE_ANON_KEY`; **do NOT set
+  `SUPABASE_SECRET_KEY`**; no `NEXT_PUBLIC_*`; add `CRON_SECRET`.
+- Hosted auth + hosted browser journeys remain gated on NI's Vercel env pass
+  (secret store) — the only remaining BLOCKED items; see
+  `docs/PRODUCTION_READINESS_REPORT.md` for the full VERIFIED / CONFIGURED /
+  DEFERRED / BLOCKED breakdown.
+
 ## References
 
 - NI Master Production-Hardening, Completion & Feature-Rollout Directive (user directive, 2026-09-26) — the operating contract for all future runs: INSPECT→CLASSIFY→DECIDE→IMPLEMENT→TEST→VERIFY→DOCUMENT; CASE A–E framework; §35 per-run output contract.

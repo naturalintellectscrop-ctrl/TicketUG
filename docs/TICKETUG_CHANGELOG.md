@@ -241,3 +241,49 @@
 **Data safety:** all verification records marked + removed; final census 0 data rows, ledger 9/9, `auth.users` = 0.
 
 **Status:** NestJS removal COMPLETE and verified to this environment's boundary (SERVER VERIFIED against real Supabase; hosted deploy still BLOCKED on NI's GitHub/Vercel actions — BLOCKER 0 now gates everything).
+
+## Production gate — final deployment readiness (2026-09-29)
+
+**Scope:** take the verified post-migration implementation (`41f01a3`) through
+the final production deployment/readiness gate. Audit first; change only what
+the evidence requires; no features, no schema changes, no live payments.
+
+**Verified (real evidence, real Supabase DB)**
+
+- Baseline intact: clean tree at `41f01a3`, `main` = `origin/main`.
+- NestJS removal re-proven from the working tree (0 tracked `apps/` files; no
+  `@nestjs/*` / `NestFactory` / `API_ORIGIN` / `/api/v1` in code; clean
+  `package.json` + workspace).
+- SQL-function harness **28/28** + behavioral harness **57/57** re-run against
+  the real database (oversell barrier, idempotent issuance, scanner matrix,
+  CASCADE fail-closed, PDFs); post-harness census **0 data rows, ledger 9/9,
+  `auth.users` = 0** — zero test artifacts.
+- Pipeline: vitest **103/103**, typecheck PASS, lint PASS, `next build` PASS.
+- Key architecture confirmed CASE C: `SUPABASE_URL` + `SUPABASE_ANON_KEY`
+  (publishable) server-side only; **no secret key required** (privileged work
+  is PostgreSQL via `DATABASE_URL`); no `NEXT_PUBLIC_*` anywhere.
+
+**Changed / Built**
+
+- **BUILD:** expiry sweep wired for production — `vercel.json` Vercel Cron
+  (`*/5 * * * *`) → `/api/system/orders/expire-stale`; route now accepts
+  Vercel Cron's `Authorization: Bearer <CRON_SECRET>` alongside
+  `x-cron-secret` and adds a GET handler (Vercel Cron dispatches GET);
+  fail-closed 401 without `CRON_SECRET` — unchanged.
+- **REMOVE:** untracked `apps/api/{dist,node_modules}` residue deleted;
+  obsolete `apps/api/dist/` `.gitignore` rule removed; obsolete `API_ORIGIN`
+  dropped from the local (untracked) `.env`.
+- **DOCS:** `PRODUCTION_READINESS_REPORT.md` (NEW — VERIFIED/CONFIGURED/
+  DEFERRED/BLOCKED + env matrix); `DEPLOYMENT_MANUAL_STEPS.md` BLOCKER 2a/2b
+  rewritten for the NEW Supabase API keys (`sb_publishable_…` →
+  `SUPABASE_ANON_KEY`; do NOT set `SUPABASE_SECRET_KEY`; add `CRON_SECRET`);
+  CONTINUITY §22 gate record.
+
+**Deferred:** live payment provider (fail-closed boundary retained), refunds,
+settlements, ledger/reconciliation, notifications, legacy-key retirement
+(after hosted auth pass), Vercel Pro/external scheduler if 5-minute sweep
+cadence is needed on Hobby.
+
+**Blocked (NI secret-store actions only):** hosted auth verification +
+hosted browser journey pass — gated on the Vercel environment-variable pass
+(new publishable key), not on code.

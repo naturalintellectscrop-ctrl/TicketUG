@@ -7,7 +7,6 @@ out/
 next-env.d.ts
 
 # builds
-apps/api/dist/
 *.tsbuildinfo
 
 # env & secrets
