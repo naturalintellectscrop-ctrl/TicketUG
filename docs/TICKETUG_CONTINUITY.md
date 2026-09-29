@@ -394,6 +394,93 @@ sign-up (real Better Auth) → `/organizer` onboarding form → workspace create
 - The managed **Neon Auth** service itself (credentials still absent) — the local engine is contract-identical but not the hosted control plane; the same is true of a Neon-hosted Postgres vs the local embedded engine.
 - Cross-event isolation was proven at the API/session layer with two real events in one workspace lineage (journey event vs Pair 2 fixture event under a different organizer); a second workspace created entirely through the UI was not additionally exercised (the ownership 403s above already cover the authorization boundary).
 
+## 18. Pair 4 implementation record (2026-09-29) — hosted/staging deployment verification + production-path hardening
+
+**Pair 4 = (1) real hosted/staging deployment verification, (2) production-path hardening.** Hard STOP after; no payments/KYC/notifications/refunds/etc.
+
+**Environment reality (determined, not assumed):** the working sandbox had been reset since Pair 3 — the repository clone was gone and was re-cloned fresh from GitHub at exactly `16bc73d` (verified: `main` = `origin/main` = `16bc73d`, clean tree; repo-local identity re-set to Natural Intellects Ltd). External-service audit result:
+
+```text
+GitHub repository : READ-ONLY clone + ls-remote work anonymously. Push credentials: ABSENT in this environment (see Git note below).
+Vercel project    : NO access (no token/CLI), and NO production URL is recorded anywhere in the repo or handover log → hosted observation impossible.
+Railway/API host  : NO access; nothing provisioned.
+Neon DB / Neon Auth: NO credentials (unchanged since Pair 2).
+```
+
+Therefore every claim below is `LOCAL VERIFIED` on a **real PostgreSQL 18 engine** unless explicitly marked otherwise; hosted items are classified `BLOCKED BY EXTERNAL ACCESS` with exact manual actions in the new `docs/DEPLOYMENT_MANUAL_STEPS.md` (dashboard path, setting, expected value, verification command, expected evidence per blocker). **No local substitution is presented as hosted verification.**
+
+### 18.1 Staging environment (rebuilt, production-faithful)
+
+- **DB:** embedded PostgreSQL 18 (`18.4.0-beta` binaries), port 5433, three throwaway DBs (`ticketug_verify` journey, `ticketug_verify_harness` harness, `neon_auth_standin` auth). **TLS hardened to mirror Neon's posture:** a locally-generated CA + server certificate (SAN `localhost`/`127.0.0.1`), `ssl=on`, and BOTH tiers connect with verification — web pool enforces `ssl:{rejectUnauthorized:true}` in production NODE_ENV (existing code, unchanged) against the CA via `NODE_EXTRA_CA_CERTS`; API connects `sslmode=verify-full`. Confirmed `TLSv1.3` via `pg_stat_ssl`. Infrastructure lives OUTSIDE the repo (`/home/z/pgstage`); zero repo changes were made to enable it.
+- **Auth:** the committed Pair-3 stand-in recipe (`scripts/local-auth-standin/`) — real Better Auth `1.6.23` on `:5999`, same shared staging secret, auto-migrated core tables. Real engine, real wire contract; NOT the managed Neon service (unchanged caveat).
+- **Stack topology = the intended hosted topology:** production-built Next (`next start`, :3100) ⇄ compiled API (`node apps/api/dist/main.js`, :4000) ⇄ TLS Postgres, with the auth engine behind `NEON_AUTH_BASE_URL`.
+
+### 18.2 Compiled API production runtime — re-proven and extended (all RETAIN; zero code changes)
+
+Pair 3's proof was repeated on the fresh clone and EXTENDED with three deployment-specific proofs:
+
+1. **Production smoke 8/8** (`NODE_ENV=production`, staging `DATABASE_URL`): `/api/v1/health` 200; `/api/v1/readiness` 200 with real `SELECT 1`; DB-backed `GET /api/v1/public/events/pair4-deployment-check` 200 returning the real seeded row; unknown slug 404; `GET /api/v1/users/me` no-cookie 401; swagger `/api/v1/docs` 200; start command literally `node apps/api/dist/main.js`.
+2. **Readiness negative test (§18 of the directive):** a second production instance pointed at an unreachable database answered `/health` **200** (process health) while `/readiness` returned **500** with a generic body — no stack, no credentials in the error (verified by scan). Readiness genuinely represents DB state, not merely process liveness.
+3. **Payment production gate (§27):** in production runtime `POST /api/v1/public/orders/:publicId/payment/test-complete` → **503 `TEST_PAYMENT_DISABLED`** — the simulated provider is provably inert where real payments will live (code paths `payments.service.ts`/`payment.provider.ts` unchanged, now behaviorally proven).
+
+### 18.3 Migration state — reproducibility proven (§8)
+
+- Fact re-confirmed: migrations `005→011` are forward-only SQL applied by hand; **the repo has NO formal migration runner** (documented; not faked). 001–004 remain untracked by design (verification stub is labelled NEVER-FOR-PRODUCTION).
+- Fresh-DB reproducibility: brand-new PostgreSQL 18 instance → stub base (throwaway DB only) → verbatim `005→011` in order → `scripts/staging-verify/verify-gates.ts` → **46/46 checks GREEN** (migration 011 objects incl. CASCADE + case-insensitive gate-name uniqueness; real issuance + idempotency; the full scanner decision matrix; gate-deletion CASCADE fail-closed; real DB-backed PDFs incl. wrong-token refusal). Migration state is reproducible from the repo alone; no schema exists only because of a manual local alteration.
+
+### 18.4 Full-stack production-mode browser journeys (real browser, real DB, real auth engine)
+
+All through `next start` (production build) + compiled API + TLS Postgres:
+
+- **Public:** `/` renders with the DB-backed event card; `/events` lists the seeded public event; `/events/pair4-deployment-check` renders title/description/timezone-honest dates (Africa/Kampala) + both ticket types (10,000/50,000 UGX).
+- **Guest ticketing journey:** guest checkout (2× Regular) → order `PAID` via the staging-permitted simulated payment → 2 tickets `ISSUED` → guest ticket page with QR → **PDF verified twice**: UI download saved an 8,523-byte `%PDF-1.3`, and an in-page fetch returned `{status:200, type:"application/pdf", size:8523}`. Wire headers: `content-type: application/pdf`, `cache-control: no-store`, `content-disposition: attachment; filename="ticketug-ticket-tkt_….pdf"`. Wrong access token → 404 with no existence leak.
+- **Persistence (§10/§25):** ticket/order pages survive reload; UI state cross-checked against DB rows (`order.status=PAID`, `2× ticket ISSUED`) — API state and UI state agree.
+- **Authentication journey (§9):** sign-up through the REAL auth engine → 2 `__Secure-neon-auth` cookies → authenticated `GET /api/me` 200 → sign-out → cookies cleared + protected request **401**; fresh sign-in works. **Fail-closed matrix at the compiled API:** forged session token + forged session_data JWT → 401 `Authentication required`; garbage signature → 401; no cookies → 401.
+- **Cookie hardening (§17):** `Set-Cookie` audit — `HttpOnly; Secure; SameSite=Lax` with `__Secure-` prefix; 7-day token + 300-second session_data TTL. CORS re-verified on the running API: preflight from a disallowed origin emits **no** `Access-Control-Allow-Origin` (fail-closed for browsers); allowed origin echoes exactly; **no wildcard** while `credentials:true` (correct pattern; NOT weakened).
+- **Guards:** `/scanner` `/organizer` `/account` `/admin` → 307 to `/sign-in` (with safe `next=` on scanner).
+- **Mobile (§14):** 390 px — event detail and guest ticket page show no horizontal scroll (`scrollWidth == 390`), QR + PDF button present (screenshots saved by the run).
+- **Console:** zero errors/warnings across all visited pages.
+- **Security headers:** `next.config.ts` serves `X-Content-Type-Options: nosniff`, `Referrer-Policy: strict-origin-when-cross-origin`, HSTS 2 years, `Permissions-Policy: camera=(), microphone=(), geolocation=()` (verified in code; on the wire via production start).
+
+### 18.5 Production-path hardening — secret safety + environment documentation (§15/§16)
+
+- **Secret-safety audit (all clean):** tracked-tree scan for key patterns / private keys / credentialed URLs → only a localhost fallback default in the committed stand-in script and a usage-string placeholder in the harness (not secrets); `.gitignore` verified to ignore `.env`, `.env.*` (with `!.env.example`) via `git check-ignore`; **no `NEXT_PUBLIC_*` variable exists anywhere**, so server secrets cannot reach client bundles through public env; `BETTER_AUTH_SECRET` referenced only in server modules (never in `'use client'` files); API logs scanned → zero secret-ish strings; readiness-failure body contains no stack/credentials; DB connection strings never rendered into any UI.
+- **Environment reference (BUILD):** `docs/DEPLOYMENT_ENVIRONMENT.md` — every variable cross-checked against actual `process.env` usage (17 distinct variables found; all documented per tier with purpose + placeholder). One real gap found and fixed: `PAYMENT_TEST_WEBHOOK_SECRET` was missing from `.env.example` → added (commented, staging-only).
+- **Manual-action document (BUILD):** `docs/DEPLOYMENT_MANUAL_STEPS.md` — 5 blockers (Vercel production branch, Vercel env vars, API hosting, migration 011 application, hosted browser pass), each with service, dashboard location, exact setting, expected value, verification command and expected evidence; plus non-blocking recommendations (migration runner, scheduler wiring, recording hosted URLs).
+
+### 18.6 Vercel frontend path (§6)
+
+- Code-side verification: `next build` with a completely **empty environment** is green (re-run this pair) — the Pair-2 lazy-auth refactor demonstrably removed build-time secret evaluation; `BETTER_AUTH_SECRET` is enforced only at the request boundary (floor unchanged).
+- Config-side facts: no `vercel.json` exists (dashboard-managed); the docs previously recorded (§13) that the project's Production Branch is mis-pointed at `cron/round-10-settings` @ `85c22fc` and env vars are missing — that misconfiguration **cannot be re-observed or fixed from this environment** (no URL/token) and is filed as BLOCKER 1/2 with exact dashboard steps. Hosted-build observation: `BLOCKED BY EXTERNAL ACCESS`.
+
+### 18.7 Deployment readiness matrix (§23) — evidence-based
+
+| Area | Local | Hosted | Status | Evidence |
+| --- | :-: | :-: | --- | --- |
+| Frontend build | ✓ | — | LOCAL VERIFIED | env-less `next build` green (re-run) |
+| Frontend runtime | ✓ | — | LOCAL VERIFIED | `next start` journeys, desktop + 390 px, console clean |
+| API runtime | ✓ | — | LOCAL VERIFIED | `node dist/main.js` production smoke 8/8 (re-run + extended) |
+| Database | ✓ | — | LOCAL VERIFIED | fresh PG 18 + TLS 1.3; harness 46/46; seeded rows |
+| Migrations | ✓ | — | LOCAL VERIFIED (reproducible) | stub + verbatim 005→011 on fresh DB |
+| Authentication | ✓ | — | LOCAL VERIFIED | real Better Auth engine; sign-up/in/out; forged 401 matrix |
+| Organizer gate mgmt | ✓ | — | LOCAL VERIFIED (Pair 3 journeys; no code changes since — `git diff` empty) | §17.2 |
+| Events / ticket types | ✓ | — | LOCAL VERIFIED | detail page + types rendered from DB |
+| Orders | ✓ | — | LOCAL VERIFIED | guest order → PAID (DB cross-check) |
+| Ticket issuance | ✓ | — | LOCAL VERIFIED | 2× ISSUED (DB cross-check) |
+| PDF | ✓ | — | LOCAL VERIFIED | UI download + wire headers + harness PDFs |
+| Gates / scanner matrix | ✓ | — | LOCAL VERIFIED | harness 46/46 (service-level vs real DB) |
+| Secrets | ✓ | n/a | LOCAL VERIFIED | §18.5 audit |
+| CORS/cookies | ✓ | — | LOCAL VERIFIED | preflight matrix; `HttpOnly; Secure; SameSite=Lax` |
+| Readiness semantics | ✓ | — | LOCAL VERIFIED | positive + negative (dead-DB) proofs |
+| Payment boundary | ✓ | — | LOCAL VERIFIED | production 503 gate; staging-permitted test path clearly separated |
+| **All hosted rows** | — | — | **BLOCKED BY EXTERNAL ACCESS** | `docs/DEPLOYMENT_MANUAL_STEPS.md` |
+
+### 18.8 Git note (honest)
+
+The re-cloned environment has **no push credentials** (anonymous HTTPS clone; no token in env/credential store). If the push of this pair's commit is rejected at run time, the commit exists locally on `main` with verified authorship and must be pushed by NI (or a future run with credentials) — flagged in the final report rather than hidden.
+
+**Next recommended pair:** execute BLOCKERS 1–4 of `docs/DEPLOYMENT_MANUAL_STEPS.md` (NI dashboard work), then a hosted verification run flipping the §18.7 matrix to HOSTED row by row; first code-capable follow-up remains the tiny migration runner (non-blocking).
+
 ## References
 
 - NI Master Production-Hardening, Completion & Feature-Rollout Directive (user directive, 2026-09-26) — the operating contract for all future runs: INSPECT→CLASSIFY→DECIDE→IMPLEMENT→TEST→VERIFY→DOCUMENT; CASE A–E framework; §35 per-run output contract.
