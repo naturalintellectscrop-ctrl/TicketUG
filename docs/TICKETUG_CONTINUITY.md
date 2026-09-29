@@ -587,6 +587,84 @@ Commit identity verified (Natural Intellects Ltd). `origin/main` still points at
 
 **Next recommended pair:** NI executes BLOCKERS 1-4 of `docs/DEPLOYMENT_MANUAL_STEPS.md` (Vercel branch+env incl. the Supabase anon key, API hosting, Supabase dashboard security check), then a hosted verification run flips §19.8 to HOSTED row by row. Optional code follow-ups (only after hosted verification): sweeper scheduler wiring remains deployment work; organizer event-creation date-picker is automation-unfriendly (human UI fine, proven in Pair 3).
 
+## 20. Pair 5.1 record (2026-09-29) — hosted deployment readiness audit + operator handoff
+
+**Pair 5.1 = move Pair 5's Supabase migration through the hosted boundary (GitHub → Vercel → hosted NestJS API → hosted Supabase Auth), with AUDIT FIRST and zero fabrication.** Starting commit `f8b22d5` (clean tree). The environment's external-access audit (below) determined that the hosted half is BLOCKED on NI credentials; this pair therefore (a) independently re-verified every Pair 5 claim, (b) fixed the one stale migration leftover found, (c) re-proved the production runtime against the real Supabase DB, and (d) produced exact operator checklists. HARD STOP after.
+
+### 20.1 Environment access reality (determined, not assumed)
+
+```text
+GitHub push       : BLOCKED — no credentials (push dry-run: "could not read Username for
+                    'https://github.com'"). origin/main = 16bc73d; local main = f8b22d5
+                    (Pairs 4+5 commits a53fe34 + f8b22d5 unpushed).
+Supabase Postgres : REACHABLE — real session-pooler DATABASE_URL in gitignored .env
+                    (project vmebmexwqfpnlioicqgj, aws-1-eu-central-1).
+Supabase Auth     : PARTIAL — public JWKS reachable (no key needed); every other GoTrue
+                    surface requires the anon key, which is NOT in this environment
+                    (.env still holds Pair 5's LOCAL STAND-IN url+key — must be replaced).
+Vercel            : NO ACCESS (no token/CLI) — production branch/env unobservable.
+API hosting       : NO ACCESS (no Railway/Render/Fly/VPS credentials; none invented).
+```
+
+### 20.2 Repository audit + decision matrix (§2/§4)
+
+```text
+RETAIN    f8b22d5 as-is: Supabase architecture (Next ⇄ NestJS ⇄ raw pg ⇄ Supabase), auth
+          integration, migration runner + ledger, TLS pinning, CORS/cookies, payment gate.
+          No stale cron/round-10-settings branch locally or remote; no unexpected commits.
+REFACTOR  apps/api/src/integration/database.integration.test.ts — Neon-era test asserted the
+          neon_auth schema MUST exist (contradicts migrated architecture; inert because the
+          suite skips it without TEST_DATABASE_URL). Fixed to assert: ticketug present,
+          Supabase auth schema present, neon_auth ABSENT. Re-run green vs real Supabase
+          (strict TLS via sslmode=verify-full + bundled sslrootcert).
+DOCUMENT  docs/migrations/011-gates.sql line ~22 carries a stale "NOT production-applied /
+          BLOCKED until the real Neon…" provenance comment (written before Pair 5 applied
+          it). NOT edited — the migration runner's checksum-drift detection makes any byte
+          change a ledger violation. Recorded here instead; the ledger (not the comment) is
+          authoritative.
+REPLACE   none. BUILD   none (hosted glue is configuration, not code).
+```
+
+Neon-reference sweep of the tracked tree (excluding dated audit-history docs): remaining mentions are deliberate historical comments (supabase-auth.ts, api-forward.ts, auth.ts, user-profile.ts, ADRs, staging-verify stub, lockfile peer-range for drizzle-orm) — RETAIN. `@neondatabase` is NOT installed in node_modules.
+
+### 20.3 Independent re-verification of Pair 5's claims (all reproduced)
+
+- **Baseline (§5):** root 121|1, api 52|1, typecheck PASS, lint PASS, api:build PASS, env-less next build PASS — identical to Pair 5's report.
+- **Supabase project (§7):** PG 17.6 (session pooler, strict TLS); 23 tables; ledger 8/8 (000 + 005→011); 37 FKs / 82 indexes / 292 constraints / 2 behavioral triggers; RLS off (by design); pgcrypto + uuid-ossp present; `auth.users`/`sessions`/`refresh_tokens`/`identities` = 0 (hosted auth never used).
+- **000-base-foundation.sql (§8):** CASE A RETAIN — every file-defined base column exists live with matching type + length (incl. varchar lengths), all 17 FKs from 005→011 resolve, provenance claims verified in `apps/api/src/users/users.controller.ts` + `app/api/profile/route.ts`. No live-only base columns. Not rewritten.
+- **TLS (§15):** all audit connections ran `rejectUnauthorized:true` against ONLY the bundled CA (functional proof); explicit chain extraction (`openssl s_client -starttls postgres`) shows leaf → intermediate → root with the bundled CA's fingerprint matching the live root exactly (`80:70:25:AD:…:CA:FA`, per certs/README.md).
+- **PostgREST exposure (§16):** REST root 401 without apikey and 401 with garbage key; SQL: `anon` role has NO USAGE on `ticketug` + zero table grants; `public` schema empty. `ticketug` is not browser-reachable (structural + privilege-level proof).
+- **Auth surfaces (§10):** public JWKS = 1 ES256/P-256 key (no apikey needed — the API guard's exact dependency); GoTrue health/settings 401 without key. Email-confirmation/site-URL/redirect settings remain dashboard-only (manual steps 2b).
+- **Data protection (§9):** zero destructive SQL; audit scripts were read-only. ONE finding: `ticketug.webhook_event` holds 2 orphaned rows from Pair 5's own browser run (provider `test`, 2026-09-29 08:37/08:40, 20,000 + 50,000 UGX; referenced orders absent; `provider_reference` carries no FK). Left in place (pre-existing-records rule); NI may delete those exact IDs.
+
+### 20.4 Production runtime re-verification at the current tree (real Supabase DB, local stack)
+
+- **Compiled API smoke (8/8):** `/health` 200 · `/readiness` 200 (real SELECT 1) · `/docs` 200 · no-creds 401 · garbage bearer 401 · forged JWT (real issuer, fake ES256 signature) 401 (JWKS local verification) · production payment gate `POST /public/orders/:id/payment/test-complete` → **503 TEST_PAYMENT_DISABLED** (gate fires before any lookup) · disallowed-origin preflight → no ACAO.
+- **Production `next start`:** `/` 200 (Upcoming / Find-an-event sections render); `/events` 200 (`<h1>Events in Uganda</h1>` + honest empty state — DB is empty); `/scanner` 307 → `/sign-in?next=/scanner`; `/organizer` 307 → `/sign-in`; **agent-browser: zero console errors/warnings** on landing + /events (DB-empty honest states confirmed in a real browser).
+
+### 20.5 Deployment readiness matrix (§38/§39) — evidence-based
+
+| Area | Status | Evidence |
+| --- | --- | --- |
+| Repo commit/tree, tests, typecheck, lint, both builds | **VERIFIED (local)** | §20.3 baseline re-run; clean tree |
+| Supabase DB: schema/migrations/ledger/TLS | **SUPABASE VERIFIED** | §20.3 SQL audit + fingerprint match |
+| PostgREST non-exposure (defense-in-depth) | **SUPABASE VERIFIED** | key-gating probes + anon-privilege SQL |
+| API runtime + auth fail-closed + payment gate + CORS | **SUPABASE VERIFIED (local runtime)** | §20.4 smoke 8/8 |
+| Public pages render + browser console | **SUPABASE VERIFIED (local runtime)** | §20.4 next-start + agent-browser |
+| GitHub push of a53fe34 + f8b22d5 | **BLOCKED** | no credentials (operator checklist, BLOCKER 0) |
+| Vercel production deploy (branch/env) | **BLOCKED** | no Vercel access (BLOCKERS 1–2) |
+| Hosted NestJS API | **BLOCKED** | no hosting access (BLOCKER 3) |
+| Hosted Supabase Auth live flows (sign-up/in, mapping on hosted auth) | **BLOCKED** | anon key not in environment (BLOCKER 2b) |
+| Hosted browser journeys (guest/organizer/staff/mobile/security matrix §18–§30) | **BLOCKED** | depend on the three rows above (BLOCKER 5) |
+
+**Final status: HOSTED — BLOCKED** (hosted boundary not yet crossable from this environment). Local/DB verification status is stronger than Pair 5 left it: every reachable row re-proven at the current tree. NOT "production ready".
+
+### 20.6 Operator handoff
+
+`docs/DEPLOYMENT_MANUAL_STEPS.md` gained **BLOCKER 0 (push Pairs 4+5 commits to GitHub)** — it gates everything else, because Vercel deploys FROM GitHub. Existing BLOCKERS 1–5 refreshed where stale. Local `.env` stand-in values (`SUPABASE_URL=http://localhost:5998`, stand-in anon key) must be replaced with the real project values in each hosting secret store — never in git.
+
+**Next recommended phase:** NI executes BLOCKER 0 → 1 → 2a/2b → 3 (in order), then a hosted verification run (Pair 5.2) flips §20.5's BLOCKED rows to HOSTED row by row using the §18–§30 journey matrix. No code changes are expected to be needed for the hosted flip — the architecture is deployment-complete at `f8b22d5` (+ this pair's one test-file fix).
+
 ## References
 
 - NI Master Production-Hardening, Completion & Feature-Rollout Directive (user directive, 2026-09-26) — the operating contract for all future runs: INSPECT→CLASSIFY→DECIDE→IMPLEMENT→TEST→VERIFY→DOCUMENT; CASE A–E framework; §35 per-run output contract.

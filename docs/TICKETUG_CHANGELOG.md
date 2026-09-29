@@ -178,3 +178,39 @@
 - Tests: baseline (fresh worktree @ a53fe34) root 109|1, api 41|1 → after: root **121|1**, api **52|1**; typecheck, lint, api:build, env-less `next build` all green.
 
 **Status:** infrastructure migration COMPLETE and verified to the boundary of what this environment can reach (see CONTINUITY §19.8). NOT "production ready": hosted frontend/API/auth remain BLOCKED by NI dashboard work (Vercel env+branch, API hosting, Supabase anon key).
+
+---
+
+## Pair 5.1 — Hosted deployment readiness audit + operator handoff (2026-09-29)
+
+**Scope:** take Pair 5's Supabase migration toward the hosted boundary (GitHub → Vercel → hosted NestJS API → hosted Supabase Auth) per the Pair 5.1 directive. AUDIT FIRST: every Pair 5 claim re-verified against the actual repository and the real Supabase project; hosting surfaces audited for reachability. Starting commit `f8b22d5`; hard stop after.
+
+**Audit results (all re-measured, not assumed)**
+
+- **Repository:** HEAD = `f8b22d5`, clean tree; `origin/main` = `16bc73d` — Pairs 4+5 commits (`a53fe34`, `f8b22d5`) still unpushed (push BLOCKED: no GitHub credentials in this environment — `could not read Username`); no stale `cron/round-10-settings` branch locally or on the remote; no unexpected commits.
+- **Baseline re-run (§5):** root **121 passed | 1 skipped**; api **52 passed | 1 skipped**; `tsc --noEmit` PASS; `eslint .` PASS; api build PASS; env-less `next build` PASS — Pair 5's numbers independently reproduced.
+- **Supabase project (§7):** PostgreSQL 17.6 via session pooler; 23 `ticketug` tables; migration ledger 8/8 (`000-base-foundation` + `005→011`); 37 FKs, 82 indexes, 292 constraints, 2 behavioral triggers; RLS off (by design); extensions pgcrypto + uuid-ossp present; `auth.users`/`sessions`/`refresh_tokens`/`identities` all 0 (hosted auth never used).
+- **000-base-foundation.sql (§8):** CASE A — RETAIN. Every file-defined base column exists in the live schema with matching type + length; all 17 FK references from later migrations resolve; the provenance claims (columns used by `apps/api/src/users/users.controller.ts` + `app/api/profile/route.ts`) verified in committed code.
+- **TLS (§15):** strict verification functionally proven (all audit connections ran `rejectUnauthorized: true` against ONLY the bundled CA) AND the bundled CA's SHA-256 fingerprint re-matched against the live chain today (leaf → intermediate → **Supabase Root 2021 root**, fp `80:70:25:AD:…:CA:FA` — matches `certs/README.md`).
+- **PostgREST exposure (§16):** REST root key-gated (401 without apikey; 401 with garbage key); SQL defense-in-depth: the `anon` role has **NO USAGE on the `ticketug` schema and zero table grants**; `public` schema empty → nothing exposed. `ticketug` is not browser-reachable.
+- **Supabase Auth surfaces (§10):** public JWKS reachable without a key (ES256 / P-256, exactly what the API guard consumes); GoTrue health/settings key-gated; email-confirmation + site-URL settings remain dashboard-only checks (manual steps).
+
+**Fixed**
+
+- `apps/api/src/integration/database.integration.test.ts` (REFACTOR, test-only): the Neon-era integration test still asserted the `neon_auth` schema MUST exist — contradicted the migrated architecture (inert since the test skips without `TEST_DATABASE_URL`). Now asserts the Supabase reality: `ticketug` present, Supabase `auth` schema present, `neon_auth` ABSENT. Re-run green **against the real Supabase DB** with strict TLS (`sslmode=verify-full&sslrootcert=certs/supabase-root-2021-ca.pem`).
+
+**Re-verification at the current tree (real Supabase, local production stack)**
+
+- Compiled API (`NODE_ENV=production node apps/api/dist/main.js`): `/health` 200; `/readiness` 200 (real SELECT 1); `/docs` 200; no-credentials 401; garbage bearer 401; forged JWT (real issuer, fake signature) 401; production payment gate `503 TEST_PAYMENT_DISABLED`; disallowed-origin preflight emits no ACAO.
+- Production `next start`: landing 200 with Upcoming/Find-an-event sections; `/events` 200 with `<h1>Events in Uganda</h1>` + honest empty state (DB is empty); `/scanner` 307 → `/sign-in?next=/scanner`; `/organizer` 307 → `/sign-in`; **zero browser console errors/warnings** (agent-browser).
+
+**Known data finding (documented, NOT deleted)**
+
+- `ticketug.webhook_event` contains **2 orphaned rows** from Pair 5's own browser-verification run (provider `test`, 08:37/08:40 2026-09-29, 20,000 + 50,000 UGX; referenced orders no longer exist; no FK on `provider_reference`). Left untouched per the pre-existing-records rule; safe for NI to delete by the two exact IDs.
+
+**Hosted boundary — BLOCKED (no credentials in this environment; nothing fabricated)**
+
+- GitHub push, Vercel project config/env, hosted NestJS API hosting, live hosted Supabase Auth flows (anon key) — all require NI actions; exact step-by-step checklists in `docs/DEPLOYMENT_MANUAL_STEPS.md` (new BLOCKER 0 = push Pairs 4+5 commits).
+- Local `.env` still contains Pair 5's STAND-IN `SUPABASE_URL` (`http://localhost:5998`) + stand-in anon key — must be replaced with the real values (in the hosting secret stores, never in git).
+
+**Status:** hosted deployment **BLOCKED** pending NI actions; everything verifiable from this environment is now verified (see CONTINUITY §20 matrix). NOT "production ready" — no hosted surface has been observed.

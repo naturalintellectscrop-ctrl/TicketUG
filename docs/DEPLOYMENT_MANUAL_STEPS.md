@@ -1,37 +1,76 @@
 # TicketUG — manual deployment steps requiring NI account access
 
-> Pair 5 revision (2026-09-29). The infrastructure migrated from Neon to
-> **Supabase** (Postgres + Auth) in Pair 5. The Supabase Postgres database was
-> reachable via the connection string NI supplied, so the migration, schema and
-> behavioral verification ran against the REAL Supabase database. The Supabase
-> dashboard/API-key surfaces and the hosting dashboards remain outside this
-> environment's reach — nothing is fabricated; every entry below states the
-> exact dashboard location, exact setting, expected value, verification
-> command and expected evidence. **Do not paste secret values into chat/Git** —
-> set them in the provider's secret store.
+> Pair 5.1 revision (2026-09-29). Every Pair 5 claim was independently re-verified
+> against the real Supabase project (schema 23 tables, ledger 8/8, TLS fingerprint
+> match, anon-role privilege audit, production runtime smoke 8/8). The hosted
+> boundary remains BLOCKED on NI account access — nothing is fabricated; every
+> entry below states the exact dashboard location, exact setting, expected value,
+> verification command and expected evidence. **Do not paste secret values into
+> chat/Git** — set them in the provider's secret store.
 
 ## STATUS SNAPSHOT
 
 ```text
 SUPABASE VERIFIED — Postgres connection (session pooler, strict TLS w/ pinned
-                    Supabase Root CA), migrations 000→011 via the new runner,
-                    schema (74/74 checks), behavioral harness (46/46),
-                    readiness (real SELECT 1), full browser journeys against
-                    the real Supabase DB (guest ticketing, organizer flows,
-                    scanner matrix, PDFs, mobile 390 px)
+                    Supabase Root CA — fingerprint re-matched against the live
+                    chain in Pair 5.1), migrations 000→011 via the runner
+                    (ledger 8/8, idempotent), schema (23 tables / 37 FKs /
+                    82 indexes verified), PostgREST non-exposure (anon role has
+                    NO privileges on ticketug), production runtime smoke 8/8
+                    (health/readiness/401-fail-closed/forged-JWT-401/503
+                    TEST_PAYMENT_DISABLED/CORS fail-closed), browser render
+                    check (zero console errors)
 LOCAL VERIFIED    — Supabase Auth integration on the GoTrue wire contract
                     (sign-up/sign-in/session/refresh-aware proxying/logout/
                     forged-credential rejection; HttpOnly Secure cookies);
                     remote-JWKS verification against the REAL project's
                     public JWKS (forged token → 401); payment production gate
                     (503 TEST_PAYMENT_DISABLED); boot fail-closed
-BLOCKED           — live sign-up/sign-in against HOSTED Supabase Auth (needs
-                    the project's publishable/anon key — BLOCKER 2b),
-                    Vercel production deploy, hosted API hosting, hosted
-                    browser pass
+BLOCKED           — GitHub push of a53fe34 + f8b22d5 (BLOCKER 0 — no push
+                    credentials in the agent environment), live sign-up/sign-in
+                    against HOSTED Supabase Auth (needs the project's
+                    publishable/anon key — BLOCKER 2b), Vercel production
+                    deploy (BLOCKERS 1–2), hosted API hosting (BLOCKER 3),
+                    hosted browser pass (BLOCKER 5)
+DATA NOTE         — ticketug.webhook_event holds 2 orphaned rows from Pair 5's
+                    own verification run (provider 'test', 2026-09-29 08:37 &
+                    08:40 UTC, orders ord_c878dc39aa3bc7496b866bc9 and
+                    ord_14d6f2d112b6c5494c9c4aa5 which no longer exist). Safe
+                    for NI to delete those exact rows; nothing else in the
+                    project contains data rows.
 ```
 
 ---
+
+## BLOCKER 0 — Push the pending commits to GitHub (gates everything else)
+
+- **WHY IT MATTERS:** Vercel deploys FROM GitHub. `origin/main` = `16bc73d`
+  (Pair 3), but the Supabase architecture lives in local commits `a53fe34`
+  (Pair 4) + `f8b22d5` (Pair 5). Until these are pushed, Vercel cannot deploy
+  the current product at all — BLOCKERS 1–5 are unexecutable against the
+  correct code.
+- **SERVICE:** GitHub → repository `naturalintellectscrop-ctrl/TicketUG`
+  (private — keep it private).
+- **EXACT ACTION (any machine with NI's GitHub credentials):**
+
+  ```bash
+  git clone git@github.com:naturalintellectscrop-ctrl/TicketUG.git   # or HTTPS w/ PAT
+  cd TicketUG
+  git pull origin main                       # confirm at 16bc73d
+  # if the two commits are NOT already on the machine:
+  git fetch <source-of-the-commits> && git merge --ff-only <their-main>
+  # on the machine that has them (agent sandbox / previous runs):
+  git push origin main
+  git log origin/main -1                     # must print f8b22d5
+  ```
+
+- **WHO:** NI (repository owner).
+- **HOW TO VERIFY:** `git ls-remote origin main` → `<sha> refs/heads/main`
+  where sha = `f8b22d5…`; GitHub → repository → Commits → the two newest
+  commits are `feat: migrate ticketug infrastructure to supabase` and the
+  Pair-4 docs commit.
+- **EXPECTED EVIDENCE:** `origin/main` = `f8b22d5`; no force-push used; the
+  two commits appear with Natural Intellects Ltd authorship.
 
 ## BLOCKER 1 — Vercel Production Branch is a stale backup branch
 
@@ -166,7 +205,7 @@ BLOCKED           — live sign-up/sign-in against HOSTED Supabase Auth (needs
   returns no `ticketug` tables (the schema is not in the exposed set).
 - **EXPECTED EVIDENCE:** the REST root lists nothing from `ticketug`.
 
-## BLOCKER 5 — Hosted browser verification pass (needs 1–3)
+## BLOCKER 5 — Hosted browser verification pass (needs 0–3)
 
 - **WHY IT MATTERS:** Pair 5's browser evidence comes from the local
   production stack (production-built Next + compiled API + REAL Supabase
