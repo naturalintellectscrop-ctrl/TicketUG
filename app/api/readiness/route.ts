@@ -1,6 +1,15 @@
-import { NextResponse } from "next/server"
+import { NextResponse } from 'next/server'
+import { pool } from '@/lib/db'
 
-export function GET() {
-  const ready = Boolean(process.env.DATABASE_URL)
-  return NextResponse.json({ status: ready ? "ready" : "not_ready", checks: { databaseConfigured: ready } }, { status: ready ? 200 : 503 })
+export const dynamic = 'force-dynamic'
+
+// Real database connectivity (upgraded in Pair 6 to match the removed API's
+// readiness semantics: a genuine SELECT 1, not merely configuration presence).
+export async function GET() {
+  try {
+    await pool.query('SELECT 1')
+    return NextResponse.json({ status: 'ready', database: 'ok' })
+  } catch {
+    return NextResponse.json({ status: 'not_ready', database: 'unavailable' }, { status: 503 })
+  }
 }

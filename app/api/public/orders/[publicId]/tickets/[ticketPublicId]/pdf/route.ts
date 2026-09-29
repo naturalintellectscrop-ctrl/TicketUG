@@ -1,10 +1,23 @@
 import { NextRequest } from 'next/server'
-import { ticketPdfResponse } from '@/lib/ticket-pdf-proxy'
+import { apiErrorResponse } from '@/lib/server/errors'
+import { getTicketPdfForGuest } from '@/lib/server/tickets'
 
-const apiOrigin = process.env.API_ORIGIN ?? 'http://localhost:4000'
-
+// Guest PDF ticket (Pair 6, Supabase-native). no-store + forced content-type;
+// the filename is sanitized by ticketPdfFilename server-side.
 export async function GET(request: NextRequest, context: { params: Promise<{ publicId: string; ticketPublicId: string }> }) {
-  const { publicId, ticketPublicId } = await context.params
-  const response = await fetch(`${apiOrigin}/api/v1/public/orders/${publicId}/tickets/${ticketPublicId}/pdf`, { headers: { 'x-order-access-token': request.headers.get('x-order-access-token') ?? '' } })
-  return ticketPdfResponse(response, await response.arrayBuffer())
+  try {
+    const { publicId, ticketPublicId } = await context.params
+    const token = request.headers.get('x-order-access-token') ?? ''
+    const { buffer, filename } = await getTicketPdfForGuest(publicId, ticketPublicId, token)
+    return new Response(new Uint8Array(buffer), {
+      status: 200,
+      headers: {
+        'content-type': 'application/pdf',
+        'content-disposition': `attachment; filename="${filename}"`,
+        'cache-control': 'no-store',
+      },
+    })
+  } catch (error) {
+    return apiErrorResponse(error)
+  }
 }

@@ -1,16 +1,37 @@
-import { NextRequest, NextResponse } from 'next/server'
+import { NextRequest } from 'next/server'
 import { checkRateLimit, rateLimitKey } from '@/lib/rate-limit'
-import { authenticatedForwardHeaders } from '@/lib/api-forward'
+import { requireTicketUGContext } from '@/lib/request-context'
+import { apiErrorResponse } from '@/lib/server/errors'
+import { createOrderInput, createProfileOrder, listOrdersForProfile } from '@/lib/server/orders'
 
-const apiOrigin = process.env.API_ORIGIN ?? 'http://localhost:4000'
+// Authenticated order creation + list — Supabase-native (Pair 6).
+// Atomicity lives in ticketug.create_order (migration 012): inventory FOR
+// UPDATE, guarded decrement, price snapshots, idempotency. The session is
+// resolved server-side (supabase.auth.getUser → user_profile); no bearer
+// forwarding and no separately hosted API any more. Response shapes are
+// byte-compatible with the previous Nest presenter.
 
-// Authenticated order creation proxy — Nest is canonical
-// (POST /api/v1/orders). The session travels as a fresh Bearer access token
-// (refresh-aware) plus the original cookie header; the Nest guard verifies
-// the Supabase JWT against the project JWKS and enforces ownership.
 export async function POST(request: NextRequest) {
   const limited = checkRateLimit(rateLimitKey(request, 'order-create'), 10)
   if (!limited.allowed) return Response.json({ message: 'Too many order attempts. Please wait a minute and try again.' }, { status: 429, headers: { 'retry-after': String(Math.ceil((limited.retryAfterMs ?? 60_000) / 1000)) } })
-  const response = await fetch(`${apiOrigin}/api/v1/orders`, { method: 'POST', headers: { 'content-type': 'application/json', ...(await authenticatedForwardHeaders(request)) }, body: await request.text() })
-  return new NextResponse(await response.text(), { status: response.status, headers: { 'content-type': 'application/json' } })
+  try {
+    const context = await requireTicketUGContext()
+    const parsed = createOrderInput.safeParse(await request.json().catch(() => null))
+    if (!parsed.success) return Response.json({ message: parsed.error.issues[0]?.message ?? 'Invalid order' }, { status: 400 })
+    const order = await createProfileOrder(context.profileId, parsed.data)
+    return Response.json(order, { status: 201 })
+  } catch (error) {
+    return apiErrorResponse(error)
+  }
+}
+
+export async function GET(request: NextRequest) {
+  const limited = checkRateLimit(rateLimitKey(request, 'order-status'), 30)
+  if (!limited.allowed) return Response.json({ message: 'Too many status checks. Please wait a minute.' }, { status: 429, headers: { 'retry-after': String(Math.ceil((limited.retryAfterMs ?? 60_000) / 1000)) } })
+  try {
+    const context = await requireTicketUGContext()
+    return Response.json(await listOrdersForProfile(context.profileId))
+  } catch (error) {
+    return apiErrorResponse(error)
+  }
 }

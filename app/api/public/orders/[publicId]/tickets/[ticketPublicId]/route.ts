@@ -1,9 +1,15 @@
-import { NextRequest, NextResponse } from 'next/server'
+import { NextRequest } from 'next/server'
+import { apiErrorResponse } from '@/lib/server/errors'
+import { getTicketForGuest } from '@/lib/server/tickets'
 
-const apiOrigin = process.env.API_ORIGIN ?? 'http://localhost:4000'
-
+// Guest ticket detail with QR (Pair 6, Supabase-native). Token compared inside
+// the SQL read; the QR is built from the server-held credential.
 export async function GET(request: NextRequest, context: { params: Promise<{ publicId: string; ticketPublicId: string }> }) {
-  const { publicId, ticketPublicId } = await context.params
-  const response = await fetch(`${apiOrigin}/api/v1/public/orders/${publicId}/tickets/${ticketPublicId}`, { headers: { 'x-order-access-token': request.headers.get('x-order-access-token') ?? '' } })
-  return new NextResponse(await response.text(), { status: response.status, headers: { 'content-type': 'application/json' } })
+  try {
+    const { publicId, ticketPublicId } = await context.params
+    const token = request.headers.get('x-order-access-token') ?? ''
+    return Response.json(await getTicketForGuest(publicId, ticketPublicId, token))
+  } catch (error) {
+    return apiErrorResponse(error)
+  }
 }

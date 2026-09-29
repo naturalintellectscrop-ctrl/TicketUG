@@ -1,5 +1,10 @@
 # ADR 0004: NestJS API identity boundary
 
+> **SUPERSEDED (Pair 6):** the standalone NestJS API was removed; its
+> authorization boundary moved into the Next.js server layer + PostgreSQL
+> functions (see ADR 0005, docs/SUPABASE_NATIVE_ARCHITECTURE.md). Retained as
+> history.
+
 ## Decision
 
 NestJS validates the existing Neon Auth session cookie through `@neondatabase/auth` and maps the resulting Neon user ID to `ticketug.user_profile.auth_user_id`. The guard attaches only server-derived TicketUG identity, roles, and active organizer memberships to the request.

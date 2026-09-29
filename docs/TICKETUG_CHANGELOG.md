@@ -214,3 +214,30 @@
 - Local `.env` still contains Pair 5's STAND-IN `SUPABASE_URL` (`http://localhost:5998`) + stand-in anon key — must be replaced with the real values (in the hosting secret stores, never in git).
 
 **Status:** hosted deployment **BLOCKED** pending NI actions; everything verifiable from this environment is now verified (see CONTINUITY §20 matrix). NOT "production ready" — no hosted surface has been observed.
+
+---
+
+## Pair 6 — NestJS removal & Supabase-native backend (2026-09-29)
+
+**Scope:** remove the separately hosted NestJS API (`apps/api`) and relocate its responsibilities to Next.js server modules + PostgreSQL functions, preserving the product's security model, transactional integrity and browser contract. Starting commit `7bd1c11`; design-first (audit + architecture docs before any deletion); hard stop after.
+
+**Changed**
+
+- **SQL functions (BUILD, migration 012):** `ticketug.create_order` (atomic guest/user orders: idempotency, deterministic lock order, sale-window/state checks, guarded decrement, snapshots), `cancel_order` (ownership re-verified, inventory restore, payment teardown), `expire_order_if_due` + `expire_stale_orders` (lazy + SKIP LOCKED sweep), `apply_payment_event` (webhook dedupe, amount/currency/order checks, state machines, ticket issuance), `transition_event_lifecycle` (centralized state machine, membership/owner rules inside). All `security definer`, EXECUTE revoked from PUBLIC/anon/authenticated.
+- **Next server layer (BUILD):** `lib/server/{orders,payments,tickets,check-ins,events,errors}.ts` — session-resolved, zod-validated, authorization-in-SQL reads; payment initiation keeps the provider call inside one transaction; QR/PDF rendering moved to `lib/tickets/*`; shared pure rules moved to `lib/rules/*` (git-mv, history preserved); scanner extracted to `lib/server/check-ins.ts` (route now thin).
+- **Routes:** all 15 NestJS-backed proxies rewritten to call the new layer — identical URLs/methods/rate limits/response shapes; NEW `app/api/public/payments/webhooks/[provider]` (HMAC-verified raw body) and `app/api/system/orders/expire-stale` (x-cron-secret, fail-closed); readiness upgraded to a real SELECT 1; guest order creation unified onto `create_order`.
+- **Removed:** `apps/api` (59 files), Nest deps (@nestjs/*, class-validator/transformer, reflect-metadata, rxjs, helmet, drizzle-orm, jose), `lib/api-forward.ts`, `lib/ticket-pdf-proxy.ts`, API_ORIGIN/WEB_ORIGIN/API_PORT/API_HOST; ADR-0004 superseded by ADR-0006.
+- **Docs:** `NESTJS_REMOVAL_AUDIT.md` (52-endpoint matrix), `SUPABASE_NATIVE_ARCHITECTURE.md`, rewritten `ARCHITECTURE.md`/`API_AUTHENTICATION.md`/`DEPLOYMENT_ENVIRONMENT.md`/`DEPLOYMENT_MANUAL_STEPS.md` (old API-host blocker OBSOLETE), `.env.example` for the new shape.
+
+**Verification (real Supabase DB throughout)**
+
+- SQL-function matrix 28/28 incl. the **6-way concurrent oversell barrier** (1 winner, 5 clean 409s, capacity never negative), idempotent issuance (same-event + new-event replays → DUPLICATE), wrong amount/order 422, lifecycle walk + illegal-jump rejection.
+- Behavioral harness refactored onto the new modules: **57/57** (signed-webhook issuance, full scanner/gate matrix, CASCADE fail-closed, owner/guest PDFs incl. wrong-token refusal).
+- Wire guest journey: order → PROCESSING → PROCESSED → PAID → 2× ISSUED → QR → PDF (application/pdf, no-store, safe filename, %PDF magic) → wrong-token 404 → replays idempotent. Webhook route: PROCESSED/DUPLICATE/garbage-400. Sweep: fail-closed 401, 200 with secret.
+- Production gate **stronger**: 503 TEST_PAYMENT_DISABLED on every production runtime even with PAYMENT_MODE=test (the gate lives in the Next process now).
+- Browser (production build, desktop + 390 px, console clean): landing, /events, detail, guest order page (recovery-link adoption), guest ticket page with QR.
+- Suites: root vitest **103 passed** (0 failed, 0 skipped), typecheck PASS, lint PASS, `next build` PASS.
+
+**Data safety:** all verification records marked + removed; final census 0 data rows, ledger 9/9, `auth.users` = 0.
+
+**Status:** NestJS removal COMPLETE and verified to this environment's boundary (SERVER VERIFIED against real Supabase; hosted deploy still BLOCKED on NI's GitHub/Vercel actions — BLOCKER 0 now gates everything).

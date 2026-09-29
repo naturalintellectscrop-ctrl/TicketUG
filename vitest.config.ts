@@ -1,8 +1,8 @@
 import { defineConfig } from 'vitest/config'
 
-// Root suite covers lib/ unit tests plus apps/api/src rule modules (run via `pnpm test`).
-// The compiled `apps/api/dist` output and the API's own node_modules must never be
-// collected — use `pnpm api:test` for the API workspace suite.
+// Root suite covers lib/ unit tests (rules, tickets, payments, server) via `pnpm test`.
+// Pair 6: apps/api is removed — the Supabase-native server layer lives in lib/. The
+// DB integration suite activates with TEST_DATABASE_URL (throwaway/staging DB only).
 export default defineConfig({
   test: {
     exclude: [
@@ -11,7 +11,6 @@ export default defineConfig({
       '**/cypress/**',
       '**/.{idea,git,cache,output,temp}/**',
       '**/{karma,rollup,webpack,vite,vitest,jest,ava,babel,nyc,cypress,tsup,build,eslint,prettier}.config.*',
-      'apps/api/dist/**',
     ],
   },
 })

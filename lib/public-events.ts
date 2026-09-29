@@ -4,7 +4,7 @@ import { pool } from './db'
 // the /events discovery index, and the landing-page listing all filter through
 // this predicate — never define a second visibility rule elsewhere.
 //
-// Lifecycle note (verified against apps/api/src/events/event-lifecycle.ts):
+// Lifecycle note (rules now live in lib/rules/event-lifecycle.ts):
 // CANCELLED/SUSPENDED events keep publication_state='PUBLIC' and discoverable=true
 // by design, and the public detail page intentionally renders them with a status
 // notice. The listing therefore shows the same events with their lifecycle label

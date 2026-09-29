@@ -17,7 +17,8 @@ type SupabaseServerClient = ReturnType<typeof createServerClient>
 // Cookie contract (all cookie writes happen server-side):
 //   sb-<project-ref>-auth-token[.N]  — HttpOnly, Secure, SameSite=Lax,
 //   value 'base64-' + base64url(JSON session) (chunked every 3180 chars).
-// The NestJS API parses this exact format (apps/api/src/auth/supabase-auth.ts).
+// Format contract of @supabase/ssr (previously mirrored by the removed NestJS
+// guard — Pair 6 removed that separate host).
 export async function getSupabaseServerClient(): Promise<SupabaseServerClient | null> {
   // Await the request's cookie store FIRST: during `next build` static
   // generation this throws Next's dynamic-usage error, which marks the route

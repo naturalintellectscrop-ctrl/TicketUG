@@ -6,20 +6,23 @@
 // What it proves, against a REAL Postgres engine:
 //   A. migration 011 objects exist (tables, columns, indexes, constraints)
 //   B. seed: organizer/event/gates (Main/VIP/VVIP)/ticket types/staff/attendee
-//   C. REAL ticket issuance through TicketsService.issuePaidOrder
+//   C. REAL ticket issuance through ticketug.apply_payment_event (the Supabase-native
+//      webhook core — signature-verified event → payment/order transitions → tickets)
 //   D. REAL scanner decisions through CheckInsService.scan (server-authoritative;
 //      the gate comes from the staff assignment row, never the client)
 //   E. gate deletion CASCADEs fail-closed (permissions + assignments removed)
-//   F. REAL DB-backed PDF generation through TicketsService.pdfMine/pdfGuest
+//   F. REAL DB-backed PDF generation through lib/server/tickets (the same module the
+//      Next.js tier serves PDFs from)
 // ============================================================================
 
-import { Pool, type PoolClient } from 'pg'
+import { Pool } from 'pg'
 import { readFileSync } from 'node:fs'
 import { createHash } from 'node:crypto'
 import { randomUUID } from 'node:crypto'
-import { TicketsService } from '../../apps/api/src/tickets/tickets.service'
-import { CheckInsService } from '../../apps/api/src/check-ins/check-ins.service'
-import type { ApiUser } from '../../apps/api/src/auth/auth.types'
+import { scanCheckIn, type ScanResult } from '../../lib/server/check-ins'
+import { getTicketPdfForGuest, getTicketPdfForProfile } from '../../lib/server/tickets'
+import { applyVerifiedWebhook } from '../../lib/server/payments'
+import { ProviderRegistry } from '../../lib/payments/provider'
 
 const args = process.argv.slice(2)
 const urlArg = args.find((arg) => arg.startsWith('--url='))
@@ -29,21 +32,12 @@ if (!url) { console.error('Usage: bun scripts/staging-verify/verify-gates.ts --u
 const host = new URL(url).hostname
 if (!allowRemote && !['localhost', '127.0.0.1', '::1'].includes(host)) { console.error(`Refusing non-local database host "${host}" without --allow-remote (this runner seeds and deletes data).`); process.exit(2) }
 
-class DbShim {
-  constructor(readonly pool: Pool) {}
-  query(text: string, values: unknown[] = []) { return this.pool.query(text, values) }
-  async transaction<T>(callback: (client: PoolClient) => Promise<T>): Promise<T> {
-    const client = await this.pool.connect()
-    try { await client.query('BEGIN'); const result = await callback(client); await client.query('COMMIT'); return result } catch (error) { await client.query('ROLLBACK'); throw error } finally { client.release() }
-  }
-}
-
 let passed = 0
 let failed = 0
 function check(name: string, condition: boolean, detail = '') {
   if (condition) { passed++; console.log(`  ✓ ${name}`) } else { failed++; console.log(`  ✗ ${name}${detail ? ` — ${detail}` : ''}`) }
 }
-async function expectOutcome(name: string, promise: Promise<{ outcome: string; permittedGates?: string[] }>, expected: string, extra?: (result: { outcome: string; permittedGates?: string[] }) => boolean) {
+async function expectOutcome(name: string, promise: Promise<ScanResult>, expected: string, extra?: (result: { outcome: string; permittedGates?: string[] }) => boolean) {
   try {
     const result = await promise
     check(`${name} → ${expected}`, result.outcome === expected && (extra ? extra(result) : true), `got ${result.outcome}${result.permittedGates ? ` (permitted: ${result.permittedGates.join(', ')})` : ''}`)
@@ -54,12 +48,9 @@ async function expectOutcome(name: string, promise: Promise<{ outcome: string; p
 
 async function main() {
   const pool = new Pool({ connectionString: url, max: 5 })
-  const db = new DbShim(pool)
   // Rerun-safe: wipe throwaway data from any previous run of this harness.
   const tables = ['check_in', 'ticket', 'ticket_issuance_event', 'ticket_type_gate', 'event_gate', 'event_staff_assignment', 'order_item', 'payment_attempt', 'payment', 'webhook_event', 'order', 'ticket_type', 'event_media', 'event', 'venue', 'organizer_member', 'organizer', 'user_profile']
   await pool.query(`TRUNCATE ${tables.map((table) => `ticketug.${table}`).join(', ')} CASCADE`)
-  const ticketsService = new TicketsService(db as never)
-  const checkInsService = new CheckInsService(db as never)
 
   console.log('\nA. Migration 011 object verification')
   const tableExists = async (table: string) => (await pool.query(`SELECT 1 FROM information_schema.tables WHERE table_schema='ticketug' AND table_name=$1`, [table])).rowCount === 1
@@ -75,8 +66,8 @@ async function main() {
   check('assignment.gate_id → gate is ON DELETE CASCADE (never widened)', assignmentCascade.rows.some((row) => row.confdeltype === 'c'))
 
   console.log('\nB. Seed (throwaway data)')
-  const ownerProfile = randomUUID(); const staffMainProfile = randomUUID(); const staffVipProfile = randomUUID(); const staffVvipProfile = randomUUID(); const staffEventwideProfile = randomUUID(); const staffDisabledProfile = randomUUID(); const outsiderProfile = randomUUID(); const buyerProfile = randomUUID()
-  for (const [id, name] of [[ownerProfile, 'Owner'], [staffMainProfile, 'Staff Main'], [staffVipProfile, 'Staff VIP'], [staffVvipProfile, 'Staff VVIP'], [staffEventwideProfile, 'Staff Eventwide'], [staffDisabledProfile, 'Staff Disabled'], [outsiderProfile, 'Outsider'], [buyerProfile, 'Buyer']] as const) await pool.query('INSERT INTO ticketug.user_profile (id, auth_user_id, display_name) VALUES ($1,$2,$3)', [id, `auth_${id}`, name])
+  const ownerProfile = randomUUID(); const staffMainProfile = randomUUID(); const staffVipProfile = randomUUID(); const staffVvipProfile = randomUUID(); const staffEventwideProfile = randomUUID(); const staffDisabledProfile = randomUUID(); const outsiderProfile = randomUUID(); const buyerProfile = randomUUID(); const adminProfile = randomUUID()
+  for (const [id, name] of [[ownerProfile, 'Owner'], [staffMainProfile, 'Staff Main'], [staffVipProfile, 'Staff VIP'], [staffVvipProfile, 'Staff VVIP'], [staffEventwideProfile, 'Staff Eventwide'], [staffDisabledProfile, 'Staff Disabled'], [outsiderProfile, 'Outsider'], [buyerProfile, 'Buyer'], [adminProfile, 'Platform Admin']] as const) await pool.query('INSERT INTO ticketug.user_profile (id, auth_user_id, display_name) VALUES ($1,$2,$3)', [id, `auth_${id}`, name])
   const organizerId = randomUUID()
   await pool.query('INSERT INTO ticketug.organizer (id, name, slug, created_by) VALUES ($1,$2,$3,$4)', [organizerId, 'Night Shift Collective', 'night-shift-verify', ownerProfile])
   for (const [profileId, role] of [[ownerProfile, 'ORGANIZER_OWNER'], [staffMainProfile, 'EVENT_STAFF'], [staffVipProfile, 'EVENT_STAFF'], [staffVvipProfile, 'EVENT_STAFF'], [staffEventwideProfile, 'EVENT_STAFF'], [staffDisabledProfile, 'EVENT_STAFF']] as const) await pool.query('INSERT INTO ticketug.organizer_member (id, organizer_id, user_profile_id, role, status) VALUES ($1,$2,$3,$4,$5)', [randomUUID(), organizerId, profileId, role, 'ACTIVE'])
@@ -132,25 +123,31 @@ async function main() {
   } catch (error) { console.log('  (probe outer error:', error instanceof Error ? error.message.slice(0, 120) : error, ')') } finally { await uniqueClient.query('ROLLBACK').catch(() => {}); uniqueClient.release() }
   check('gate name uniqueness is case-insensitive (functional probe, rolled back)', caseInsensitive)
 
-  const staffUser = (profileId: string): ApiUser => ({ authUserId: `auth_${profileId}`, profileId, roles: ['ATTENDEE', 'EVENT_STAFF'], organizerMemberships: [{ organizerId, role: 'EVENT_STAFF', status: 'ACTIVE' }] })
-  const outsiderUser: ApiUser = { authUserId: `auth_${outsiderProfile}`, profileId: outsiderProfile, roles: ['ATTENDEE'], organizerMemberships: [] }
-  const adminUser: ApiUser = { authUserId: 'auth_admin', profileId: outsiderProfile, roles: ['ATTENDEE', 'PLATFORM_ADMIN'], organizerMemberships: [] }
-  const ownerUser: ApiUser = { authUserId: `auth_${ownerProfile}`, profileId: ownerProfile, roles: ['ATTENDEE', 'ORGANIZER_OWNER'], organizerMemberships: [{ organizerId, role: 'ORGANIZER_OWNER', status: 'ACTIVE' }] }
+  // Scanner identity is DB-derived now: memberships + platform_role rows decide.
+  await pool.query("INSERT INTO ticketug.platform_role (id, user_profile_id, role) VALUES ($1,$2,'PLATFORM_ADMIN')", [randomUUID(), adminProfile])
 
-  console.log('\nC. REAL ticket issuance (TicketsService.issuePaidOrder)')
+  console.log('\nC. REAL ticket issuance (ticketug.apply_payment_event — signed webhook path)')
   let tickets: Record<string, { publicId: string; credential: string; orderId: string; orderPublicId: string; orderNumber: string }> = {}
+  let verifyEventSeq = 0
   const issueFor = async (label: string, type: { id: string; name: string; price: number }, eventId: string, purchaserProfileId: string | null) => {
-    const orderId = randomUUID(); const paymentId = randomUUID(); const orderPublicId = `ord_${randomUUID().slice(0, 12)}`; const orderNumber = `TUG-V-${orderPublicId.slice(4).toUpperCase()}`
+    const orderId = randomUUID(); const paymentId = randomUUID(); const attemptId = randomUUID(); const orderPublicId = `ord_${randomUUID().slice(0, 12)}`; const orderNumber = `TUG-V-${orderPublicId.slice(4).toUpperCase()}`
     const guestHash = purchaserProfileId ? null : createHash('sha256').update('verify-guest-token-123').digest('hex')
-    await pool.query('INSERT INTO ticketug.order (id, public_id, order_number, user_profile_id, purchaser_name, purchaser_email, guest_access_token_hash, status, payment_state, currency, total_minor_units) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11)', [orderId, orderPublicId, orderNumber, purchaserProfileId, 'Verify Buyer', 'verify-buyer@example.com', guestHash, 'PAID', 'PAID', 'UGX', type.price])
+    await pool.query('INSERT INTO ticketug.order (id, public_id, order_number, user_profile_id, purchaser_name, purchaser_email, guest_access_token_hash, status, payment_state, currency, total_minor_units, payment_expires_at) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11, now() + interval \'15 minutes\')', [orderId, orderPublicId, orderNumber, purchaserProfileId, 'Verify Buyer', 'verify-buyer@example.com', guestHash, 'AWAITING_PAYMENT', 'AWAITING_PAYMENT', 'UGX', type.price])
     const orderItemId = randomUUID()
     await pool.query('INSERT INTO ticketug.order_item (id, order_id, ticket_type_id, quantity, ticket_name_snapshot, unit_price_minor_units, currency_snapshot, line_total_minor_units) VALUES ($1,$2,$3,1,$4,$5,$6,$5)', [orderItemId, orderId, type.id, type.name, type.price, 'UGX'])
-    await pool.query('INSERT INTO ticketug.payment (id, public_id, order_id, provider, amount_minor_units, currency, status, successful_provider_reference) VALUES ($1,$2,$3,$4,$5,$6,$7,$8)', [paymentId, `pay_${orderPublicId.slice(4)}`, orderId, 'test', type.price, 'UGX', 'SUCCEEDED', 'verify-ref-1'])
-    const issued = await db.transaction((client) => ticketsService.issuePaidOrder(client, { orderId, paymentId, providerReference: 'verify-ref-1' }))
-    const ticket = issued[0] as unknown as { publicId: string; eventId: string }
-    check(`${label}: issuance created 1 ticket on the paid order`, Boolean(ticket) && ticket.eventId === eventId)
-    const secret = await pool.query('SELECT credential FROM ticketug.ticket WHERE public_id=$1', [ticket.publicId])
-    tickets[label] = { publicId: ticket.publicId, credential: secret.rows[0].credential, orderId, orderPublicId, orderNumber }
+    await pool.query('INSERT INTO ticketug.payment (id, public_id, order_id, provider, amount_minor_units, currency) VALUES ($1,$2,$3,$4,$5,$6)', [paymentId, `pay_${orderPublicId.slice(4)}`, orderId, 'test', type.price, 'UGX'])
+    const attemptRef = `verify-ref-${orderPublicId}`
+    await pool.query("INSERT INTO ticketug.payment_attempt (id, public_id, payment_id, provider, amount_minor_units, currency, idempotency_key, status, provider_attempt_reference) VALUES ($1,$2,$3,'test',$4,$5,$6,'PROCESSING',$7)", [attemptId, `pat_${orderPublicId.slice(4)}`, paymentId, type.price, 'UGX', `verify-${attemptId}`, attemptRef])
+    const registry = new ProviderRegistry()
+    verifyEventSeq += 1
+    const event = { eventId: `test_evt_verify_${verifyEventSeq}_${orderId.slice(0, 8)}`, type: 'payment.succeeded', attemptReference: attemptRef, orderReference: orderPublicId, amountMinorUnits: type.price, currency: 'UGX', status: 'SUCCEEDED' }
+    const signed = registry.testWebhook(event)
+    const applied = await applyVerifiedWebhook('test', signed.headers as Record<string, string | undefined>, event, signed.rawBody)
+    check(`${label}: webhook applied (${applied.status})`, applied.status === 'PROCESSED')
+    const ticket = (await pool.query('SELECT public_id, event_id FROM ticketug.ticket WHERE order_id=$1 ORDER BY created_at LIMIT 1', [orderId])).rows[0] as unknown as { public_id: string; event_id: string }
+    check(`${label}: issuance created 1 ticket on the paid order`, Boolean(ticket) && ticket.event_id === eventId)
+    const secret = await pool.query('SELECT credential FROM ticketug.ticket WHERE public_id=$1', [ticket.public_id])
+    tickets[label] = { publicId: ticket.public_id, credential: secret.rows[0].credential, orderId, orderPublicId, orderNumber }
   }
   await issueFor('regular1', typeRegular, evt1, buyerProfile)
   await issueFor('regular2', typeRegular, evt1, buyerProfile)
@@ -163,8 +160,14 @@ async function main() {
   await issueFor('cancelledEvent', typeEvt3, evt3, buyerProfile)
   await issueFor('suspendedEvent', typeEvt4, evt4, buyerProfile)
   await issueFor('guestRegular', typeRegular, evt1, null)
-  const idempotent = await db.transaction(async (client) => ticketsService.issuePaidOrder(client, { orderId: tickets.regular1.orderId, paymentId: (await pool.query('SELECT id FROM ticketug.payment WHERE order_id=$1', [tickets.regular1.orderId])).rows[0].id, providerReference: 'verify-ref-1' }))
-  check('issuance is idempotent (same order+payment+provider reference → no duplicates)', idempotent.length === 1)
+  {
+    const registry = new ProviderRegistry()
+    const replayEvent = { eventId: `test_evt_replay_${Date.now()}`, type: 'payment.succeeded', attemptReference: `verify-ref-${tickets.regular1.orderPublicId}`, orderReference: tickets.regular1.orderPublicId, amountMinorUnits: 20000, currency: 'UGX', status: 'SUCCEEDED' }
+    const signed = registry.testWebhook(replayEvent)
+    const replay = await applyVerifiedWebhook('test', signed.headers as Record<string, string | undefined>, replayEvent, signed.rawBody)
+    const replayedCount = (await pool.query('SELECT count(*)::int AS n FROM ticketug.ticket WHERE order_id=$1', [tickets.regular1.orderId])).rows[0].n
+    check('issuance is idempotent (SUCCEEDED attempt + new event → DUPLICATE, no new tickets)', replay.status === 'DUPLICATE' && replayedCount === 1, `status ${replay.status}, tickets ${replayedCount}`)
+  }
   const scanPayload = (label: string) => `ticketug:v1:${tickets[label].credential}`
 
   // Gate context for the PDF, captured BEFORE the CASCADE phase deletes a gate.
@@ -172,30 +175,25 @@ async function main() {
   check('PDF gate context matches the business rule (VIP → Main + VIP)', JSON.stringify(vipTypeGateContext) === JSON.stringify(['Main Gate', 'VIP Gate']), `got ${JSON.stringify(vipTypeGateContext)}`)
 
   console.log('\nD. REAL scanner decisions (CheckInsService.scan — server-authoritative)')
-  const staffMain = staffUser(staffMainProfile)
-  const staffVip = staffUser(staffVipProfile)
-  const staffVvip = staffUser(staffVvipProfile)
-  const staffEventwide = staffUser(staffEventwideProfile)
-  const staffDisabled = staffUser(staffDisabledProfile)
   // Established business rule: Regular → Main Gate only.
-  await expectOutcome('Regular ticket at Main Gate', checkInsService.scan(staffMain, evt1, scanPayload('regular1')), 'VALID', (r) => r.permittedGates === undefined)
-  await expectOutcome('replay of the same ticket', checkInsService.scan(staffMain, evt1, scanPayload('regular1')), 'ALREADY_CHECKED_IN')
-  await expectOutcome('Regular ticket at VIP Gate', checkInsService.scan(staffVip, evt1, scanPayload('regular2')), 'WRONG_GATE', (r) => Array.isArray(r.permittedGates) && r.permittedGates.includes('Main Gate') && !r.permittedGates.includes('VIP Gate'))
-  await expectOutcome('VIP ticket at Main Gate (permitted: Main+VIP)', checkInsService.scan(staffMain, evt1, scanPayload('vip1')), 'VALID')
-  await expectOutcome('VIP ticket at VVIP Gate', checkInsService.scan(staffVvip, evt1, scanPayload('vip2')), 'WRONG_GATE')
-  await expectOutcome('VVIP ticket at VVIP Gate', checkInsService.scan(staffVvip, evt1, scanPayload('vvip1')), 'VALID')
-  await expectOutcome('VVIP ticket at Main Gate (fresh ticket)', checkInsService.scan(staffMain, evt1, scanPayload('vvip2')), 'WRONG_GATE')
-  await expectOutcome('unmapped ticket type on a gated event (fail-closed)', checkInsService.scan(staffMain, evt1, scanPayload('unmapped1')), 'WRONG_GATE')
-  await expectOutcome('event-wide staff assignment scans without gate filtering', checkInsService.scan(staffEventwide, evt1, scanPayload('regular2')), 'VALID')
-  await expectOutcome('disabled-gate assignment fails closed', checkInsService.scan(staffDisabled, evt1, scanPayload('vip1')), 'UNAUTHORIZED_SCANNER')
-  await expectOutcome('staff with no assignment on the event', checkInsService.scan(staffUser(outsiderProfile), evt1, scanPayload('vip1')), 'UNAUTHORIZED_SCANNER')
-  await expectOutcome('unauthenticated outsider', checkInsService.scan(outsiderUser, evt1, scanPayload('vip1')), 'UNAUTHORIZED_SCANNER')
-  await expectOutcome('ticket belonging to another event', checkInsService.scan(staffMain, evt1, scanPayload('otherEvent')), 'WRONG_EVENT')
-  await expectOutcome('malformed QR payload', checkInsService.scan(staffMain, evt1, 'not-a-ticketug-payload'), 'INVALID_QR')
-  await expectOutcome('well-formed but unknown credential', checkInsService.scan(staffMain, evt1, 'ticketug:v1:tkt_doesnotexist0000000000'), 'INVALID_TICKET')
-  await expectOutcome('ticket on a CANCELLED event', checkInsService.scan(staffMain, evt3, scanPayload('cancelledEvent')), 'EVENT_NOT_AVAILABLE')
-  await expectOutcome('SUSPENDED event stays scannable by design (sales pause, not entry pause) — existing rule locked in', checkInsService.scan(staffMain, evt4, scanPayload('suspendedEvent')), 'VALID')
-  await expectOutcome('platform admin bypass scans validly (documented behavior)', checkInsService.scan(adminUser, evt1, scanPayload('vip2')), 'VALID')
+  await expectOutcome('Regular ticket at Main Gate', scanCheckIn(staffMainProfile, evt1, scanPayload('regular1')), 'VALID', (r) => r.permittedGates === undefined)
+  await expectOutcome('replay of the same ticket', scanCheckIn(staffMainProfile, evt1, scanPayload('regular1')), 'ALREADY_CHECKED_IN')
+  await expectOutcome('Regular ticket at VIP Gate', scanCheckIn(staffVipProfile, evt1, scanPayload('regular2')), 'WRONG_GATE', (r) => Array.isArray(r.permittedGates) && r.permittedGates.includes('Main Gate') && !r.permittedGates.includes('VIP Gate'))
+  await expectOutcome('VIP ticket at Main Gate (permitted: Main+VIP)', scanCheckIn(staffMainProfile, evt1, scanPayload('vip1')), 'VALID')
+  await expectOutcome('VIP ticket at VVIP Gate', scanCheckIn(staffVvipProfile, evt1, scanPayload('vip2')), 'WRONG_GATE')
+  await expectOutcome('VVIP ticket at VVIP Gate', scanCheckIn(staffVvipProfile, evt1, scanPayload('vvip1')), 'VALID')
+  await expectOutcome('VVIP ticket at Main Gate (fresh ticket)', scanCheckIn(staffMainProfile, evt1, scanPayload('vvip2')), 'WRONG_GATE')
+  await expectOutcome('unmapped ticket type on a gated event (fail-closed)', scanCheckIn(staffMainProfile, evt1, scanPayload('unmapped1')), 'WRONG_GATE')
+  await expectOutcome('event-wide staff assignment scans without gate filtering', scanCheckIn(staffEventwideProfile, evt1, scanPayload('regular2')), 'VALID')
+  await expectOutcome('disabled-gate assignment fails closed', scanCheckIn(staffDisabledProfile, evt1, scanPayload('vip1')), 'UNAUTHORIZED_SCANNER')
+  await expectOutcome('staff with no assignment on the event', scanCheckIn(outsiderProfile, evt1, scanPayload('vip1')), 'UNAUTHORIZED_SCANNER')
+  await expectOutcome('unauthenticated outsider', scanCheckIn(outsiderProfile, evt1, scanPayload('vip1')), 'UNAUTHORIZED_SCANNER')
+  await expectOutcome('ticket belonging to another event', scanCheckIn(staffMainProfile, evt1, scanPayload('otherEvent')), 'WRONG_EVENT')
+  await expectOutcome('malformed QR payload', scanCheckIn(staffMainProfile, evt1, 'not-a-ticketug-payload'), 'INVALID_QR')
+  await expectOutcome('well-formed but unknown credential', scanCheckIn(staffMainProfile, evt1, 'ticketug:v1:tkt_doesnotexist0000000000'), 'INVALID_TICKET')
+  await expectOutcome('ticket on a CANCELLED event', scanCheckIn(staffMainProfile, evt3, scanPayload('cancelledEvent')), 'EVENT_NOT_AVAILABLE')
+  await expectOutcome('SUSPENDED event stays scannable by design (sales pause, not entry pause) — existing rule locked in', scanCheckIn(staffMainProfile, evt4, scanPayload('suspendedEvent')), 'VALID')
+  await expectOutcome('platform admin bypass scans validly (documented behavior)', scanCheckIn(adminProfile, evt1, scanPayload('vip2')), 'VALID')
 
   console.log('\nE. Gate deletion CASCADE (fail-closed, never widened)')
   const checkPerms = (await pool.query('SELECT count(*)::int AS n FROM ticketug.ticket_type_gate WHERE gate_id=$1', [vipGate])).rows[0].n
@@ -204,20 +202,19 @@ async function main() {
   check('VIP-gate permission rows removed with the gate', checkPerms === 1 && afterPerms === 0)
   const staffVipAssignment = (await pool.query('SELECT count(*)::int AS n FROM ticketug.event_staff_assignment WHERE gate_id=$1', [vipGate])).rows[0].n
   check('VIP-gate staff assignment removed with the gate (not widened to event-wide)', staffVipAssignment === 0)
-  await expectOutcome('former VIP-gate scanner is now unauthorized (fail-closed)', checkInsService.scan(staffVip, evt1, scanPayload('vip1')), 'UNAUTHORIZED_SCANNER')
+  await expectOutcome('former VIP-gate scanner is now unauthorized (fail-closed)', scanCheckIn(staffVipProfile, evt1, scanPayload('vip1')), 'UNAUTHORIZED_SCANNER')
   const mainPerms = (await pool.query('SELECT count(*)::int AS n FROM ticketug.ticket_type_gate WHERE gate_id=$1', [mainGate])).rows[0].n
   check('other gates untouched by the CASCADE', mainPerms === 2)
   const ticketCount = (await pool.query('SELECT count(*)::int AS n FROM ticketug.ticket')).rows[0].n
   check('ticket data intact after gate operations', ticketCount === 11)
 
-  console.log('\nF. REAL DB-backed PDF generation (TicketsService.pdfMine / pdfGuest)')
-  const buyerUser: ApiUser = { authUserId: `auth_${buyerProfile}`, profileId: buyerProfile, roles: ['ATTENDEE'], organizerMemberships: [] }
-  const ownerPdf = await ticketsService.pdfMine(buyerUser, tickets.regular1.publicId)
+  console.log('\nF. REAL DB-backed PDF generation (lib/server/tickets — the Next.js tier module)')
+  const ownerPdf = await getTicketPdfForProfile(buyerProfile, tickets.regular1.publicId)
   check('owner PDF generated from authoritative rows', ownerPdf.buffer.subarray(0, 5).toString('latin1') === '%PDF-' && ownerPdf.filename === `ticketug-ticket-${tickets.regular1.publicId}.pdf`, `filename ${ownerPdf.filename}`)
-  const guestPdf = await ticketsService.pdfGuest(tickets.guestRegular.orderPublicId, tickets.guestRegular.publicId, 'verify-guest-token-123')
+  const guestPdf = await getTicketPdfForGuest(tickets.guestRegular.orderPublicId, tickets.guestRegular.publicId, 'verify-guest-token-123')
   check('guest PDF generated with the order access token', guestPdf.buffer.subarray(0, 5).toString('latin1') === '%PDF-')
   let pdfDenied = false
-  try { await ticketsService.pdfGuest(tickets.guestRegular.orderPublicId, tickets.guestRegular.publicId, 'wrong-token') } catch { pdfDenied = true }
+  try { await getTicketPdfForGuest(tickets.guestRegular.orderPublicId, tickets.guestRegular.publicId, 'wrong-token') } catch { pdfDenied = true }
   check('guest PDF refuses a wrong access token', pdfDenied)
 
   console.log(`\nRESULT: ${passed} passed, ${failed} failed`)

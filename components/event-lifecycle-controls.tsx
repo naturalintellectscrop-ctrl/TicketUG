@@ -3,7 +3,7 @@
 import { useRouter } from 'next/navigation'
 import { useState } from 'react'
 
-// Client-side mirror of apps/api/src/events/event-lifecycle.ts — the NestJS
+// Client-side mirror of lib/rules/event-lifecycle.ts — the (Pair 6, Supabase-native)
 // endpoint remains the authoritative validator; this map only decides which
 // actions to offer in the UI.
 const transitions: Record<string, readonly string[]> = {

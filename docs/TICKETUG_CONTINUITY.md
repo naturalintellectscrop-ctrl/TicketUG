@@ -665,6 +665,124 @@ Neon-reference sweep of the tracked tree (excluding dated audit-history docs): r
 
 **Next recommended phase:** NI executes BLOCKER 0 → 1 → 2a/2b → 3 (in order), then a hosted verification run (Pair 5.2) flips §20.5's BLOCKED rows to HOSTED row by row using the §18–§30 journey matrix. No code changes are expected to be needed for the hosted flip — the architecture is deployment-complete at `f8b22d5` (+ this pair's one test-file fix).
 
+## 21. Pair 6 record (2026-09-29) — NestJS removal & Supabase-native backend
+
+**Pair 6 = remove the separately hosted NestJS API while preserving every security, authorization, tenant-isolation, transactional and payment guarantee.** Starting commit `7bd1c11` (clean tree). Design-first: `docs/NESTJS_REMOVAL_AUDIT.md` (52-endpoint inventory + decision matrix) and `docs/SUPABASE_NATIVE_ARCHITECTURE.md` were produced before any deletion. HARD STOP after.
+
+### 21.1 What changed (decision outcomes)
+
+```text
+REPLACE (→ PostgreSQL functions, migration 012 — the transactional authority):
+  ticketug.create_order            atomic order creation (guest+user): idempotency,
+                                   deterministic FOR UPDATE lock order, event
+                                   SALES_OPEN/PUBLIC + sale-window checks, guarded
+                                   decrement (the oversell barrier), price snapshots
+  ticketug.cancel_order            ownership/guest-hash re-verified cancel: inventory
+                                   restore (guarded increment) + payment teardown
+  ticketug.expire_order_if_due     lazy payment-window expiry (read/initiate paths)
+  ticketug.expire_stale_orders     bounded sweep (FOR UPDATE SKIP LOCKED)
+  ticketug.apply_payment_event     verified-webhook core: (provider, event) dedupe,
+                                   amount/currency/order-reference checks, payment +
+                                   order state machines, TICKET ISSUANCE (credential
+                                   + sha256 + snapshots, issuance-event idempotency)
+  ticketug.transition_event_lifecycle  centralized lifecycle machine, membership +
+                                   owner-only rules re-verified inside, guarded UPDATE
+REPLACE (→ Next.js server layer, lib/server/*): orders (create/list/get/cancel,
+  guest get/cancel/rekey), payments (initiate w/ provider call inside one
+  transaction, status, test-complete, webhook apply), tickets (reads + QR + PDF),
+  event transition, system sweep route, upgraded readiness (real SELECT 1).
+REPLACE (→ lib/rules/*, git-mv preserving history): event-lifecycle, order-rules,
+  payment-rules, gate-rules, ticket-type-rules, tickets qr/pdf/contracts.
+RETAIN (already Supabase-native before this pair): organizer/team/invitation/gate/
+  staff/ticket-type/event-create routes, scanner (extracted to lib/server/check-ins.ts),
+  profile, public discovery, auth session resolution, migration runner, TLS posture.
+REMOVE: apps/api (59 files), @nestjs/* + class-validator/transformer + reflect-metadata
+  + rxjs + helmet + drizzle-orm + jose deps, lib/api-forward.ts, lib/ticket-pdf-proxy.ts,
+  Swagger, the Nest-side duplicate scanner, API_ORIGIN/WEB_ORIGIN/API_PORT/API_HOST.
+DEFER (Case F): Edge Functions (only a future LIVE provider webhook would need them;
+  requires a Supabase access token this environment lacks). RLS stays OFF (unchanged
+  trusted-pool access path; smallest secure surface — ADR 0006).
+```
+
+### 21.2 Browser contract preserved
+
+All 15 former proxy routes kept their URLs, methods, rate limits, cookie behavior and
+response shapes (`{message,error,statusCode}` error bodies included — Nest reason
+phrases mapped in `lib/server/errors.ts`). The UI (checkout, account, guest pages,
+lifecycle controls) is untouched. One intentional improvement: the user-path cancel
+of an uncancelable order now returns 409 (was an unhandled 500 in Nest).
+
+### 21.3 Behavior changes that are deliberate (documented)
+
+- **Payment gate stronger:** the gate now lives in the Next process; `next start`
+  forces NODE_ENV=production, so the simulated provider is refused on every
+  production runtime — even with PAYMENT_MODE=test set (proven: 503). The staging
+  path is exercisable only in non-production processes (next dev / staging runtime).
+- **Initiate idempotency unified:** a replay with the same idempotency key returns
+  the original attempt regardless of its status (the safer of the two previous
+  code paths; guest PAID-order initiation still answers 409 ORDER_EXPIRED exactly
+  as before).
+
+### 21.4 Verification (all against the REAL Supabase DB unless noted)
+
+- **SQL-function matrix (`scripts/staging-verify/verify-sql-functions.ts`): 28/28** —
+  guest/user order creation, inventory decrement, guest idempotency conflict,
+  insufficient/inactive/duplicate-type rejections, user idempotent reuse,
+  **6-way concurrent oversell barrier (exactly 1 winner, 5 clean rejections,
+  capacity never negative)**, wrong-guest-token cancel denial, cancel restore,
+  double-cancel state machine, expiry + restore + second-call no-op,
+  webhook apply → PAID + 3 tickets, same-event replay DUPLICATE, new-event
+  replay on SUCCEEDED attempt DUPLICATE (no dup tickets), wrong amount 422,
+  wrong order reference 422, non-member transition denial, full lifecycle walk,
+  illegal-jump rejection, cleanup leaves zero records.
+- **Behavioral harness (`verify-gates.ts`, refactored onto the new modules): 57/57** —
+  migration-011 objects, real issuance through the SIGNED-WEBHOOK path
+  (HMAC → apply_payment_event), issuance idempotency, complete scanner matrix
+  (VALID/ALREADY_CHECKED_IN/WRONG_GATE×3/event-wide/disabled-gate/unassigned/
+  outsider/WRONG_EVENT/INVALID_QR/INVALID_TICKET/EVENT_NOT_AVAILABLE/SUSPENDED-
+  scannable/admin-bypass), gate-deletion CASCADE fail-closed, DB-backed PDFs
+  (owner + guest + wrong-token refusal).
+- **Wire-level guest journey (dev-mode server + real DB):** order 201 → initiate
+  PROCESSING (test provider) → status → test-complete PROCESSED → order PAID →
+  2 tickets ISSUED → QR data URL → PDF (200, application/pdf, no-store, safe
+  filename, 8,441-byte %PDF) → wrong-token PDF 404 → initiate replay 409
+  ORDER_EXPIRED → test-complete replay 200 DUPLICATE.
+- **Webhook route:** signed POST → PROCESSED (order PAID + ticket issued);
+  replay → DUPLICATE; garbage signature → 400; empty body → 422
+  RAW_WEBHOOK_BODY_REQUIRED. Sweep route: 401 without/wrong secret; 200 +
+  JSON with the correct secret.
+- **Production gate:** `next start` (NODE_ENV=production) with PAYMENT_MODE=test
+  still answers 503 TEST_PAYMENT_DISABLED — fail-closed even when misconfigured.
+- **Browser (production build, real DB):** landing, /events (real event card),
+  event detail, guest order page (recovery-link adoption + clean URL rewrite),
+  guest ticket page with QR; desktop + 390 px (no horizontal overflow); console
+  clean. Note: under `next dev` the guest pages' params-promise resolution
+  stalls (pre-existing Next-16 dev quirk on an untouched page — production
+  build unaffected; Pair 5 verified the same page on the production build).
+- **Suites:** root vitest 103 passed (rules/tickets/payments moved + provider
+  test ported to ApiError), typecheck PASS, lint PASS, `next build` PASS.
+
+### 21.5 Data safety
+
+All verification records were marked (`p6-verify*`, `p6journey*`, harness
+`verify-*`) and removed; final census: **0 data rows in every ticketug table,
+migration ledger 9/9, `auth.users` = 0 (untouched)**. The 2 orphaned Pair-5
+`webhook_event` rows (documented in Pair 5.1 as safe-to-delete) were removed by
+the harness-scope cleanup.
+
+### 21.6 Operator handoff
+
+`docs/DEPLOYMENT_MANUAL_STEPS.md` rewritten for the new shape: the old BLOCKER 3
+(host the API) is OBSOLETE — the stack is Vercel + Supabase only. Remaining NI
+actions: BLOCKER 0 (push), 1 (Vercel branch → main), 2a (DATABASE_URL,
+SUPABASE_URL, SUPABASE_ANON_KEY — **API_ORIGIN is no longer needed**), 2b (anon
+key → hosted auth), 4 (exposure check), 5 (hosted browser pass).
+
+**Next recommended phase:** NI executes BLOCKERS 0 → 1 → 2a/2b, then a hosted
+verification run flips §21's local rows to HOSTED. Future extension points
+(documented, not built): Edge Function for a live provider webhook; PostgREST
+read views + RLS for a future mobile client; scheduler wiring for the sweep.
+
 ## References
 
 - NI Master Production-Hardening, Completion & Feature-Rollout Directive (user directive, 2026-09-26) — the operating contract for all future runs: INSPECT→CLASSIFY→DECIDE→IMPLEMENT→TEST→VERIFY→DOCUMENT; CASE A–E framework; §35 per-run output contract.
