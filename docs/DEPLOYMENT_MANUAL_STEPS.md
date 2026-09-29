@@ -133,6 +133,49 @@ OBSOLETE          — the old BLOCKER 3 (host apps/api): Pair 6 removed the
 - Recommended dashboard settings: Auth → Sessions → Access Token TTL ≤ 3600 s;
   confirm "Confirm email" state (SMTP before public launch if enabled).
 
+## BLOCKER 2c — Supabase Auth dashboard switches (THE current live blocker)
+
+> Live evidence (this gate, re-probed): `POST /api/auth/sign-up` on
+> https://ticketug.vercel.app still answers **400** — GoTrue itself refuses
+> the account (no `auth.users` row is created; sign-IN path stays a clean
+> 401, so the publishable key and GoTrue are healthy). This is a dashboard
+> switch, not a code or SQL problem.
+
+Fix these in Supabase Dashboard → **Authentication**:
+
+1. **Sign In / Providers → "Allow new users to sign up" must be ON.**
+   If an **allowed-email-addresses / domain allow-list** is configured, clear
+   it or add the domains you intend to launch with. (Either condition
+   produces exactly the 400 above.)
+2. **URL Configuration → Site URL: `https://ticketug.vercel.app`**
+   (it currently shows `http://localhost:3000` — with that value, any emailed
+   confirmation/recovery link dead-ends on localhost). Add
+   `https://ticketug.vercel.app/**` under **Redirect URLs**.
+3. **"Confirm email":** keep ON for launch hygiene — the app already handles
+   the no-session confirmation flow (`confirmationRequired`) — but do it
+   AFTER step 2 so the emailed links point at the production domain, and wire
+   SMTP (or use Supabase's built-in rate-limited mailer for a soft launch).
+   Turning it OFF is acceptable for a pure launch rehearsal (auto-confirm).
+4. **OAuth Server (BETA) — NOT needed.** That feature turns the project into
+   an identity provider for *third-party* apps (OAuth Apps, consent screens,
+   dynamic registration). TicketUG only uses Supabase Auth for its own
+   users. Recommend toggling it OFF and saving; leaving it on is harmless
+   but widens surface for no benefit.
+
+### "Why does the Table Editor show no tables?"
+
+Because every TicketUG table lives in the dedicated **`ticketug` schema** and
+the Table Editor defaults to `public` (which is intentionally empty). In the
+Table Editor click the schema selector (top-left, shows `public`) and switch
+to **`ticketug`** — all 23 tables are there (`event`, `ticket_type`,
+`order`, `payment`, `ticket`, `check_in`, `organizer`, … plus `migration`,
+the 9-row migration ledger). This separation is deliberate: the Supabase
+Data API (PostgREST) only exposes `public` + whatever is listed under
+Project Settings → API → "Exposed schemas", and `anon`/`authenticated` hold
+zero privileges on `ticketug` (verified). Nothing is missing; no SQL needs
+to run. `auth.users` is a Supabase-managed schema and also starts empty
+until the first signup succeeds.
+
 ## BLOCKER 4 — Supabase security configuration check
 
 - **SERVICE / DASHBOARD LOCATION:** Supabase Dashboard → Project Settings → API.
