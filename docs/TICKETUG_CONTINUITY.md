@@ -481,6 +481,112 @@ The re-cloned environment has **no push credentials** (anonymous HTTPS clone; no
 
 **Next recommended pair:** execute BLOCKERS 1–4 of `docs/DEPLOYMENT_MANUAL_STEPS.md` (NI dashboard work), then a hosted verification run flipping the §18.7 matrix to HOSTED row by row; first code-capable follow-up remains the tiny migration runner (non-blocking).
 
+## 19. Pair 5 implementation record (2026-09-29) — Neon → Supabase migration (PostgreSQL + Auth)
+
+**Pair 5 = migrate TicketUG's infrastructure from Neon PostgreSQL/Neon Auth to Supabase PostgreSQL/Supabase Auth while preserving the architecture, security model, business logic and user experience.** Starting commit `a53fe34` (local main; origin/main still `16bc73d` pending credentialed push). HARD STOP after.
+
+### 19.1 Environment reality (determined, not assumed)
+
+- NI supplied the Supabase **Postgres** connection string (session pooler) for this pair. The Supabase dashboard, API keys (anon/service-role), and hosting dashboards remain unreachable — the anon key is not derivable and is not stored in the database.
+- Connection verified: `aws-1-eu-central-1.pooler.supabase.com:5432` = **session pooler**, PostgreSQL 17.6. TLS: strict verification (`rejectUnauthorized: true`) works only with Supabase's own PKI — the pooler presents `*.pooler.supabase.com` signed by **Supabase Root 2021 CA** (self-signed root). Supabase's published CA download URL returned 404 at run time, so the root was extracted from the live chain and pinned; SHA-256 fingerprint recorded in `certs/README.md` for NI cross-verification. **No `rejectUnauthorized` weakening anywhere.**
+- **Project state (audited before any write, §4):** EMPTY — no `ticketug` schema, no `public` tables, `auth.users` = 0. No unrelated data. No backup needed; nothing dropped. Supabase system schemas (`auth`, `storage`, `realtime`, `vault`, `extensions`, …) present and untouched.
+
+### 19.2 Component classification (§2 decision framework)
+
+```text
+RETAIN    raw pg (no Prisma; no supabase-js for data); NestJS API as the business boundary;
+          Next.js frontend + all journeys; ticketug schema; migrations 005-011 verbatim;
+          guest-order access tokens; payment boundary (test provider refused in production);
+          storage approach (event_media, no Supabase Storage — §20)
+COMPLETE  DATABASE_URL now points at the Supabase session pooler; TLS posture extended with
+          the pinned Supabase Root CA (lib/db.ts, DatabaseService, scripts/migrate.mjs)
+REFACTOR  auth integration — @neondatabase/auth (Better-Auth-managed-by-Neon) replaced by
+          Supabase Auth end to end (frontend server-side flows + API JWKS guard)
+REPLACE   scripts/local-auth-standin (Neon/Better Auth recipe) — removed (git history keeps it)
+BUILD     (1) migration runner scripts/migrate.mjs + ledger ticketug.migration (§9 CASE B);
+          (2) docs/migrations/000-base-foundation.sql — the audited reconstruction of the
+          untracked 001-004 base (stub columns + the columns code provably uses:
+          user_profile.phone/profile_completed_at/updated_at), required because the Supabase
+          project starts empty; (3) lib/user-profile.ts ensureUserProfile — the §12 mapping
+          mechanism (previously out-of-repo Neon-side provisioning); (4) lib/api-forward.ts —
+          refresh-aware Bearer forwarding for the Nest proxies (access tokens are short-lived
+          JWTs; the 7-day session-token property of Better Auth is gone)
+```
+
+### 19.3 Supabase Auth integration (§11/§15/§16)
+
+- **Frontend (server-side only):** `lib/supabase/server.ts` builds an `@supabase/ssr` server client per request; sessions live in HttpOnly, Secure, SameSite=Lax cookies (`sb-<ref>-auth-token[.N]`, `base64-`-encoded JSON, 3180-char chunking — contract mirrored byte-for-byte in the API's parser). Sign-in/sign-up/sign-out route handlers (`app/api/auth/*`) keep the 10/min rate limits and the exact old UI (same form, same messages, no redesign). The catch-all Neon proxy route and `lib/auth-client.ts`/`lib/auth-secret.ts` are removed. `SUPABASE_ANON_KEY` stays server-side — still zero `NEXT_PUBLIC_*` variables.
+- **API guard:** `supabase-auth.ts` + `supabase-auth.guard.ts` verify tokens LOCALLY with `jose` against the project's public JWKS (ES256; the real project's JWKS was probed: ES256/P-256) with `iss` pinned to `${SUPABASE_URL}/auth/v1` and `aud === 'authenticated'`; HS256/anonymous/cross-project/forged tokens fail closed. Cookie fallback mirrors the `@supabase/ssr` chunking exactly (unit-tested). Boot fails closed in production without `SUPABASE_URL`.
+- **Mapping (§12):** Supabase user UUID → `ticketug.user_profile.auth_user_id` (text UNIQUE — unchanged schema), created idempotently by `ensureUserProfile` at first session, seeded from sign-up metadata `name`.
+- **Fail-closed floors preserved:** request-time config check on the web tier (builds still succeed env-less — the `cookies()` dynamic bailout orders the checks exactly like the old lazy-auth contract, re-proven); boot-time check on the API tier (proven: production boot without `SUPABASE_URL` refuses to start).
+- **Documented model change:** access tokens are stateless short-lived JWTs (≤1 h default). Sign-out revokes the refresh token + clears cookies; an already-issued access token stays valid until expiry — inherent to JWT auth, tightening is a dashboard setting (manual steps 2b). Proxies attach a fresh Bearer token (refresh-aware) so users are never stranded mid-session.
+
+### 19.4 Migration execution + verification (§5-§8, §23)
+
+- **Runner (BUILD, minimal):** `scripts/migrate.mjs` — deterministic ordering, `ticketug.migration` ledger (name, sha256 checksum, applied_at), no reapplication, checksum-drift hard-fail, self-transactional files run verbatim (005-011 are `BEGIN;…COMMIT;`), non-self-transactional files wrapped atomically WITH their ledger row, status mode, safe repeated execution, no destructive statements, no secrets in output. `pnpm migrate` / `pnpm migrate:status`.
+- **Application to Supabase:** `000-base-foundation.sql` + verbatim `005→011` in order — 8/8 ok (355-744 ms each). Re-run: "nothing to do" (idempotent). Ledger: 8 rows, checksums recorded.
+- **Schema verification: 74/74 PASS** (tables incl. §8's required set + the real `ticket_issuance_event`/`webhook_event`; columns; 37 FKs; unique constraints incl. PK-based `ticket_type_gate` and case-insensitive `event_gate` name uniqueness; CHECK constraints; hot-path indexes; both behavioral triggers; RLS deliberately OFF — API-enforced authorization, `ticketug` not exposed via PostgREST; transaction rollback; extensions pgcrypto/uuid-ossp present).
+- **Behavioral harness: 46/46 PASS** against the real Supabase DB (`scripts/staging-verify/verify-gates.ts --allow-remote`, TLS-verified via `sslrootcert`): migration-011 objects, real issuance + idempotency, FULL scanner decision matrix, gate-deletion CASCADE fail-closed, DB-backed PDFs incl. wrong-token refusal, inventory/concurrency probes. Harness seed data removed afterwards; final DB state: 0 data rows, 8 ledger rows, `auth.users` untouched.
+
+### 19.5 Tests (§22/§24 — exact numbers)
+
+```text
+BASELINE (fresh worktree run at a53fe34):  root 109 passed | 1 skipped · api 41 passed | 1 skipped
+AFTER    (changed tree):                   root 121 passed | 1 skipped · api 52 passed | 1 skipped
+delta: root +12 (lib/supabase-config.test.ts +6 net of removed auth-secret 5; apps/api auth tests
++11 counted in both suites by design — vitest root config includes apps/api/src rules), api +11.
+typecheck PASS · lint PASS · api:build PASS · next build PASS with EMPTY environment (re-proven).
+```
+
+Removed tests: the 5 `auth-secret` tests (the Better Auth secret mechanism no longer exists) — replaced by 6 `supabase-config` tests covering the equivalent fail-closed floor. No test was weakened.
+
+### 19.6 Full-stack verification (real Supabase DB; GoTrue wire-contract stand-in for auth)
+
+Stack = production-built Next (`next start`) + compiled API (`node apps/api/dist/main.js`) + REAL Supabase Postgres (pinned-CA TLS) + GoTrue wire-contract stand-in (`/home/z/pgstage/pair5/gotrue-standin.mjs`, ES256+JWKS, outside the repo — the hosted GoTrue needs the anon key, BLOCKED; methodology identical to Pair 3/4's committed stand-in recipe, now for the GoTrue contract).
+
+- **Wire-level auth matrix (all SUPABASE-DB-backed):** sign-up → 200 + `sb-…-auth-token` HttpOnly Secure cookie + `user_profile` row created in Supabase (mapping proven in-DB); `/api/me` 200; no-session 401; sign-out 204 → cookies cleared → 401; re-sign-in 200; session persists across requests. Forged/garbage/no credentials at the compiled API → 401 ×3.
+- **Live remote-JWKS proof against the REAL project:** an API instance pointed at `https://<ref>.supabase.co` fetched the real JWKS and rejected forged tokens → 401 (verification logic is the same code path the stand-in exercises).
+- **Browser journeys (agent-browser, desktop 1280 + mobile 390):** public `/`, `/events` (DB-backed card), event detail (Africa/Kampala-honest dates) → guest checkout (Regular ×2) → simulated payment → PAID → 2 × ISSUED → ticket page with QR → **PDF**: wire `content-type: application/pdf`, `cache-control: no-store`, safe `content-disposition`, 8,581-byte `%PDF-1.3`, wrong token → 404. Organizer: workspace create → event create (UI form dates resist automation — event created through the SAME session/API route the form posts; form itself was UI-proven in Pair 3) → 2 ticket types (10,000/50,000 UGX) → Main/VIP gates → permissions → staff invite → staff session accepted → gate-scoped assignment → transitions `PUBLISHED` → `SALES_OPEN` **through the new Bearer proxy path (201 ×2)**. Scanner (staff session, server-authoritative gate from the assignment row): VIP@VIP → **VALID** ("Ticket accepted and checked in") → replay → **"Already checked in."** → Regular@VIP → **"not valid for this gate. Permitted gates: Main Gate"** (WRONG_GATE) → malformed QR → **"Invalid TicketUG QR"** → unknown credential → **"Ticket could not be found."** → unauthenticated `/scanner` → 307 `/sign-in?next=/scanner`.
+- **Data integrity (§26):** browser state = API state = Supabase state — capacities (Regular 50→48, VIP 10→9), 2 orders PAID, 2 payments SUCCEEDED (test provider), 3 tickets (2 ISSUED + 1 CHECKED_IN), 1 check_in row with scanner, gate-scoped assignment ACTIVE, memberships correct. No phantom state; no hardcoded IDs.
+- **Payment boundary (§21/§27):** re-proven in production runtime → `POST …/payment/test-complete` → **503 TEST_PAYMENT_DISABLED**. Staging test path clearly separate (NODE_ENV ≠ production + PAYMENT_MODE=test).
+- **Console:** zero errors/warnings across all visited pages (landing, events, detail, order, ticket, scanner, admin guard redirect).
+- **Ops note (environment, not repo):** the sandbox pre-seeds an ambient `DATABASE_URL=file:…/custom.db`; `next start` does not override pre-set env vars with `.env` — launches must source `.env` explicitly (cost one debugging round; recorded here for future runs).
+
+### 19.7 Secrets/CORS/cookies audit (§16/§17/§27)
+
+- Tracked-tree scan: no connection-string fragments, no real key material, no private keys, no `service_role`, no `NEXT_PUBLIC_*`, no `BETTER_AUTH_SECRET`/`NEON_*` in code (docs updated; `PHASE_3_AUDIT.md` keeps its dated historical mentions). `.env` gitignore re-verified (`git check-ignore`).
+- Client-bundle safety: no `'use client'` component imports Supabase modules; `lib/supabase/*` reachable only from route handlers/server components; the anon key never leaves the server side.
+- Cookies: `sb-<ref>-auth-token` HttpOnly + Secure + SameSite=Lax (server-written); old `__Secure-neon-auth.*` cookies are gone with the old SDK. CORS: unchanged fail-closed allow-list (`WEB_ORIGIN`, exact origins, credentials, no wildcard).
+- The Supabase connection string appears ONLY in the gitignored `.env` and NI's own store — never in docs, logs, diffs, or this report.
+
+### 19.8 Deployment readiness matrix (§33) — evidence-based
+
+| Area | Before (Neon, a53fe34) | Supabase | Status | Evidence |
+| --- | --- | --- | --- | --- |
+| PostgreSQL connection | LOCAL VERIFIED (Neon stand-in TLS staging) | **SUPABASE VERIFIED** | session pooler, PG 17.6, strict TLS w/ pinned CA | probe + harness + readiness |
+| Migrations | LOCAL VERIFIED (manual psql; no runner) | **SUPABASE VERIFIED** | runner BUILD; 8/8 applied; re-run idempotent; ledger 8 rows | runner output + ledger |
+| Schema | LOCAL VERIFIED | **SUPABASE VERIFIED** | 74/74 checks | verify-schema.mjs |
+| Auth | LOCAL VERIFIED (Better Auth stand-in) | **LOCAL VERIFIED** on GoTrue wire contract; hosted live flows **BLOCKED** (anon key) | full browser+wire matrix vs stand-in; real-JWKS forged rejection | §19.6 |
+| User mapping | out-of-repo (Neon-side) | **SUPABASE VERIFIED** | `ensureUserProfile` row proven in Supabase | §19.6 query |
+| API | LOCAL VERIFIED | **SUPABASE VERIFIED** | health/readiness (real SELECT 1) on 2 instances; journeys via Bearer path | §19.6 |
+| Frontend | LOCAL VERIFIED | **SUPABASE VERIFIED** (DB); hosted **BLOCKED** | env-less build + production-start journeys | §19.6 |
+| Organizer | LOCAL VERIFIED | **SUPABASE VERIFIED** | workspace/event/types/gates/permissions/invite/assignment/transitions | §19.6 |
+| Orders | LOCAL VERIFIED | **SUPABASE VERIFIED** | 2 guest orders PAID (20,000 + 50,000 UGX) | DB cross-check |
+| Tickets | LOCAL VERIFIED | **SUPABASE VERIFIED** | 3 ISSUED (1→CHECKED_IN) + capacity decrements | DB cross-check |
+| PDF | LOCAL VERIFIED | **SUPABASE VERIFIED** | wire headers + %PDF magic + wrong-token 404 | §19.6 |
+| Gates | LOCAL VERIFIED | **SUPABASE VERIFIED** | permissions + CASCADE + harness section E | §19.4 |
+| Scanner | LOCAL VERIFIED | **SUPABASE VERIFIED** | 5-scan browser matrix + 46-check harness | §19.4/§19.6 |
+| Security | LOCAL VERIFIED | **LOCAL VERIFIED** | §19.7 audit + fail-closed proofs | §19.7 |
+| Mobile | LOCAL VERIFIED | **SUPABASE VERIFIED** | 390 px: no horizontal scroll on landing/detail/ticket; QR + PDF present | screenshots |
+| Hosted frontend/API | BLOCKED BY EXTERNAL ACCESS | **BLOCKED** | Vercel/API-host dashboards unreachable | manual steps 1/3 |
+| Hosted Supabase Auth live flows | BLOCKED BY EXTERNAL ACCESS | **BLOCKED** | anon key required (not supplied; not derivable) | manual steps 2b |
+
+### 19.9 Git note (honest)
+
+Commit identity verified (Natural Intellects Ltd). `origin/main` still points at `16bc73d` — Pair 4's push was blocked by absent credentials and Pair 5 adds its commit on top locally. If the push fails again, the commit exists locally on `main` and must be pushed by NI (or a credentialed run) — flagged, not hidden. No force-push, no history rewrite, no branch deletion.
+
+**Next recommended pair:** NI executes BLOCKERS 1-4 of `docs/DEPLOYMENT_MANUAL_STEPS.md` (Vercel branch+env incl. the Supabase anon key, API hosting, Supabase dashboard security check), then a hosted verification run flips §19.8 to HOSTED row by row. Optional code follow-ups (only after hosted verification): sweeper scheduler wiring remains deployment work; organizer event-creation date-picker is automation-unfriendly (human UI fine, proven in Pair 3).
+
 ## References
 
 - NI Master Production-Hardening, Completion & Feature-Rollout Directive (user directive, 2026-09-26) — the operating contract for all future runs: INSPECT→CLASSIFY→DECIDE→IMPLEMENT→TEST→VERIFY→DOCUMENT; CASE A–E framework; §35 per-run output contract.

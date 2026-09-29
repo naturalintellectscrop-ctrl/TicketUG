@@ -1,55 +1,43 @@
-import { createNeonAuth } from '@neondatabase/auth/next/server'
-import { resolveAuthSecret } from '@/lib/auth-secret'
+import { getSupabaseServerClient } from './supabase/server'
 
-type NeonAuth = ReturnType<typeof createNeonAuth>
-
-const baseUrl = process.env.NEON_AUTH_BASE_URL ?? process.env.VITE_NEON_AUTH_URL ?? 'http://localhost:3000'
-
+// Pair 5: Supabase Auth session resolution (replaces the Neon Auth adapter).
 // The auth client is constructed lazily on first use (request time), not at
-// module evaluation. Route modules are imported during `next build` page-data
-// collection, so evaluating resolveAuthSecret at import time failed every
-// production build without BETTER_AUTH_SECRET — taking down the whole
-// deployment (including auth-free marketing pages) instead of only auth.
-//
-// This is NOT a weakening of the fail-closed floor: the identical 32-character
-// check runs before the auth client can serve anything, so in a production
-// environment without a valid secret every auth-dependent request still fails
-// loudly (same error, no fallback secret, sessions cannot be forged). The
-// marketing pages that never touch auth simply stay reachable. apps/api keeps
-// its boot-time check by design: a service that cannot authenticate should
-// crash at startup, and its build never evaluates modules.
-let cachedAuth: NeonAuth | null = null
+// module evaluation — same build-safety contract as before: route modules are
+// imported during `next build` page-data collection, so evaluating auth
+// configuration at import time would fail every production build without
+// configuration. The fail-closed floor is unchanged: without valid Supabase
+// configuration every auth-dependent request fails loudly in production and
+// sessions cannot be forged; auth-free marketing pages stay reachable.
+export interface AuthUser {
+  id: string
+  email?: string | null
+  name?: string | null
+}
 
-export function getAuth(): NeonAuth {
-  if (!cachedAuth) {
-    cachedAuth = createNeonAuth({
-      baseUrl,
-      cookies: { secret: resolveAuthSecret(process.env), sessionDataTtl: 300 },
-      logLevel: 'warn',
-      ...(process.env.NODE_ENV === 'development'
-        ? {
-            advanced: {
-              defaultCookieAttributes: {
-                sameSite: 'none' as const,
-                secure: true,
-              },
-            },
-          }
-        : {}),
-    })
+export interface AuthSession {
+  user: AuthUser
+}
+
+export async function getAuthSession(): Promise<AuthSession | null> {
+  const supabase = await getSupabaseServerClient()
+  if (!supabase) return null
+  // getUser() validates the session with the Supabase Auth service (and
+  // refreshes it server-side when the access token has expired) — never trust
+  // the raw cookie contents without validation.
+  const { data, error } = await supabase.auth.getUser()
+  if (error || !data.user) return null
+  const metadata = (data.user.user_metadata ?? {}) as Record<string, unknown>
+  return {
+    user: {
+      id: data.user.id,
+      email: data.user.email ?? null,
+      name: typeof metadata.name === 'string' && metadata.name.length > 0 ? metadata.name : null,
+    },
   }
-  return cachedAuth
 }
 
-export async function getAuthSession() {
-  const { data } = await getAuth().getSession()
-  return data ?? null
-}
-
-export async function requireAuthSession() {
+export async function requireAuthSession(): Promise<AuthSession> {
   const session = await getAuthSession()
   if (!session?.user) throw new Error('Unauthorized')
   return session
 }
-
-export type AuthSession = Awaited<ReturnType<typeof requireAuthSession>>

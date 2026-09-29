@@ -1,5 +1,4 @@
-import { cookies } from 'next/headers'
-import { getAuth } from './auth'
+import { getSupabaseServerClient } from './supabase/server'
 import { pool } from './db'
 
 export type TicketUGRole =
@@ -21,9 +20,11 @@ export type TicketUGContext = {
 }
 
 export async function getTicketUGContext(): Promise<TicketUGContext | null> {
-  const cookieHeader = (await cookies()).toString()
-  const session = await getAuth().getSession({ fetchOptions: { headers: { cookie: cookieHeader } } })
-  const authUserId = session?.data?.user?.id
+  const supabase = await getSupabaseServerClient()
+  // getUser() validates the session with Supabase Auth (refreshing it
+  // server-side when expired) — the raw cookie is never trusted unvalidated.
+  const { data } = supabase ? await supabase.auth.getUser() : { data: { user: null } }
+  const authUserId = data.user?.id
   if (!authUserId) return null
 
   const client = await pool.connect()
@@ -47,7 +48,7 @@ export async function getTicketUGContext(): Promise<TicketUGContext | null> {
 
     return {
       authUserId,
-      authEmail: session?.data?.user?.email ?? null,
+      authEmail: data.user?.email ?? null,
       profileId: profileResult.rows[0].id,
       roles,
       organizerMemberships: memberships.rows.map((row) => ({

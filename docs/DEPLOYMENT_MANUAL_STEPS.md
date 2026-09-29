@@ -1,24 +1,34 @@
 # TicketUG — manual deployment steps requiring NI account access
 
-> Pair 4 deliverable (2026-09-29). During Pair 4's hosted-verification pass the
-> following services were **NOT reachable from the working environment** (no
-> dashboards, no API tokens, no deployment URLs anywhere in the repo or
-> handover log). Nothing was fabricated; every locally-provable step was
-> verified instead (see `docs/TICKETUG_CONTINUITY.md` §18).
->
-> Rule: each entry below states the exact dashboard location, exact setting,
-> expected value, verification command and expected evidence. **Do not paste
-> secret values into chat/Git** — set them in the provider's secret store.
+> Pair 5 revision (2026-09-29). The infrastructure migrated from Neon to
+> **Supabase** (Postgres + Auth) in Pair 5. The Supabase Postgres database was
+> reachable via the connection string NI supplied, so the migration, schema and
+> behavioral verification ran against the REAL Supabase database. The Supabase
+> dashboard/API-key surfaces and the hosting dashboards remain outside this
+> environment's reach — nothing is fabricated; every entry below states the
+> exact dashboard location, exact setting, expected value, verification
+> command and expected evidence. **Do not paste secret values into chat/Git** —
+> set them in the provider's secret store.
 
 ## STATUS SNAPSHOT
 
 ```text
-LOCAL VERIFIED   — frontend build, compiled API runtime, migrations, auth,
-                   guest ticketing + PDF, CORS/cookies, secrets hygiene,
-                   readiness (positive + negative), payment production gate
-HOSTED VERIFIED  — (nothing yet; no hosted URL or credential is available)
-BLOCKED          — Vercel production deploy, hosted API hosting, real Neon
-                   staging DB/auth application, hosted browser journeys
+SUPABASE VERIFIED — Postgres connection (session pooler, strict TLS w/ pinned
+                    Supabase Root CA), migrations 000→011 via the new runner,
+                    schema (74/74 checks), behavioral harness (46/46),
+                    readiness (real SELECT 1), full browser journeys against
+                    the real Supabase DB (guest ticketing, organizer flows,
+                    scanner matrix, PDFs, mobile 390 px)
+LOCAL VERIFIED    — Supabase Auth integration on the GoTrue wire contract
+                    (sign-up/sign-in/session/refresh-aware proxying/logout/
+                    forged-credential rejection; HttpOnly Secure cookies);
+                    remote-JWKS verification against the REAL project's
+                    public JWKS (forged token → 401); payment production gate
+                    (503 TEST_PAYMENT_DISABLED); boot fail-closed
+BLOCKED           — live sign-up/sign-in against HOSTED Supabase Auth (needs
+                    the project's publishable/anon key — BLOCKER 2b),
+                    Vercel production deploy, hosted API hosting, hosted
+                    browser pass
 ```
 
 ---
@@ -26,18 +36,18 @@ BLOCKED          — Vercel production deploy, hosted API hosting, real Neon
 ## BLOCKER 1 — Vercel Production Branch is a stale backup branch
 
 - **WHY IT MATTERS:** the Vercel project deploys `cron/round-10-settings`
-  @ `85c22fc` (4+ commits behind `main` and missing Pairs 1–3). Production does
-  not contain the current product.
+  @ `85c22fc` (many commits behind `main`). Production does not contain the
+  current product (or the Supabase migration).
 - **SERVICE / DASHBOARD LOCATION:** Vercel → TicketUG project → Settings → Git.
 - **EXACT SETTING:** `Production Branch`.
 - **EXPECTED VALUE:** `main`.
 - **WHO:** NI (Vercel account owner).
 - **HOW TO VERIFY:** Project → Deployments → the latest **Production** deploy
-  must show commit `16bc73d` (or the current tip of `main`) with branch `main`.
+  must show the current tip of `main` with branch `main`.
 - **EXPECTED EVIDENCE:** screenshot/URL of the production deployment row; commit
-  hash matches `git -C TicketUG rev-parse origin/main`.
+  hash matches `git rev-parse origin/main`.
 
-## BLOCKER 2 — Vercel environment variables
+## BLOCKER 2a — Vercel environment variables (Supabase architecture)
 
 - **WHY IT MATTERS:** without them the deploy renders marketing surfaces with
   auth/DB dead (fail-closed by design) — the product is non-functional.
@@ -47,22 +57,56 @@ BLOCKED          — Vercel production deploy, hosted API hosting, real Neon
   secret store — full reference: `docs/DEPLOYMENT_ENVIRONMENT.md`):
 
   ```text
-  BETTER_AUTH_SECRET   = <set in hosting provider>   (≥32 chars)
-  DATABASE_URL         = <set in hosting provider>   (Neon Postgres, sslmode=require)
-  NEON_AUTH_BASE_URL   = <set in hosting provider>   (Neon Auth base URL)
-  API_ORIGIN           = <set in hosting provider>   (public URL of the hosted API — see BLOCKER 3)
+  DATABASE_URL          = <set in hosting provider>  (Supabase session pooler URL — the one NI supplied for Pair 5)
+  SUPABASE_URL          = https://<project-ref>.supabase.co   (Supabase Dashboard → Project Settings → General)
+  SUPABASE_ANON_KEY     = <publishable key>          (Supabase Dashboard → Project Settings → API Keys — the anon/publishable key, NOT the service-role key)
+  API_ORIGIN            = <set in hosting provider>  (public URL of the hosted API — see BLOCKER 3)
   PAYMENT_WINDOW_MINUTES = 15 (optional)
   ```
 
+  Removed since Pair 4 (do NOT set anymore): `BETTER_AUTH_SECRET`,
+  `NEON_AUTH_BASE_URL` / `VITE_NEON_AUTH_URL`.
 - **WHO:** NI.
 - **HOW TO VERIFY (after deploy):**
-  - `curl -s https://<frontend-domain>/api/health`-style proxy target returns
-    the API's JSON (proves `API_ORIGIN`), or simply load `/events` in a browser:
-    real event rows must appear (proves `DATABASE_URL`).
-  - Sign up a test account: session cookie `__Secure-neon-auth.session_token`
-    must be set (proves `NEON_AUTH_BASE_URL` + `BETTER_AUTH_SECRET`).
-- **EXPECTED EVIDENCE:** `/events` shows DB-backed cards; sign-up/sign-in works;
-  browser console free of 5xx/CORS errors.
+  - load `/events` in a browser: real event rows must appear (proves
+    `DATABASE_URL` against Supabase).
+  - Sign up a test account: cookie `sb-<project-ref>-auth-token` must be set,
+    HttpOnly + Secure (proves `SUPABASE_URL` + `SUPABASE_ANON_KEY`).
+- **EXPECTED EVIDENCE:** `/events` shows DB-backed cards; sign-up/sign-in
+  works; browser console free of 5xx/CORS errors.
+
+## BLOCKER 2b — Enable live Supabase Auth verification (the one Pair-5 BLOCKED item)
+
+- **WHY IT MATTERS:** every GoTrue endpoint except the public JWKS requires
+  the project's publishable/anon key. Pair 5 implemented and verified the full
+  auth stack against the GoTrue wire contract and verified token verification
+  against the real project's JWKS, but could not run live sign-up/sign-in
+  against the HOSTED Supabase Auth without this key (it was not supplied and
+  is not derivable). No code change is needed — this is configuration only.
+- **SERVICE / DASHBOARD LOCATION:** Supabase Dashboard → Project Settings →
+  API Keys → **anon / publishable** key. (Never use the service-role key in
+  the frontend tier; TicketUG does not need it at all.)
+- **EXACT ACTION:** set `SUPABASE_ANON_KEY` in Vercel (BLOCKER 2a) and, if
+  desired for local runs, in the operator's local `.env`.
+- **WHO:** NI (Supabase project owner).
+- **HOW TO VERIFY:**
+
+  ```bash
+  curl -s "https://<project-ref>.supabase.co/auth/v1/health" -H "apikey: <anon key>"
+  # → {"version":"...","name":"GoTrue",...}      (proves the key works)
+  ```
+
+  then sign up through the deployed frontend and confirm the
+  `ticketug.user_profile` row appears with `auth_user_id` equal to the new
+  Supabase user UUID (the §12 mapping).
+
+- **EXPECTED EVIDENCE:** the health response above + one browser sign-up
+  round-trip (session cookie set, `/api/me` 200, profile row in Supabase).
+- **RECOMMENDED AUTH SETTINGS (same dashboard):** Auth → Sessions → Access
+  Token TTL ≤ 3600 s (default) or lower for stricter post-signout revocation;
+  confirm whether "Confirm email" is ON — with it ON, sign-up returns
+  "check your email" until SMTP is configured (Supabase's built-in email
+  service is rate-limited and production-unsuitable).
 
 ## BLOCKER 3 — Host the NestJS API (`apps/api`) outside Vercel
 
@@ -78,9 +122,10 @@ BLOCKED          — Vercel production deploy, hosted API hosting, real Neon
   Start command:  NODE_ENV=production node apps/api/dist/main.js
   Port:           provider-injected port is honored via API_PORT/API_HOST
                   (defaults: 4000 on 0.0.0.0)
-  Env vars:       DATABASE_URL, BETTER_AUTH_SECRET, NEON_AUTH_BASE_URL,
-                  WEB_ORIGIN (the Vercel frontend origin), CRON_SECRET (when a
-                  scheduler exists); see docs/DEPLOYMENT_ENVIRONMENT.md §2
+  Env vars:       DATABASE_URL, SUPABASE_URL, WEB_ORIGIN (the Vercel frontend
+                  origin), CRON_SECRET (when a scheduler exists); optional
+                  SUPABASE_CA_CERT. The API needs NO Supabase anon key
+                  (JWKS verification is local). See docs/DEPLOYMENT_ENVIRONMENT.md §2
   ```
 
 - **WHO:** NI.
@@ -90,73 +135,67 @@ BLOCKED          — Vercel production deploy, hosted API hosting, real Neon
   curl -s https://<api-host>/api/v1/health
   # → {"status":"ok","service":"ticketug-api"}
   curl -s https://<api-host>/api/v1/readiness
-  # → {"status":"ready","database":"ok"}   (real SELECT 1)
+  # → {"status":"ready","database":"ok"}   (real SELECT 1 against Supabase)
   curl -s -o /dev/null -w '%{http_code}' https://<api-host>/api/v1/docs
   # → 200
   curl -s -o /dev/null -w '%{http_code}' https://<api-host>/api/v1/users/me
-  # → 401 (fail-closed, no cookies)
+  # → 401 (fail-closed, no credentials)
+  curl -s -o /dev/null -w '%{http_code}' \
+    https://<api-host>/api/v1/users/me -H "Authorization: Bearer <forged-token>"
+  # → 401 (JWKS verification rejects forged signatures)
   ```
 
-- **EXPECTED EVIDENCE:** the four responses above; then set Vercel `API_ORIGIN`
-  to this URL (BLOCKER 2) and confirm an authenticated frontend round-trip.
+- **EXPECTED EVIDENCE:** the five responses above; then set Vercel `API_ORIGIN`
+  to this URL (BLOCKER 2a) and confirm an authenticated frontend round-trip.
 
-## BLOCKER 4 — Apply migration 011 (gates) to the real staging Neon DB
+## BLOCKER 4 — Supabase security configuration check (5-minute dashboard pass)
 
-- **WHY IT MATTERS:** gates, ticket-type gate permissions and gate-scoped staff
-  assignments do not exist in the hosted DB until 011 is applied; every
-  gate-dependent feature degrades (by design: fail-closed) without it.
-- **SERVICE:** Neon console (SQL editor) or any psql with the staging branch URL.
-- **EXACT ACTION:** apply **verbatim, in order** — the repo's migrations are
-  forward-only SQL with no runner:
+- **WHY IT MATTERS:** TicketUG's data lives in the `ticketug` schema, which
+  the API reaches with the `postgres` role. Supabase also auto-exposes the
+  `public` schema via its REST Data API (PostgREST) to anyone holding the
+  anon key. TicketUG leaves `public` empty, but the exposure should be
+  confirmed/disabled as defense-in-depth.
+- **SERVICE / DASHBOARD LOCATION:** Supabase Dashboard → Project Settings → API.
+- **EXACT SETTINGS:**
+  - `Exposed schemas in API` → remove `public` if it stays empty (or leave it;
+    TicketUG writes nothing there).
+  - Settings → API → disable "Enable PostgREST" only if no Supabase-side REST
+    usage is planned (TicketUG needs none).
+- **WHO:** NI.
+- **HOW TO VERIFY:** `curl -s https://<ref>.supabase.co/rest/v1/ -H "apikey: <anon>" -H "Authorization: Bearer <anon>"`
+  returns no `ticketug` tables (the schema is not in the exposed set).
+- **EXPECTED EVIDENCE:** the REST root lists nothing from `ticketug`.
 
-  ```bash
-  psql "$STAGING_DATABASE_URL" -f docs/migrations/011-gates.sql
-  ```
+## BLOCKER 5 — Hosted browser verification pass (needs 1–3)
 
-  005→010 are already applied to production/staging history (011 is the only
-  pending one). Do NOT apply `scripts/staging-verify/001-stub-base.sql` to any
-  real database — it is a labelled throwaway verification stub.
-- **WHO:** NI (Neon project owner).
-- **HOW TO VERIFY:**
-
-  ```bash
-  psql "$STAGING_DATABASE_URL" -c "\d ticketug.event_gate"
-  psql "$STAGING_DATABASE_URL" -c "\d ticketug.ticket_type_gate"
-  psql "$STAGING_DATABASE_URL" -c "\d ticketug.event_staff_assignment"
-  ```
-
-- **EXPECTED EVIDENCE:** the three tables exist with the 011 definitions; then
-  in the organizer UI create Main/VIP/VVIP gates on a staging event and watch
-  them persist across reload (the Pair-3 journey, now against real Neon).
-
-## BLOCKER 5 — Hosted browser verification pass (needs 1–4)
-
-- **WHY IT MATTERS:** all browser evidence in Pairs 1–4 is from the local
-  staging stack (real Postgres 18 engine, real Better Auth engine on the Neon
-  wire contract). The managed Neon Auth service and the hosted surfaces remain
-  unobserved.
-- **SERVICE:** Vercel (frontend) + hosted API + Neon (DB/Auth).
-- **EXACT ACTION:** after BLOCKERS 1–4, run the standard journey matrix:
+- **WHY IT MATTERS:** Pair 5's browser evidence comes from the local
+  production stack (production-built Next + compiled API + REAL Supabase
+  Postgres + a GoTrue wire-contract stand-in for auth). The hosted surfaces
+  with the REAL hosted Supabase Auth remain unobserved.
+- **SERVICE:** Vercel (frontend) + hosted API + Supabase (DB/Auth).
+- **EXACT ACTION:** after BLOCKERS 1–3, run the standard journey matrix:
   sign-up → organizer onboarding → event → ticket types → gates → permissions →
   staff invite/accept → assignment → guest checkout → payment (simulated where
-  permitted) → ticket → PDF → scanner matrix (VALID / WRONG_GATE /
-  ALREADY_CHECKED_IN / UNAUTHORIZED_SCANNER) at desktop + 390 px.
+  permitted; production refuses it by design) → ticket → QR → PDF → scanner
+  matrix (VALID / WRONG_GATE / ALREADY_CHECKED_IN / UNAUTHORIZED_SCANNER) at
+  desktop + 390 px.
 - **WHO:** NI or a future agent run with read-only dashboard access.
 - **HOW TO VERIFY:** browser console free of errors; DB rows persist across
   reload and re-login; scanner decisions match the documented gate matrix
   (CONTINUITY §16/§17); PDFs download with `application/pdf; no-store`.
 - **EXPECTED EVIDENCE:** screenshots + the deployment-readiness matrix in
-  CONTINUITY §18 flipped from "LOCAL" to "HOSTED" row by row.
+  CONTINUITY §19 flipped from "SUPABASE/LOCAL" to "HOSTED" row by row.
 
 ## NON-BLOCKING RECOMMENDATIONS
 
-1. **Migration runner** (future pair): a tiny ordered runner
-   (`scripts/migrate.ts` reading `docs/migrations/*.sql` + a
-   `schema_migrations` ledger) would remove the manual `psql -f` step above.
-   Do not retro-write migrations 001–004; record their state instead.
-2. **Scheduler wiring** (deployment, not code): an external cron must call
+1. **Scheduler wiring** (deployment, not code): an external cron must call
    `POST /api/v1/system/orders/expire-stale` with the `x-cron-secret` header so
    expired orders self-sweep; the lazy per-read expiry already bounds the blast
    radius until then.
-3. **Add the hosted URLs** (frontend + API + Neon project id) to the internal
-   handover log so future runs can observe the real deployments.
+2. **Add the hosted URLs** (frontend + API + Supabase project ref) to the
+   internal handover log so future runs can observe the real deployments.
+3. **CA rotation watch:** Supabase Root 2021 CA is pinned in
+   `certs/supabase-root-2021-ca.pem` (fingerprint in `certs/README.md`). If
+   Supabase ever rotates it, set `SUPABASE_CA_CERT` — no code change needed.
+4. **Email delivery** (optional): SMTP for Supabase Auth emails (confirmation,
+   recovery) before public launch if "Confirm email" stays enabled.

@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { checkRateLimit, rateLimitKey } from '@/lib/rate-limit'
+import { authenticatedForwardHeaders } from '@/lib/api-forward'
 
 const apiOrigin = process.env.API_ORIGIN ?? 'http://localhost:4000'
 
@@ -10,6 +11,6 @@ export async function PATCH(request: NextRequest, context: { params: Promise<{ p
   const limited = checkRateLimit(rateLimitKey(request, 'order-cancel'), 10)
   if (!limited.allowed) return Response.json({ message: 'Too many cancel attempts. Please wait a minute.' }, { status: 429, headers: { 'retry-after': String(Math.ceil((limited.retryAfterMs ?? 60_000) / 1000)) } })
   const { publicId } = await context.params
-  const response = await fetch(`${apiOrigin}/api/v1/orders/${publicId}/cancel`, { method: 'PATCH', headers: { 'content-type': 'application/json', cookie: request.headers.get('cookie') ?? '' } })
+  const response = await fetch(`${apiOrigin}/api/v1/orders/${publicId}/cancel`, { method: 'PATCH', headers: { 'content-type': 'application/json', ...(await authenticatedForwardHeaders(request)) } })
   return new NextResponse(await response.text(), { status: response.status, headers: { 'content-type': 'application/json' } })
 }

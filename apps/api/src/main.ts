@@ -13,7 +13,7 @@ async function bootstrap() {
   app.enableCors({ origin: process.env.WEB_ORIGIN?.split(',').filter(Boolean) ?? ['http://localhost:3000'], credentials: true })
   app.setGlobalPrefix('api/v1')
   app.useGlobalPipes(new ValidationPipe({ whitelist: true, forbidNonWhitelisted: true, transform: true }))
-  const config = new DocumentBuilder().setTitle('TicketUG API').setDescription('TicketUG identity and organizer API').setVersion('1.0').addCookieAuth('better-auth.session_token').build()
+  const config = new DocumentBuilder().setTitle('TicketUG API').setDescription('TicketUG identity and organizer API').setVersion('1.0').addCookieAuth('sb-<project-ref>-auth-token').addBearerAuth().build()
   SwaggerModule.setup('api/v1/docs', app, SwaggerModule.createDocument(app, config))
   app.enableShutdownHooks()
   await app.listen(Number(process.env.API_PORT ?? 4000), process.env.API_HOST ?? '0.0.0.0')

@@ -153,3 +153,28 @@
 - **Vercel path:** env-less `next build` re-proven green (no build-time secret evaluation; floor unchanged at request time); no `vercel.json` (dashboard-managed); hosted build observation BLOCKED (§13 misconfiguration stands until NI executes BLOCKERS 1–2).
 - **Verification:** root **109**/1, api **41**/1, `tsc --noEmit`, `eslint .`, api build, env-less `next build` — ALL GREEN (re-run on the changed tree); staging harness 46/46; production smoke 8/8; readiness negative proof; payment gate proof.
 - **STOP:** Pair 4 complete. All hosted rows remain BLOCKED BY EXTERNAL ACCESS pending NI manual actions (`docs/DEPLOYMENT_MANUAL_STEPS.md`). Payments/provider, refunds, settlement, ledger, notifications, moderation, KYC, offline/hardware scanning — NOT started.
+
+
+---
+
+## Pair 5 — Neon → Supabase migration: PostgreSQL + Auth (2026-09-29)
+
+**Scope:** migrate TicketUG's infrastructure from Neon PostgreSQL/Neon Auth to Supabase PostgreSQL/Supabase Auth, preserving the architecture (Next.js ⇄ NestJS ⇄ PostgreSQL), the security model, all business logic and the UX. Starting commit `a53fe34`; hard stop after.
+
+**Changed**
+
+- **Auth (REFACTOR/REPLACE):** `@neondatabase/auth` removed from both tiers. Frontend: server-side `@supabase/ssr` client (`lib/supabase/server.ts`), new `app/api/auth/sign-in|sign-up|sign-out` route handlers (same UI, same 10/min rate limits, HttpOnly+Secure+SameSite=Lax session cookies `sb-<ref>-auth-token[.N]`), config floor moved to `lib/supabase-config.ts` (fail-closed in production; builds stay env-less). API: `supabase-auth.ts` + `supabase-auth.guard.ts` verify access tokens locally via the project's public JWKS (ES256; `iss` project-pinned; `aud=authenticated`; HS256/anonymous/forged rejected), Bearer-first with an exact `@supabase/ssr`-format cookie fallback. `scripts/local-auth-standin/` (Neon recipe) removed.
+- **User mapping (BUILD):** `lib/user-profile.ts` — idempotent `auth_user_id` profile provisioning at first session (§12; previously out-of-repo Neon-side behavior).
+- **Proxy refresh-awareness (BUILD):** `lib/api-forward.ts` — authenticated proxies attach a fresh Bearer access token (8 routes updated); short-lived JWTs never strand a signed-in user.
+- **TLS (COMPLETE):** Supabase Root 2021 CA pinned — bundled `certs/supabase-root-2021-ca.pem` (+`certs/README.md` with fingerprint + rotation path), consumed by `lib/db.ts`, `apps/api` DatabaseService, and the migration runner; `SUPABASE_CA_CERT` override; `rejectUnauthorized` never weakened.
+- **Migration runner (BUILD, §9 CASE B):** `scripts/migrate.mjs` (`pnpm migrate` / `migrate:status`) — ordered, ledgered (`ticketug.migration`), checksum-drift detection, transactional where permitted, idempotent, non-destructive; plus `docs/migrations/000-base-foundation.sql` — the audited reconstruction of the untracked 001-004 base (stub columns + the columns code provably uses).
+- **Env/docs (§17/§31):** `.env.example` + `docs/DEPLOYMENT_ENVIRONMENT.md` rewritten for Supabase (browser-safe vs server-only split; no `NEXT_PUBLIC_*`); `DEPLOYMENT_MANUAL_STEPS.md` restated (Supabase blockers incl. the anon-key step); `API_AUTHENTICATION.md` rewritten; `ADR 0005` added; `ADR 0002` marked superseded; continuity §19 added.
+
+**Verification (no fake claims)**
+
+- Supabase DB: connection (session pooler, strict TLS), project audited EMPTY before writes, migrations 8/8 applied in order (idempotent re-run proven), schema 74/74 checks, 46/46 behavioral harness (issuance, scanner matrix, CASCADE, DB-backed PDFs), readiness real-SELECT-1, browser journeys (guest checkout→PAID→ISSUED→QR→PDF; organizer create→configure→invite→assign→publish; 5-scan scanner matrix; 390 px mobile) all against the REAL Supabase database; test data purged afterwards (0 rows, ledger intact).
+- Auth: full wire+browser matrix on the GoTrue wire contract (sign-up/in/out, session persistence, forged/garbage/no-credential 401s, mapping proven in-DB); live remote-JWKS rejection proven against the REAL project; hosted live sign-up/sign-in BLOCKED by the missing anon key (config-only; exact manual step provided).
+- Payment boundary intact: production runtime refuses simulated payments (503 TEST_PAYMENT_DISABLED).
+- Tests: baseline (fresh worktree @ a53fe34) root 109|1, api 41|1 → after: root **121|1**, api **52|1**; typecheck, lint, api:build, env-less `next build` all green.
+
+**Status:** infrastructure migration COMPLETE and verified to the boundary of what this environment can reach (see CONTINUITY §19.8). NOT "production ready": hosted frontend/API/auth remain BLOCKED by NI dashboard work (Vercel env+branch, API hosting, Supabase anon key).

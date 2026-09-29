@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { checkRateLimit, rateLimitKey } from '@/lib/rate-limit'
+import { authenticatedForwardHeaders } from '@/lib/api-forward'
 
 const apiOrigin = process.env.API_ORIGIN ?? 'http://localhost:4000'
 
@@ -16,7 +17,7 @@ export async function POST(request: NextRequest, context: { params: Promise<{ pu
   const nestPath = guest ? `${apiOrigin}/api/v1/public/orders/${publicId}/payment/test-complete` : `${apiOrigin}/api/v1/orders/${publicId}/payment/test-complete`
   const headers: Record<string, string> = { 'content-type': 'application/json' }
   if (guest) headers['x-order-access-token'] = token
-  else headers.cookie = request.headers.get('cookie') ?? ''
+  else Object.assign(headers, await authenticatedForwardHeaders(request))
   const response = await fetch(nestPath, { method: 'POST', headers })
   return new NextResponse(await response.text(), { status: response.status, headers: { 'content-type': 'application/json' } })
 }

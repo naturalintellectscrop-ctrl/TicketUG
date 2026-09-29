@@ -1,5 +1,11 @@
 # ADR 0002: Neon Auth identity boundary
 
+> **SUPERSEDED (2026-09-29, Pair 5):** TicketUG migrated to Supabase Auth.
+> See `docs/ADR/0005-supabase-auth-identity.md`. This document is retained as
+> a historical record of the pre-Pair-5 architecture; the `neon_auth` schema
+> references below describe the ORIGINAL Neon deployment, not the current one.
+
+
 ## Decision
 Neon Auth remains TicketUG's sole credential and session authority. TicketUG maps the immutable Neon Auth user identifier to `ticketug.user_profile.auth_user_id`; it never copies passwords or mutates `neon_auth` tables.
 
