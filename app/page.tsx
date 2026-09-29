@@ -20,7 +20,7 @@ export default async function HomePage() {
     eventsUnavailable = true
   }
   return (
-    <main className="min-h-screen overflow-hidden">
+    <main className="flex min-h-screen flex-col overflow-hidden">
       <SiteHeader nextPath="/account">
         <Link href="#how-it-works">The rhythm</Link>
         <Link href="#trust">Why TicketUG</Link>
@@ -82,7 +82,7 @@ export default async function HomePage() {
         </div>
       </section>
 
-      <footer className="site-footer"><span className="brand-mark"><span className="brand-dot" />TicketUG</span><span>Built for the moments that matter.</span><Link href="/contact">Contact</Link><span>© 2026 TicketUG</span></footer>
+      <footer className="site-footer mt-auto"><span className="brand-mark"><span className="brand-dot" />TicketUG</span><span>Built for the moments that matter.</span><Link href="/contact">Contact</Link><span>© 2026 TicketUG</span></footer>
     </main>
   )
 }

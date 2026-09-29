@@ -6,7 +6,9 @@ html { background: var(--background); scroll-behavior: smooth; }
 body { margin: 0; background: var(--background); color: var(--foreground); font-family: var(--font-body), Arial, sans-serif; }
 a { color: inherit; text-decoration: none; }
 button, a { -webkit-tap-highlight-color: transparent; }
-.site-header, .hero-section, .rhythm-section, .events-banner, .organizer-banner, .site-footer { max-width: 1180px; margin: 0 auto; padding-left: 32px; padding-right: 32px; }
+/* Full-bleed sections: each band spans the full viewport width while its content
+   stays centered at ≤1180px (padding floor keeps 32px gutters on narrow screens). */
+.site-header, .hero-section, .rhythm-section, .events-banner, .organizer-banner, .site-footer { padding-left: max(32px, calc((100% - 1180px) / 2)); padding-right: max(32px, calc((100% - 1180px) / 2)); }
 .site-header { display: flex; align-items: center; justify-content: space-between; padding-top: 26px; padding-bottom: 26px; }
 .brand-mark { display: inline-flex; align-items: center; gap: 9px; font-family: var(--font-display), sans-serif; font-size: 1.2rem; font-weight: 800; letter-spacing: -.06em; }
 .brand-dot { width: 12px; height: 12px; border-radius: 50% 50% 50% 0; background: var(--brand); transform: rotate(-45deg); }
@@ -191,7 +193,7 @@ h1 em, h2 em { color: var(--brand); font-style: normal; }
 .scanner-context { margin: 0; }
 @media (max-width: 640px) { .event-card-grid { grid-template-columns: 1fr; } .events-toolbar input[type="search"] { flex-basis: 100%; } .pagination { flex-wrap: wrap; gap: 10px; } .gate-card-head { align-items: flex-start; } }
 /* Landing trust band (root-page correction) ------------------------------------ */
-.trust-section { max-width: 1180px; margin: 0 auto; padding: 110px 32px 96px; background: var(--ink); color: #fff8ed; }
+.trust-section { padding: 110px max(32px, calc((100% - 1180px) / 2)) 96px; background: var(--ink); color: #fff8ed; }
 .trust-section .eyebrow { color: var(--lime); }
 .trust-section .section-intro h2 span { color: var(--lime); }
 .trust-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; }
