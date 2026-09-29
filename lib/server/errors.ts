@@ -29,6 +29,9 @@ export const serviceUnavailable = (message: string) => new ApiError(503, message
 // (migration 012). The strings mirror the previous NestJS exceptions exactly.
 const SQL_ERROR_STATUS: Array<[RegExp, number]> = [
   [/^Authentication required$/, 401],
+  // requireTicketUGContext() throws a plain Error('UNAUTHENTICATED') when no
+  // valid session/profile exists — denial semantics, 401 status.
+  [/^UNAUTHENTICATED$/, 401],
   [/^Guest access token required$/, 401],
   [/^Ticket type not found$/, 404],
   [/^Event not found$/, 404],
