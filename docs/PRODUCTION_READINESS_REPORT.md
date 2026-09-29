@@ -76,13 +76,17 @@
   functions. No `NEXT_PUBLIC_*` Supabase variables are used — the browser
   never talks to Supabase directly. Vercel-side values are set by NI
   (docs/DEPLOYMENT_MANUAL_STEPS.md, BLOCKER 2a).
-- **Expiry sweep / cron (§8 — BUILD completed):** `vercel.json` now schedules
-  Vercel Cron every 5 minutes → `GET /api/system/orders/expire-stale`. The
-  route accepts `x-cron-secret` (operator/external schedulers) AND Vercel
+- **Expiry sweep / cron (§8 — BUILD completed):** `vercel.json` schedules
+  Vercel Cron **daily at 03:00 UTC** → `GET /api/system/orders/expire-stale`
+  (the most frequent cadence the Vercel Hobby plan allows — `*/5 * * * *`
+  rejects the deployment on Hobby, which was observed live). This is safe by
+  design: order/payment read paths lazily expire due orders
+  (`expire_order_if_due`), so the cron is a backstop for abandoned orders.
+  The route accepts `x-cron-secret` (operator/external schedulers) AND Vercel
   Cron's automatic `Authorization: Bearer <CRON_SECRET>`; fail-closed 401
   when `CRON_SECRET` is unset; sweep is idempotent (SKIP LOCKED + verified
-  no-op on repeat). Hobby-plan schedule clamping documented as an operational
-  condition with the external-scheduler fallback.
+  no-op on repeat). Tighter cadence documented (Pro upgrade or external
+  scheduler).
 - **Vercel deployment:** GitHub-connected auto-deploy on push to `main`
   (previously observed ~20 s); production URL `https://ticketug.vercel.app`.
 
@@ -136,7 +140,8 @@ and `POSTGRES_URL` do not appear anywhere in the repository.
    `Authorization: Bearer <CRON_SECRET>` (Vercel Cron) alongside
    `x-cron-secret`; added GET handler for Vercel Cron dispatch; fail-closed
    behavior unchanged.
-2. `vercel.json` — NEW: Vercel Cron schedule (`*/5 * * * *`) for the sweep.
+2. `vercel.json` — NEW: Vercel Cron schedule (daily 03:00 UTC — Hobby-plan
+   maximum) for the sweep.
 3. `.gitignore` — removed obsolete `apps/api/dist/` rule.
 4. `docs/DEPLOYMENT_MANUAL_STEPS.md` — BLOCKER 2a/2b rewritten for the NEW
    Supabase API keys; scheduler recommendation upgraded to WIRED status.

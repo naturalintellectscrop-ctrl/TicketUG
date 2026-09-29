@@ -845,16 +845,22 @@ nowhere. Obsolete `API_ORIGIN` removed from the local `.env`.
 
 ### 22.4 Expiry sweep — WIRED (§8 BUILD, smallest safe implementation)
 
-- `vercel.json` (NEW): Vercel Cron `*/5 * * * *` →
-  `/api/system/orders/expire-stale`.
+- `vercel.json` (NEW): Vercel Cron **daily at 03:00 UTC** →
+  `/api/system/orders/expire-stale` — the most frequent cadence the Vercel
+  Hobby plan permits (a `*/5 * * * *` schedule REJECTS the deployment on
+  Hobby; observed live: the push with `*/5` never went live while previous
+  deploys took ~20 s).
 - Route: shared auth helper; accepts `x-cron-secret` (external schedulers)
   AND `Authorization: Bearer <CRON_SECRET>` (Vercel Cron's automatic form);
   added GET handler (Vercel Cron dispatches GET); fail-closed 401 when
   `CRON_SECRET` unset — unchanged. Idempotency of the sweep was already
   proven (SKIP LOCKED + second-call no-op in the SQL harness).
-- Operational condition: Vercel Hobby clamps cron schedules to daily —
-  documented with the external-scheduler fallback (same endpoint, same
-  secret header).
+- Operational condition: Vercel Hobby permits daily crons only — the deployed
+  schedule is therefore daily 03:00 UTC; safe because every order/payment
+  read path lazily expires due orders (`expire_order_if_due`), so the cron is
+  a backstop, not the primary expiry mechanism. Tightening to `*/5 * * * *`
+  requires Vercel Pro or an external scheduler (same endpoint, same secret
+  header).
 
 ### 22.5 Local pipeline + payment boundary (§7, §10)
 

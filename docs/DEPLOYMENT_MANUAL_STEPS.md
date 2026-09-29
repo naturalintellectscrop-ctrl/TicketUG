@@ -153,16 +153,20 @@ OBSOLETE          — the old BLOCKER 3 (host apps/api): Pair 6 removed the
 
 ## NON-BLOCKING RECOMMENDATIONS
 
-1. **Expiry sweep — WIRED (production gate):** `vercel.json` now schedules
-   Vercel Cron every 5 minutes against `/api/system/orders/expire-stale`.
-   The route accepts both `x-cron-secret` (operator/external schedulers) and
-   Vercel Cron's automatic `Authorization: Bearer <CRON_SECRET>`; it stays
-   fail-closed (401) when `CRON_SECRET` is unset. **Operational note:** on the
-   Vercel Hobby plan cron schedules are clamped to once per day — either
-   upgrade to Pro for the 5-minute cadence, or point an external scheduler
-   (cron-job.org, GitHub Actions) at the same endpoint with
-   `x-cron-secret: <CRON_SECRET>`. Lazy per-read expiry bounds the blast
-   radius either way.
+1. **Expiry sweep — WIRED (production gate):** `vercel.json` schedules
+   Vercel Cron **daily at 03:00 UTC** against
+   `/api/system/orders/expire-stale` (the most frequent cadence the Vercel
+   Hobby plan permits — more frequent schedules reject the deployment).
+   This is safe by design: every order/payment READ path already lazily
+   expires due orders (`ticketug.expire_order_if_due` in the order and
+   payment flows), so the cron is only a background backstop for orders
+   nobody ever touches again. The route accepts both `x-cron-secret`
+   (operator/external schedulers) and Vercel Cron's automatic
+   `Authorization: Bearer <CRON_SECRET>`; it stays fail-closed (401) when
+   `CRON_SECRET` is unset. **To tighten the cadence to every 5 minutes:**
+   upgrade the Vercel project to Pro and change the schedule to `*/5 * * * *`,
+   or point an external scheduler (cron-job.org, GitHub Actions) at the same
+   endpoint with `x-cron-secret: <CRON_SECRET>` — no code change needed.
 2. **CA rotation watch:** Supabase Root 2021 CA pinned in
    `certs/supabase-root-2021-ca.pem` (fingerprint in `certs/README.md`); if
    rotated, set `SUPABASE_CA_CERT`.
