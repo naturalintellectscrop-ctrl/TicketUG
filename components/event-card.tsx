@@ -1,16 +1,18 @@
 import Link from 'next/link'
+import { ArrowUpRight } from 'lucide-react'
 import type { PublicEventCard } from '@/lib/public-events'
-import { vibeForSlug } from '@/lib/event-vibes'
+import { categoryForSlug } from '@/lib/event-categories'
 
 // Shared public event card — used by the /events discovery index and the
 // landing-page "Upcoming events" section. Presentation only; all data comes
 // from the shared discovery query in lib/public-events.ts. Events without
-// organizer-supplied art fall back to a deterministic vibe-gradient cover so
-// the grid still reads picture-first.
+// organizer-supplied art fall back to a deterministic category-gradient cover
+// with an official Lucide icon so the grid still reads picture-first.
 export function EventCard({ event }: { event: PublicEventCard }) {
   const when = new Date(event.startsAt).toLocaleString('en-UG', { dateStyle: 'full', timeStyle: 'short', timeZone: event.timezone })
   const price = event.minPriceMinorUnits !== null ? `From ${event.minPriceMinorUnits.toLocaleString('en-UG')} ${event.currency ?? 'UGX'}` : null
-  const vibe = vibeForSlug(event.slug)
+  const category = categoryForSlug(event.slug)
+  const CategoryIcon = category.icon
   const starts = new Date(event.startsAt)
   const day = starts.toLocaleString('en-GB', { day: '2-digit', timeZone: event.timezone })
   const month = starts.toLocaleString('en-GB', { month: 'short', timeZone: event.timezone })
@@ -20,8 +22,8 @@ export function EventCard({ event }: { event: PublicEventCard }) {
         <div className="event-card-media">
           {/* eslint-disable-next-line @next/next/no-img-element -- organizer-supplied remote media URLs; plain img avoids remote-host allowlisting */}
           {event.imageUrl ? <img src={event.imageUrl} alt={event.imageAlt ?? event.title} loading="lazy" /> : (
-            <span className="event-card-fallback" data-vibe={vibe.key} aria-hidden="true">
-              <span className="fallback-emoji">{vibe.emoji}</span>
+            <span className="event-fallback event-card-fallback" data-category={category.key} aria-hidden="true">
+              <span className="fallback-icon"><CategoryIcon strokeWidth={1.3} /></span>
               <span className="fallback-word">TicketUG</span>
             </span>
           )}
@@ -38,7 +40,7 @@ export function EventCard({ event }: { event: PublicEventCard }) {
           {event.description && <p className="event-card-desc">{event.description}</p>}
           <div className="row-between event-card-foot">
             {price ? <strong>{price}</strong> : <span />}
-            <span className="text-link">{event.availability.cta ? 'Get tickets' : 'View details'} <span aria-hidden="true">↗</span></span>
+            <span className="text-link">{event.availability.cta ? 'Get tickets' : 'View details'} <ArrowUpRight size={15} strokeWidth={2.6} aria-hidden /></span>
           </div>
         </div>
       </Link>

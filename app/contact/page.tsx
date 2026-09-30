@@ -1,4 +1,5 @@
 import Link from "next/link"
+import { ArrowUpRight } from "lucide-react"
 
 // Ported from v0/ticketug-sitewide-motion (branch retired by merge): the real
 // TicketUG support contacts committed by the team, carried over verbatim and
@@ -32,7 +33,7 @@ export default function ContactPage() {
           <small>Have your event name or ticket details nearby so we can get you sorted quickly.</small>
         </div>
       </section>
-      <Link href="/" className="button button-quiet">Return home <span aria-hidden="true">↗</span></Link>
+      <Link href="/" className="button button-quiet">Return home <ArrowUpRight size={16} strokeWidth={2.6} aria-hidden /></Link>
     </main>
   )
 }

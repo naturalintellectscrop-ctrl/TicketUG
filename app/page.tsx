@@ -1,8 +1,9 @@
 import Link from "next/link"
+import { ArrowRight, ArrowUpRight, Sparkles } from "lucide-react"
 import { SiteHeader } from "@/components/site-header"
 import { EventCard } from "@/components/event-card"
 import { getUpcomingPublicEvents, type PublicEventCard } from "@/lib/public-events"
-import { EVENT_VIBES } from "@/lib/event-vibes"
+import { EVENT_CATEGORIES } from "@/lib/event-categories"
 
 export const dynamic = "force-dynamic"
 
@@ -44,8 +45,8 @@ export default async function HomePage() {
           <h1>Make room<br /><em>for more.</em></h1>
           <p className="hero-lede">TicketUG is where Uganda&apos;s best nights find their people. Buy your seat, build your crowd, and walk in ready.</p>
           <div className="hero-actions">
-            <Link href="/events" className="button button-primary">Find an event <span aria-hidden="true">↗</span></Link>
-            <Link href="#organizers" className="button button-quiet">I&apos;m an organizer <span aria-hidden="true">→</span></Link>
+            <Link href="/events" className="button button-primary">Find an event <ArrowUpRight size={16} strokeWidth={2.6} aria-hidden /></Link>
+            <Link href="#organizers" className="button button-quiet">I&apos;m an organizer <ArrowRight size={16} strokeWidth={2.6} aria-hidden /></Link>
           </div>
           <div className="hero-note"><span className="pulse-dot" /> Secure QR tickets, verified at the gate.</div>
         </div>
@@ -69,20 +70,27 @@ export default async function HomePage() {
         </div>
       </section>
 
-      <section className="vibe-section page-reveal" aria-label="Browse events by vibe">
-        <div className="vibe-strip">
-          {EVENT_VIBES.map((vibe) => (
-            <Link key={vibe.key} href={`/events?q=${encodeURIComponent(vibe.query)}`} className="vibe-pill" data-vibe={vibe.key}>
-              <span className="vibe-emoji" aria-hidden="true">{vibe.emoji}</span>
-              {vibe.label}
-            </Link>
-          ))}
+      <section className="category-section page-reveal" aria-label="Browse events by category">
+        <div className="category-strip">
+          <Link href="/events" className="category-pill category-all">
+            <Sparkles size={15} strokeWidth={2.4} aria-hidden />
+            All events
+          </Link>
+          {EVENT_CATEGORIES.map((category) => {
+            const Icon = category.icon
+            return (
+              <Link key={category.key} href={`/events?category=${category.key}`} className="category-pill" data-category={category.key}>
+                <Icon size={15} strokeWidth={2.4} aria-hidden />
+                {category.label}
+              </Link>
+            )
+          })}
         </div>
       </section>
 
       <section id="how-it-works" className="rhythm-section">
         <div className="section-intro"><p className="eyebrow">The rhythm</p><h2>One platform.<br /><span>Every kind of night.</span></h2></div>
-        <div className="pillar-grid">{pillars.map((pillar) => <article key={pillar.number} className="pillar-card"><span className="pillar-number">{pillar.number}</span><h3>{pillar.title}</h3><p>{pillar.body}</p><span className="pillar-arrow" aria-hidden="true">↗</span></article>)}</div>
+        <div className="pillar-grid">{pillars.map((pillar) => <article key={pillar.number} className="pillar-card"><span className="pillar-number">{pillar.number}</span><h3>{pillar.title}</h3><p>{pillar.body}</p><span className="pillar-arrow" aria-hidden="true"><ArrowUpRight size={22} strokeWidth={2.2} /></span></article>)}</div>
       </section>
 
       <section id="events" className="events-banner events-real">
@@ -92,7 +100,7 @@ export default async function HomePage() {
         ) : upcoming.length ? (
           <>
             <div className="event-card-grid">{upcoming.map((event) => <EventCard key={event.publicId} event={event} />)}</div>
-            <div className="row"><Link href="/events" className="button button-dark">Browse all events <span aria-hidden="true">↗</span></Link></div>
+            <div className="row"><Link href="/events" className="button button-dark">Browse all events <ArrowUpRight size={16} strokeWidth={2.6} aria-hidden /></Link></div>
           </>
         ) : (
           <div className="events-showcase">
@@ -108,13 +116,13 @@ export default async function HomePage() {
             <div className="events-empty surface">
               <p><strong>No upcoming events are on the board yet.</strong></p>
               <p className="muted">Organizers publish events here the moment they go on sale. Check back soon — or be the one who puts the next night on the board.</p>
-              <Link href="/sign-up" className="text-link">Be the first to list one <span aria-hidden="true">↗</span></Link>
+              <Link href="/sign-up" className="text-link">Be the first to list one <ArrowUpRight size={15} strokeWidth={2.6} aria-hidden /></Link>
             </div>
           </div>
         )}
       </section>
 
-      <section id="organizers" className="organizer-banner"><div className="organizer-stamp">FOR<br />THE<br /><i>makers</i></div><div><p className="eyebrow">Organizers</p><h2>You bring the spark.<br /><span>We&apos;ll handle the door.</span></h2><p>Publishing, payments, ticket delivery, and event-day operations — one connected workflow, without the spreadsheet maze.</p><Link href="/sign-up" className="button button-dark">Start making <span aria-hidden="true">↗</span></Link></div></section>
+      <section id="organizers" className="organizer-banner"><div className="organizer-stamp">FOR<br />THE<br /><i>makers</i></div><div><p className="eyebrow">Organizers</p><h2>You bring the spark.<br /><span>We&apos;ll handle the door.</span></h2><p>Publishing, payments, ticket delivery, and event-day operations — one connected workflow, without the spreadsheet maze.</p><Link href="/sign-up" className="button button-dark">Start making <ArrowUpRight size={16} strokeWidth={2.6} aria-hidden /></Link></div></section>
 
       <section id="trust" className="trust-section">
         <div className="section-intro"><p className="eyebrow">Why TicketUG</p><h2>Fun on the surface.<br /><span>Serious underneath.</span></h2></div>
