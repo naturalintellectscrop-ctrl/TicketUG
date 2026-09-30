@@ -224,6 +224,6 @@ export default function GuestOrderPage({ params }: { params: Promise<{ publicId:
       <div className="row-between recovery-row"><span className="muted">Shared the link by mistake?</span><button type="button" className="button button-quiet" onClick={rotateKey} disabled={pending}>Reset access key</button></div>
     </section>}
 
-    <footer className="auth-footer muted">TicketUG · Natural Intellects Ltd — keep this tab&apos;s access key private; anyone with it can view this order.</footer>
+    <footer className="auth-footer muted">Ticket Uganda · Natural Intellects Ltd — keep this tab&apos;s access key private; anyone with it can view this order.</footer>
   </main>
 }

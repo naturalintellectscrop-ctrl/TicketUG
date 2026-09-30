@@ -9,15 +9,15 @@ const contacts = [
   { label: "Call or WhatsApp", value: "+256762449504", href: "tel:+256762449504" },
 ]
 
-export const metadata = { title: "Contact TicketUG support" }
+export const metadata = { title: "Contact Ticket Uganda support" }
 
 export default function ContactPage() {
   return (
     <main className="page-shell contact-page">
       <div className="contact-hero">
-        <p className="contact-kicker">TicketUG support</p>
+        <p className="contact-kicker">Ticket Uganda support</p>
         <h1>Let&apos;s make<br /><em>it happen.</em></h1>
-        <p className="contact-lede">Questions about an event, a ticket, or bringing your own gathering to life? Reach the TicketUG team directly.</p>
+        <p className="contact-lede">Questions about an event, a ticket, or bringing your own gathering to life? Reach the Ticket Uganda team directly.</p>
       </div>
       <section className="contact-grid" aria-label="Contact options">
         {contacts.map((contact) => (

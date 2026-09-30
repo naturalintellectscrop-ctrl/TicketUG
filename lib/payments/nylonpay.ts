@@ -95,8 +95,8 @@ export class NylonPayProvider implements PaymentProviderAdapter {
     const payment = await client.collectPayment({
       amount: Number(input.amountMinorUnits), // UGX has no minor-unit exponent — minor units are whole shillings
       currency: input.currency,
-      description: `TicketUG order ${input.orderReference}`.slice(0, 140),
-      customer: { name: name && name.length > 0 ? name : 'TicketUG customer', phoneNumber: phone, ...(email ? { email } : {}) },
+      description: `Ticket Uganda order ${input.orderReference}`.slice(0, 140),
+      customer: { name: name && name.length > 0 ? name : 'Ticket Uganda customer', phoneNumber: phone, ...(email ? { email } : {}) },
       reference,
       metadata: { orderReference: input.orderReference, paymentPublicId: input.paymentPublicId, attemptPublicId: input.attemptPublicId },
     })

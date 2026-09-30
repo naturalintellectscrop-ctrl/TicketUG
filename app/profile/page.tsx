@@ -17,7 +17,7 @@ export default async function ProfilePage() {
   return (
     <main className="page-shell">
       <p className="eyebrow">Account</p>
-      <h1>Complete your TicketUG profile</h1>
+      <h1>Complete your Ticket Uganda profile</h1>
       <p className="lede">Keep only the contact information needed for ticket delivery and support.</p>
       <ProfileEditor initial={result.rows[0] ?? { displayName: '' }} />
       <div className="row"><SignOutButton /></div>

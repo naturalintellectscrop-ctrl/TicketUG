@@ -24,7 +24,7 @@ export function EventCard({ event }: { event: PublicEventCard }) {
           {event.imageUrl ? <img src={event.imageUrl} alt={event.imageAlt ?? event.title} loading="lazy" /> : (
             <span className="event-fallback event-card-fallback" data-category={category.key} aria-hidden="true">
               <span className="fallback-icon"><CategoryIcon strokeWidth={1.3} /></span>
-              <span className="fallback-word">TicketUG</span>
+              <span className="fallback-word">Ticket Uganda</span>
             </span>
           )}
           <span className="event-card-date" aria-hidden="true"><strong>{day}</strong>{month}</span>

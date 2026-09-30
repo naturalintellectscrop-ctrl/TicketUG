@@ -17,7 +17,7 @@ export function extractTicketCredential(value: string) {
   return /^tkt_[A-Za-z0-9_-]{16,120}$/.test(credential) ? credential : null
 }
 
-const messages: Record<string, string> = { VALID: 'Ticket accepted and checked in.', ALREADY_CHECKED_IN: 'Already checked in.', INVALID_QR: 'Invalid TicketUG QR.', INVALID_TICKET: 'Ticket could not be found.', WRONG_EVENT: 'Wrong event.', WRONG_GATE: 'This ticket is not valid for this gate.', EVENT_NOT_AVAILABLE: 'This event is not available for scanning.', CANCELLED_TICKET: 'This ticket has been cancelled.', REFUNDED_TICKET: 'This ticket has been refunded.', VOID_TICKET: 'This ticket is void.', UNAUTHORIZED_SCANNER: 'Scanner not authorized for this event.', VERIFICATION_UNAVAILABLE: 'Unable to verify ticket. Check your connection and try again.' }
+const messages: Record<string, string> = { VALID: 'Ticket accepted and checked in.', ALREADY_CHECKED_IN: 'Already checked in.', INVALID_QR: 'Invalid Ticket Uganda QR.', INVALID_TICKET: 'Ticket could not be found.', WRONG_EVENT: 'Wrong event.', WRONG_GATE: 'This ticket is not valid for this gate.', EVENT_NOT_AVAILABLE: 'This event is not available for scanning.', CANCELLED_TICKET: 'This ticket has been cancelled.', REFUNDED_TICKET: 'This ticket has been refunded.', VOID_TICKET: 'This ticket is void.', UNAUTHORIZED_SCANNER: 'Scanner not authorized for this event.', VERIFICATION_UNAVAILABLE: 'Unable to verify ticket. Check your connection and try again.' }
 
 export function ScannerPage() {
   const [events, setEvents] = useState<Event[]>([])
@@ -86,12 +86,12 @@ export function ScannerPage() {
       <Link href="/account">Account</Link>
       <p className="eyebrow">Event operations</p>
       <h1>Scanner</h1>
-      <p className="muted">TicketUG verifies every scan online. No offline acceptance is available.</p>
+      <p className="muted">Ticket Uganda verifies every scan online. No offline acceptance is available.</p>
       {events.length ? <>
         <label>Event<select value={eventId} onChange={(e) => { stopCamera(); setEventId(e.target.value) }}>{events.map((item) => <option key={item.id} value={item.id}>{item.title} · {new Date(item.starts_at).toLocaleDateString('en-UG')}</option>)}</select></label>
         {activeEvent && <div className="event-meta scanner-context" aria-label="Scanner assignment"><span>Event: <strong>{activeEvent.title}</strong></span><span>Gate: <strong>{activeEvent.gateName ?? 'All gates'}</strong></span></div>}
         <section className="surface stack" aria-label="Camera scanner">
-          <div className="row-between"><div><h2>Camera scanner</h2><p className="muted">Point the camera at a TicketUG QR code.</p></div>{cameraState !== 'scanning' ? <button type="button" onClick={enableCamera} disabled={cameraState === 'starting'}>{cameraState === 'starting' ? 'Starting camera…' : 'Enable camera'}</button> : <button type="button" onClick={stopCamera}>Stop camera</button>}</div>
+          <div className="row-between"><div><h2>Camera scanner</h2><p className="muted">Point the camera at a Ticket Uganda QR code.</p></div>{cameraState !== 'scanning' ? <button type="button" onClick={enableCamera} disabled={cameraState === 'starting'}>{cameraState === 'starting' ? 'Starting camera…' : 'Enable camera'}</button> : <button type="button" onClick={stopCamera}>Stop camera</button>}</div>
           <div className="scanner-viewport"><video ref={videoRef} muted playsInline aria-label="Live QR scanner camera preview" /><span className="scanner-guide" aria-hidden="true" /></div>
           {cameraMessage && <p role="alert">{cameraMessage}</p>}
           {cameraState === 'idle' && <p className="muted">Camera is off.</p>}

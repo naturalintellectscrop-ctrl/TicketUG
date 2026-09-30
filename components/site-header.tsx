@@ -23,7 +23,7 @@ export async function SiteHeader({ nextPath, children }: { nextPath?: string; ch
 
   return (
     <header className="site-header page-reveal">
-      <Link href="/" className="brand-mark" aria-label="TicketUG home"><span className="brand-dot" />TicketUG</Link>
+      <Link href="/" className="brand-mark" aria-label="Ticket Uganda home"><span className="brand-dot" />Ticket Uganda</Link>
       <nav className="site-nav" aria-label="Primary navigation">
         {children}
         <Link href="/contact" className="nav-always">Contact</Link>

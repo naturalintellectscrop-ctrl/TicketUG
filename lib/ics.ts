@@ -20,7 +20,7 @@ export function buildEventIcs(event: CalendarEvent) {
   const lines = [
     'BEGIN:VCALENDAR',
     'VERSION:2.0',
-    'PRODID:-//TicketUG//Natural Intellects Ltd//EN',
+    'PRODID:-//Ticket Uganda//Natural Intellects Ltd//EN',
     'CALSCALE:GREGORIAN',
     'METHOD:PUBLISH',
     'BEGIN:VEVENT',

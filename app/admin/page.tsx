@@ -44,7 +44,7 @@ export default async function AdminPage() {
 
   return <main className="page-shell">
     <header className="section-heading">
-      <div><p className="eyebrow">TicketUG control center</p><h1>Platform overview</h1><p className="lede">A platform-wide view of real users, organizers, events, orders, tickets, and entry activity.</p></div>
+      <div><p className="eyebrow">Ticket Uganda control center</p><h1>Platform overview</h1><p className="lede">A platform-wide view of real users, organizers, events, orders, tickets, and entry activity.</p></div>
       <div className="row-between"><span className="status-pill">{isSuperAdmin ? 'Super admin' : 'Platform support'}</span><Link href="/account">My account</Link></div>
     </header>
     <nav className="surface admin-nav" aria-label="Platform areas">

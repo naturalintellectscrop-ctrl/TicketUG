@@ -216,6 +216,24 @@ pristine).
 - **AFTER SAVING:** redeploy (env vars only apply to new builds), then run
   one real 500-UGX sandbox/live-key transaction from `/events` to confirm
   the prompt arrives and the webhook flips the order to PAID.
+- **READING THE NYLON DASHBOARD DURING SMOKE TESTS (2026-09-30):** the
+  `scripts/wire-nylonpay.mjs` verification chain deliberately pushes its
+  collection prompt to the placeholder number `+256 700 000 000`, where no
+  one can enter a PIN. NylonPay therefore times those prompts out and the
+  dashboard shows them as **FAILED — "The payment was not approved."** That
+  is the expected, correct fail-closed behaviour (money cannot move without
+  approval), NOT an integration fault. What the rows mean:
+  - `FAILED` + `wire-nylonpay@example.com` = wire-test prompt left
+    unapproved on the placeholder number (timeout path).
+  - `COMPLETED` = a prompt that WAS approved — proof the full collect →
+    complete chain works on this key.
+  The TicketUG side of the chain (initiation, webhook verification, order →
+  PAID, ticket issuance) is verified by the wire test itself, 17/17, using
+  self-signed deliveries against the real API. **For a human-visible smoke:**
+  place an order from `/events` with YOUR OWN mobile money number and approve
+  the prompt — the order page flips to paid and tickets appear; on a TEST key
+  the amount is simulated, on the LIVE key it is real money (keep it at the
+  500-UGX minimum).
 
 ## BLOCKER 4 — Supabase security configuration check
 

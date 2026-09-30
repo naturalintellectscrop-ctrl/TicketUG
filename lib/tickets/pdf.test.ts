@@ -13,7 +13,7 @@ const baseSource = async (): Promise<TicketPdfSource> => ({
 })
 
 describe('ticketPdfFilename', () => {
-  it('uses the ticket reference in the TicketUG filename convention', () => {
+  it('uses the ticket reference in the ticketug filename convention (display brand is Ticket Uganda)', () => {
     expect(ticketPdfFilename('tkt_abc123')).toBe('ticketug-ticket-tkt_abc123.pdf')
   })
 

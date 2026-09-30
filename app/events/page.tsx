@@ -1,4 +1,5 @@
 import Link from 'next/link'
+import type { Metadata } from 'next'
 import { ChevronLeft, ChevronRight, Search } from 'lucide-react'
 import { SiteHeader } from '@/components/site-header'
 import { EventCard } from '@/components/event-card'
@@ -15,6 +16,12 @@ import {
 } from '@/lib/event-categories'
 
 export const dynamic = 'force-dynamic'
+
+export const metadata: Metadata = {
+  title: 'Events in Uganda — find concerts, festivals, parties & more',
+  description: 'Browse upcoming events in Uganda — concerts, music nights, food markets, sports, conferences, church gatherings and parties. Filter by date and category, then buy tickets with mobile money on Ticket Uganda.',
+  alternates: { canonical: '/events' }
+}
 
 type SearchParams = { q?: string; page?: string; category?: string; when?: string; sort?: string }
 
@@ -70,7 +77,7 @@ export default async function EventsIndexPage({ searchParams }: { searchParams: 
       <div className="page-shell">
         <p className="eyebrow">Discover</p>
         <h1>Events in Uganda</h1>
-        <p className="lede">Every event below is published and listed by its organizer. Filter by vibe, pick your dates, and check out in minutes.</p>
+        <p className="lede">Every event below is published and listed by its organizer. Filter by category, pick your dates, and check out in minutes.</p>
         <form className="events-toolbar" role="search" action="/events">
           <label htmlFor="events-q" className="sr-only">Search events</label>
           <input id="events-q" type="search" name="q" defaultValue={search} placeholder="Search events…" maxLength={120} />

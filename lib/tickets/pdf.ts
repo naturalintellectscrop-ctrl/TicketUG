@@ -58,7 +58,7 @@ function formatDateRange(startsAt: string, endsAt: string, timezone: string): st
 }
 
 export async function buildTicketPdf(source: TicketPdfSource): Promise<Buffer> {
-  const doc = new PDFDocument({ size: A5, margins: { top: PAGE_PADDING, bottom: PAGE_PADDING, left: PAGE_PADDING, right: PAGE_PADDING }, info: { Title: `TicketUG — ${source.event.title} — ${source.ticket.publicId}`, Author: 'TicketUG · Natural Intellects Ltd' } })
+  const doc = new PDFDocument({ size: A5, margins: { top: PAGE_PADDING, bottom: PAGE_PADDING, left: PAGE_PADDING, right: PAGE_PADDING }, info: { Title: `Ticket Uganda — ${source.event.title} — ${source.ticket.publicId}`, Author: 'Ticket Uganda · Natural Intellects Ltd' } })
   const chunks: Buffer[] = []
   const done = new Promise<Buffer>((resolve) => { doc.on('data', (chunk: Buffer) => chunks.push(chunk)); doc.on('end', () => resolve(Buffer.concat(chunks))) })
 
@@ -67,7 +67,7 @@ export async function buildTicketPdf(source: TicketPdfSource): Promise<Buffer> {
 
   // Header band
   doc.rect(0, 0, A5[0], 62).fill(INK)
-  doc.fill(CREAM).font('Helvetica-Bold').fontSize(19).text('TicketUG', PAGE_PADDING, 22)
+  doc.fill(CREAM).font('Helvetica-Bold').fontSize(19).text('Ticket Uganda', PAGE_PADDING, 22)
   doc.font('Helvetica').fontSize(8).fillColor('#b9b3a5').text('E-TICKET', A5[0] - PAGE_PADDING - doc.widthOfString('E-TICKET'), 27)
   doc.rect(0, 62, A5[0], 4).fill(BRAND)
   y = 84
@@ -119,7 +119,7 @@ export async function buildTicketPdf(source: TicketPdfSource): Promise<Buffer> {
   const qrX = (A5[0] - qrSize) / 2
   doc.image(source.qrPng, qrX, y, { width: qrSize, height: qrSize })
   y += qrSize + 10
-  doc.fillColor(INK).font('Helvetica-Bold').fontSize(8.5).text('Verified by TicketUG at entry', PAGE_PADDING, y, { align: 'center', width })
+  doc.fillColor(INK).font('Helvetica-Bold').fontSize(8.5).text('Verified by Ticket Uganda at entry', PAGE_PADDING, y, { align: 'center', width })
   y = doc.y + 3
   doc.fillColor(MUTED).font('Helvetica').fontSize(7.5).text('Each QR scans once. The scanner checks this credential against the ticket registry server-side — keep it private until you arrive.', PAGE_PADDING, y, { align: 'center', width })
   y = doc.y + 14
@@ -129,7 +129,7 @@ export async function buildTicketPdf(source: TicketPdfSource): Promise<Buffer> {
   doc.moveTo(PAGE_PADDING, footerY - 10).lineTo(A5[0] - PAGE_PADDING, footerY - 10).lineWidth(0.75).strokeColor(BORDER).stroke()
   doc.fillColor(MUTED).fontSize(7)
   doc.text(SUPPORT_LINES[0], PAGE_PADDING, footerY, { align: 'center', width })
-  doc.text('TicketUG · Natural Intellects Ltd', PAGE_PADDING, doc.y + 2, { align: 'center', width })
+  doc.text('Ticket Uganda · Natural Intellects Ltd', PAGE_PADDING, doc.y + 2, { align: 'center', width })
 
   doc.end()
   return done

@@ -78,7 +78,7 @@ export function EventCarousel({ events }: { events: PublicEventCard[] }) {
                     ) : (
                       <span className="event-fallback fc-fallback" data-category={category.key}>
                         <span className="fallback-icon"><CategoryIcon strokeWidth={1.2} /></span>
-                        <span className="fallback-word">TicketUG</span>
+                        <span className="fallback-word">Ticket Uganda</span>
                       </span>
                     )}
                   </div>

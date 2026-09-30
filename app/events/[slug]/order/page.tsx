@@ -22,7 +22,7 @@ export default async function PublicOrderPage({ params }: { params: Promise<{ sl
       <p className="lede">Create an order now — the payment window opens automatically right after you place it.</p>
       <section className="surface stack" aria-label="Signed-in checkout">
         <div className="row-between"><span className="muted">Ordering as</span><strong>{session?.user?.name || session?.user?.email}</strong></div>
-        <p className="muted">This order attaches to your TicketUG account — you will find it under <Link className="text-link" href="/account/orders">My orders</Link> with live payment status, no access key required.</p>
+        <p className="muted">This order attaches to your Ticket Uganda account — you will find it under <Link className="text-link" href="/account/orders">My orders</Link> with live payment status, no access key required.</p>
       </section>
       <AccountOrderForm tickets={tickets} buyer={{ name: session?.user?.name ?? '', email: session?.user?.email ?? '' }} />
     </main>

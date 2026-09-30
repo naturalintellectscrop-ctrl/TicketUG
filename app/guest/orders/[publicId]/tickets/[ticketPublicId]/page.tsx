@@ -66,6 +66,6 @@ export default function GuestTicketPage({ params }: { params: Promise<{ publicId
       <p className="muted">Need a printable copy? The PDF carries the same secure QR — the gate verifies it server-side, exactly like this page.</p>
       <DownloadTicketPdfButton path={`/api/public/orders/${orderPublicId}/tickets/${ticket.publicId}/pdf`} filename={`ticketug-ticket-${ticket.publicId}.pdf`} getHeaders={() => ({ 'x-order-access-token': sessionStorage.getItem(guestTokenStorageKey(orderPublicId)) ?? '' })} />
     </section>
-    <footer className="auth-footer muted">TicketUG · Natural Intellects Ltd — keep this ticket private; anyone with the QR credential could scan it first.</footer>
+    <footer className="auth-footer muted">Ticket Uganda · Natural Intellects Ltd — keep this ticket private; anyone with the QR credential could scan it first.</footer>
   </main>
 }
