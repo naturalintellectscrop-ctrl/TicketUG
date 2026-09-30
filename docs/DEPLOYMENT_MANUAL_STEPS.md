@@ -176,6 +176,47 @@ zero privileges on `ticketug` (verified). Nothing is missing; no SQL needs
 to run. `auth.users` is a Supabase-managed schema and also starts empty
 until the first signup succeeds.
 
+## BLOCKER 2d — NylonPay live payments (provider gate CLOSED, integration ready)
+
+The provider decision gate (CONTINUITY §22 row 6) was closed by NI supplying
+production credentials; the integration is implemented through the existing
+adapter seam and verified end-to-end (wire test 17/17: real `collectPayment`
+against the Nylon API, signed webhook chain — IGNORED/DUPLICATE/forged-400/
+amount-422/unknown-404/PROCESSED + ticket issuance — all green, DB left
+pristine).
+
+**Vercel environment variables to add (Production + Preview):**
+
+| Variable | Value |
+| --- | --- |
+| `PAYMENT_PROVIDER` | `nylonpay` |
+| `NYLONPAY_API_KEY` | the `npk_…` key (secret store only) |
+| `NYLONPAY_API_SECRET` | the `nps_…` secret (secret store only) |
+| `NYLONPAY_WEBHOOK_SECRET` | the Nylon webhook secret (secret store only) |
+
+- Do **NOT** set `PAYMENT_MODE` (leaving it unset keeps the simulated test
+  pathway inert in production: `test-complete` still answers
+  503 TEST_PAYMENT_DISABLED). Without `PAYMENT_PROVIDER` set, initiation
+  fail-closes with 503 PROVIDER_NOT_CONFIGURED as before.
+- **Webhook URL to configure in the Nylon dashboard** (Dashboard → API
+  Settings → Webhook Configuration **on this API key**):
+  `https://ticketug.vercel.app/api/public/payments/webhooks/nylonpay`
+  Set the webhook secret there to the same value as
+  `NYLONPAY_WEBHOOK_SECRET`. Deliveries are HMAC-SHA256 over the raw body
+  (lowercase hex, `x-nylon-signature`) with a 5-minute replay window;
+  retries need no extra config (Nylon re-signs every attempt).
+- Test/sandbox vs live is determined by the API key itself (`payload.mode`
+  in every delivery); no extra toggle exists or is needed.
+- DB state: migrations now **11/11** (013 = purchaser phone + search-path
+  pinning + PROCESSING tolerance; 014 = `webhook_event` IGNORED status;
+  015 = dropped the ambiguous 7-arg `create_order` overload). Checkout now
+  collects the **mobile money number** (`order.purchaser_phone`) — the
+  prompt goes to that number; orders without it refuse initiation
+  (422 CUSTOMER_PHONE_REQUIRED).
+- **AFTER SAVING:** redeploy (env vars only apply to new builds), then run
+  one real 500-UGX sandbox/live-key transaction from `/events` to confirm
+  the prompt arrives and the webhook flips the order to PAID.
+
 ## BLOCKER 4 — Supabase security configuration check
 
 - **SERVICE / DASHBOARD LOCATION:** Supabase Dashboard → Project Settings → API.

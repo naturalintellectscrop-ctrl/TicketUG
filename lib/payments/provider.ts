@@ -2,12 +2,14 @@ import { createHmac, timingSafeEqual } from 'node:crypto'
 import type { PaymentProviderAdapter, ProviderInitiation, VerifiedProviderEvent } from './contracts'
 import type { PaymentStatus } from '../rules/payment-rules'
 import { ApiError } from '../server/errors'
+import { NylonPayProvider } from './nylonpay'
 
-// Payment provider adapters. Pair 6: the only provider is the non-production
-// test adapter (unchanged behavior — staging simulated pathway). A live
-// provider remains an explicit GATE decision; the registry refuses every
-// provider in production, which keeps the simulated pathway inert where real
-// payments will live (503 TEST_PAYMENT_DISABLED / PROVIDER_NOT_CONFIGURED).
+// Payment provider adapters. The non-production test adapter keeps the staging
+// simulated pathway (503 TEST_PAYMENT_DISABLED / PROVIDER_NOT_CONFIGURED where
+// not applicable). The live provider is NylonPay (provider decision gate
+// closed by NI credentials): selected explicitly via PAYMENT_PROVIDER=nylonpay
+// and refused unless NYLONPAY_API_KEY/NYLONPAY_API_SECRET/NYLONPAY_WEBHOOK_SECRET
+// are all configured (the adapter fail-closes 503 without them).
 
 function testSecret(): string {
   const secret = process.env.PAYMENT_TEST_WEBHOOK_SECRET ?? (process.env.NODE_ENV !== 'production' && process.env.PAYMENT_MODE === 'test' ? 'ticketug-development-test-only' : null)
@@ -43,10 +45,17 @@ export class TestPaymentProvider implements PaymentProviderAdapter {
 
 export class ProviderRegistry {
   private readonly test = new TestPaymentProvider()
+  private readonly nylonpay = new NylonPayProvider()
   get(name: string): PaymentProviderAdapter {
     if (name === 'test' && process.env.NODE_ENV !== 'production') return this.test
+    if (name === 'nylonpay') return this.nylonpay // the adapter itself fail-closes 503 when unconfigured
     throw new ApiError(503, 'PROVIDER_NOT_CONFIGURED')
   }
-  selected() { return process.env.PAYMENT_PROVIDER ?? (process.env.NODE_ENV !== 'production' && process.env.PAYMENT_MODE === 'test' ? 'test' : null) }
+  selected() {
+    const configured = process.env.PAYMENT_PROVIDER?.trim()
+    if (configured === 'nylonpay') return 'nylonpay'
+    if (configured === 'test' && process.env.NODE_ENV !== 'production') return 'test'
+    return process.env.NODE_ENV !== 'production' && process.env.PAYMENT_MODE === 'test' ? 'test' : null
+  }
   testWebhook(body: Record<string, unknown>) { return this.test.signWebhook(body) }
 }

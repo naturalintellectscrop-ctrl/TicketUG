@@ -16,7 +16,7 @@ export function AccountOrderForm({ tickets, buyer }: { tickets: Ticket[]; buyer:
     setMessage('Creating your order…')
     const items = tickets.map((ticket) => ({ ticketTypeId: ticket.public_id, quantity: Number(data.get(`quantity-${ticket.public_id}`) || 0) })).filter((item) => item.quantity > 0)
     if (!items.length) { setMessage('Choose at least one ticket to continue.'); setPending(false); return }
-    const response = await fetch('/api/orders', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ items, purchaserName: data.get('purchaserName'), purchaserEmail: data.get('purchaserEmail'), idempotencyKey: crypto.randomUUID() }) })
+    const response = await fetch('/api/orders', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ items, purchaserName: data.get('purchaserName'), purchaserEmail: data.get('purchaserEmail'), purchaserPhone: String(data.get('purchaserPhone') || '').trim() || undefined, idempotencyKey: crypto.randomUUID() }) })
     const result = await response.json()
     if (!response.ok) { setMessage(result.message || 'Unable to create order'); setPending(false); return }
     // Start payment immediately; failures are non-fatal because the order
@@ -28,6 +28,7 @@ export function AccountOrderForm({ tickets, buyer }: { tickets: Ticket[]; buyer:
   return <form className="stack" action={submit}>
     <label>Name<input name="purchaserName" defaultValue={buyer.name} required /></label>
     <label>Email<input name="purchaserEmail" type="email" defaultValue={buyer.email} required /></label>
+    <label>Mobile money number — the payment prompt is sent here (MTN or Airtel)<input name="purchaserPhone" type="tel" required placeholder={"+256 7XX XXX XXX"} autoComplete="tel" /></label>
     {tickets.map((ticket) => <label key={ticket.public_id}>{ticket.name} — {Number(ticket.price_minor_units).toLocaleString('en-UG')} {ticket.currency}<input name={`quantity-${ticket.public_id}`} type="number" min="0" max={ticket.remaining_capacity} defaultValue="0" /></label>)}
     <button className="button button-primary" type="submit" disabled={pending}>{pending ? 'Working…' : 'Create order'}</button>
     {message && <p role="status">{message}</p>}

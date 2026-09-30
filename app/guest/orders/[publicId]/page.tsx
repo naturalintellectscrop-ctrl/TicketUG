@@ -7,7 +7,7 @@ import { buildRecoveryPath, guestTokenStorageKey, recoveryKeyFromSearch } from '
 type GuestOrderItem = { ticketTypeId: string; ticketName: string; quantity: number; unitPriceMinorUnits: number; currency: string; lineTotalMinorUnits: number }
 type GuestOrder = { publicId: string; orderNumber: string; status: string; purchaserName: string; purchaserEmail: string; currency: string; totalMinorUnits: number; createdAt: string; updatedAt: string; cancelledAt: string | null; paymentExpiresAt: string | null; items: GuestOrderItem[] }
 type GuestTicket = { publicId: string; ticketTypeName: string; attendeeName: string; status: string; eventTitle: string }
-type PaymentInfo = { provider: string; status: string } | null
+type PaymentInfo = { provider: string; status: string; instructions?: string } | null
 
 const ACTIVE_STATUSES = ['AWAITING_PAYMENT', 'PAYMENT_PROCESSING']
 
@@ -196,6 +196,7 @@ export default function GuestOrderPage({ params }: { params: Promise<{ publicId:
       <h2>Payment</h2>
       {order.paymentExpiresAt && !windowClosed && <p className="muted countdown" role="timer">Complete payment within <strong><time dateTime={order.paymentExpiresAt}>{formatRemaining(remaining!)}</time></strong> — after that the reservation expires and tickets return to inventory automatically.</p>}
       {order.paymentExpiresAt && windowClosed && <p className="muted">The payment window has closed. This order will expire automatically; reserved tickets are released.</p>}
+      {payment?.instructions && payment.status !== 'SUCCEEDED' && <p role="status" className="muted">{payment.instructions}</p>}
       {payment?.provider === 'test' && payment.status !== 'SUCCEEDED' && <section className="surface stack" aria-label="Test payment"><strong>Development test payment</strong><p className="muted">No money moves. This uses the same signed webhook path as a provider callback.</p><button type="button" className="button" onClick={completeTestPayment} disabled={pending}>Complete simulated payment</button></section>}
       {payment?.status === 'SUCCEEDED' ? <p className="muted">Payment confirmed — tickets are issued below.</p> : <div className="hero-actions"><button type="button" className="button button-primary" onClick={retryPayment} disabled={pending}>{payment ? 'Restart payment' : 'Start payment'}</button><button type="button" className="button button-danger" onClick={cancelOrder} disabled={pending}>Cancel order</button></div>}
     </section>}

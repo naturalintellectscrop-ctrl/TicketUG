@@ -10,6 +10,13 @@ import { notFound, unauthorized } from '@/lib/server/errors'
 // 012) which re-verify authority internally. The lazy expiry hook runs before
 // every status read/initiate exactly like the previous engine.
 
+// Mobile-money address (Uganda: MTN/Airtel). Accepts common display formats;
+// normalized to digits (+, separators stripped) before storage — the provider
+// prompt is delivered to this number, so it is validated strictly.
+export const purchaserPhoneSchema = z.string().trim()
+  .transform((value) => value.replace(/[\s\-()]/g, ''))
+  .pipe(z.string().regex(/^\+?[0-9]{7,15}$/))
+
 export const createOrderInput = z.object({
   items: z.array(z.object({
     ticketTypeId: z.string().min(1).max(64),
@@ -17,6 +24,7 @@ export const createOrderInput = z.object({
   })).min(1).max(20),
   purchaserName: z.string().trim().min(1).max(180),
   purchaserEmail: z.string().trim().email().max(320),
+  purchaserPhone: purchaserPhoneSchema.optional(),
   idempotencyKey: z.string().min(1).max(128).optional(),
 })
 
@@ -38,7 +46,7 @@ async function lazyExpire(publicId: string) {
 
 async function callCreateOrder(input: CreateOrderInput, actor: { profileId?: string; guestTokenHash?: string }): Promise<SqlOrderResult> {
   const result = await pool.query<{ result: SqlOrderResult }>(
-    'SELECT ticketug.create_order($1::jsonb, $2::text, $3::text, $4::text, $5::uuid, $6::text, $7::int) AS result',
+    'SELECT ticketug.create_order($1::jsonb, $2::text, $3::text, $4::text, $5::uuid, $6::text, $7::int, $8::text) AS result',
     [
       JSON.stringify(input.items),
       input.purchaserName,
@@ -47,6 +55,7 @@ async function callCreateOrder(input: CreateOrderInput, actor: { profileId?: str
       actor.profileId ?? null,
       actor.guestTokenHash ?? null,
       PAYMENT_WINDOW_MINUTES,
+      input.purchaserPhone ?? null,
     ],
   )
   return result.rows[0].result

@@ -23,10 +23,16 @@ type Actor = { profileId: string } | { guestTokenHash: string }
 
 const paymentSelect = `p.id, p.public_id, p.order_id, o.public_id AS order_public_id, o.order_number, p.amount_minor_units, p.currency, p.provider, p.status, o.payment_expires_at`
 
-type PaymentRow = { id: string; public_id: string; order_id: string; order_public_id: string; order_number: string; amount_minor_units: string; currency: string; provider: string; status: PaymentStatus; payment_expires_at: string | null; attempt_public_id?: string | null; attempt_status?: PaymentStatus | null; provider_attempt_reference?: string | null }
+type PaymentRow = { id: string; public_id: string; order_id: string; order_public_id: string; order_number: string; amount_minor_units: string; currency: string; provider: string; status: PaymentStatus; payment_expires_at: string | null; attempt_public_id?: string | null; attempt_status?: PaymentStatus | null; provider_attempt_reference?: string | null; attempt_metadata?: unknown }
+
+function attemptInstructions(row: PaymentRow): string | undefined {
+  const metadata = row.attempt_metadata as Record<string, unknown> | null | undefined
+  const instructions = metadata && typeof metadata === 'object' ? metadata.instructions : undefined
+  return typeof instructions === 'string' && instructions.length > 0 ? instructions : undefined
+}
 
 function present(row: PaymentRow) {
-  return {
+  const base = {
     paymentId: row.public_id,
     attemptId: row.attempt_public_id,
     status: row.status,
@@ -38,6 +44,8 @@ function present(row: PaymentRow) {
     orderId: row.order_public_id,
     orderNumber: row.order_number,
   }
+  const instructions = attemptInstructions(row)
+  return instructions ? { ...base, instructions } : base
 }
 
 async function lazyExpire(publicId: string) {
@@ -48,8 +56,8 @@ async function loadOrder(actor: Actor, publicId: string) {
   const filter = 'profileId' in actor
     ? 'o.public_id = $1 AND o.user_profile_id = $2'
     : 'o.public_id = $1 AND o.user_profile_id IS NULL AND o.guest_access_token_hash = $2'
-  const result = await pool.query<{ id: string; public_id: string; order_number: string; user_profile_id: string | null; status: string; payment_expires_at: string | null; total_minor_units: string; currency: string }>(
-    `SELECT id, public_id, order_number, user_profile_id, status, payment_expires_at, total_minor_units, currency FROM ticketug.order o WHERE ${filter}`,
+  const result = await pool.query<{ id: string; public_id: string; order_number: string; user_profile_id: string | null; status: string; payment_expires_at: string | null; total_minor_units: string; currency: string; purchaser_name: string; purchaser_email: string; purchaser_phone: string | null }>(
+    `SELECT id, public_id, order_number, user_profile_id, status, payment_expires_at, total_minor_units, currency, purchaser_name, purchaser_email, purchaser_phone FROM ticketug.order o WHERE ${filter}`,
     'profileId' in actor ? [publicId, actor.profileId] : [publicId, actor.guestTokenHash],
   )
   const order = result.rows[0]
@@ -72,8 +80,8 @@ export async function initiatePayment(actor: Actor, publicId: string, body: Init
   await lazyExpire(publicId)
 
   return withTransaction(async (client) => {
-    const locked = (await client.query<{ id: string; public_id: string; order_number: string; user_profile_id: string | null; status: string; payment_expires_at: string | null; total_minor_units: string; currency: string }>(
-      'SELECT id, public_id, order_number, user_profile_id, status, payment_expires_at, total_minor_units, currency FROM ticketug.order WHERE id = $1 FOR UPDATE',
+    const locked = (await client.query<{ id: string; public_id: string; order_number: string; user_profile_id: string | null; status: string; payment_expires_at: string | null; total_minor_units: string; currency: string; purchaser_name: string; purchaser_email: string; purchaser_phone: string | null }>(
+      'SELECT id, public_id, order_number, user_profile_id, status, payment_expires_at, total_minor_units, currency, purchaser_name, purchaser_email, purchaser_phone FROM ticketug.order WHERE id = $1 FOR UPDATE',
       [order.id],
     )).rows[0]
     if ('profileId' in actor && locked.status === 'PAID') throw conflict('PAYMENT_ALREADY_SUCCEEDED')
@@ -112,6 +120,7 @@ export async function initiatePayment(actor: Actor, publicId: string, body: Init
       amountMinorUnits: BigInt(locked.total_minor_units),
       currency: locked.currency,
       orderReference: locked.public_id,
+      customer: { name: locked.purchaser_name, email: locked.purchaser_email, phone: locked.purchaser_phone },
     })
 
     await client.query(
@@ -142,7 +151,7 @@ export async function paymentStatus(actor: Actor, publicId: string) {
   await lazyExpire(publicId)
   const order = await loadOrder(actor, publicId)
   const result = await pool.query<PaymentRow>(
-    `SELECT ${paymentSelect}, a.public_id AS attempt_public_id, a.status AS attempt_status, a.provider_attempt_reference
+    `SELECT ${paymentSelect}, a.public_id AS attempt_public_id, a.status AS attempt_status, a.provider_attempt_reference, a.provider_metadata AS attempt_metadata
        FROM ticketug.payment p
        JOIN ticketug.order o ON o.id = p.order_id
        LEFT JOIN ticketug.payment_attempt a ON a.payment_id = p.id
@@ -203,6 +212,23 @@ export async function applyVerifiedWebhook(
   const registry = new ProviderRegistry()
   const provider = registry.get(providerName)
   const event = provider.verifyWebhook({ headers, rawBody, body })
+  // Some providers (NylonPay) carry only the attempt reference in their
+  // payloads. Resolve the order reference server-side through the attempt —
+  // the SQL core still re-checks it against the locked order, so the
+  // amount/currency/order cross-checks are NOT weakened.
+  let orderReference = event.orderReference
+  if (!orderReference) {
+    const resolved = await pool.query<{ order_public_id: string }>(
+      `SELECT o.public_id AS order_public_id
+         FROM ticketug.payment_attempt a
+         JOIN ticketug.payment p ON p.id = a.payment_id
+         JOIN ticketug.order o ON o.id = p.order_id
+        WHERE p.provider = $1 AND a.provider_attempt_reference = $2
+        LIMIT 1`,
+      [providerName, event.providerAttemptReference],
+    )
+    orderReference = resolved.rows[0]?.order_public_id ?? ''
+  }
   const result = await pool.query<{ result: { status: string } }>(
     `SELECT ticketug.apply_payment_event($1::text, $2::text, $3::text, $4::text, $5::text, $6::bigint, $7::text, $8::text, $9::jsonb) AS result`,
     [
@@ -210,7 +236,7 @@ export async function applyVerifiedWebhook(
       event.providerEventId,
       event.eventType,
       event.providerAttemptReference,
-      event.orderReference,
+      orderReference,
       event.amountMinorUnits.toString(),
       event.currency,
       event.status,

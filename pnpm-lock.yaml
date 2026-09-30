@@ -8,6 +8,9 @@ importers:
 
   .:
     dependencies:
+      '@nile-squad/nylonpay-ts':
+        specifier: ^2.0.1
+        version: 2.0.1(typescript@5.8.3)
       '@supabase/ssr':
         specifier: ^0.12.7
         version: 0.12.7(@supabase/supabase-js@2.117.2)
@@ -632,6 +635,10 @@ packages:
     engines: {node: '>= 10'}
     cpu: [x64]
     os: [win32]
+
+  '@nile-squad/nylonpay-ts@2.0.1':
+    resolution: {integrity: sha512-sQlr/oyhhiBbaS3U43jTLrpSS1WcpuWDf5Up1xnnL0Wr3/W5TxZU8Cd45+Luz9gO99DKQsacb0oRCYp3wZ/6Yw==}
+    engines: {node: '>=18'}
 
   '@noble/ciphers@1.3.0':
     resolution: {integrity: sha512-2I0gnIVPtfnMw9ee9h1dJG7tp81+8Ob3OJb3Mv37rx5L40/b0i7djjCVvGOVqc9AEIQyvyu1i6ypKdFw8R8gQw==}
@@ -2492,6 +2499,11 @@ packages:
   siginfo@2.0.0:
     resolution: {integrity: sha512-ybx0WO1/8bSBLEWXZvEd7gMW3Sn3JFlW3TvX1nREbDLRNQNaeNN8WK0meBwPdAaOI7TtRRRJn/Es1zhrrCHu7g==}
 
+  slang-ts@0.0.7:
+    resolution: {integrity: sha512-9UgpSnLbZKlFFwgX2EG8Xc0NyzcvRVySutXYKSLvHHUKOQnCYFxQshBuz/IyzoCxlDst1JCFDoCTUMFBXT0cuQ==}
+    peerDependencies:
+      typescript: ^5
+
   source-map-js@1.2.1:
     resolution: {integrity: sha512-UXWMKhLOwVKb728IUtQPXxfYU+usdybtUrK/8uGE8CQMvrhOpwvzDBwj0QhSL7MQc7vIsISBG8VQ8+IDQxpfQA==}
     engines: {node: '>=0.10.0'}
@@ -3260,6 +3272,12 @@ snapshots:
 
   '@next/swc-win32-x64-msvc@16.3.5':
     optional: true
+
+  '@nile-squad/nylonpay-ts@2.0.1(typescript@5.8.3)':
+    dependencies:
+      slang-ts: 0.0.7(typescript@5.8.3)
+    transitivePeerDependencies:
+      - typescript
 
   '@noble/ciphers@1.3.0': {}
 
@@ -5223,6 +5241,10 @@ snapshots:
       side-channel-weakmap: 1.0.2
 
   siginfo@2.0.0: {}
+
+  slang-ts@0.0.7(typescript@5.8.3):
+    dependencies:
+      typescript: 5.8.3
 
   source-map-js@1.2.1: {}
 
