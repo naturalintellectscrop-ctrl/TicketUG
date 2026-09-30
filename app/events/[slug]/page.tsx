@@ -2,6 +2,7 @@ import Link from 'next/link'
 import { notFound } from 'next/navigation'
 import { SiteHeader } from '@/components/site-header'
 import { pool } from '@/lib/db'
+import { vibeForSlug } from '@/lib/event-vibes'
 
 export const dynamic = 'force-dynamic'
 
@@ -26,6 +27,7 @@ export default async function PublicEventPage({ params }: { params: Promise<{ sl
   const event = found
   const salesOpen = event.lifecycle_state === 'SALES_OPEN'
   const anyAvailable = tickets.some((ticket) => ticket.remaining_capacity > 0)
+  const heroMedia = event.media.find((media) => media.mediaType === 'IMAGE')
   function availability(ticket: TicketRow) {
     if (event.lifecycle_state === 'CANCELLED') return 'Event cancelled'
     if (!salesOpen) return 'Sales closed'
@@ -34,5 +36,8 @@ export default async function PublicEventPage({ params }: { params: Promise<{ sl
     if (ticket.sale_ends_at && new Date() >= new Date(ticket.sale_ends_at)) return 'Sales closed'
     return 'Available'
   }
-  return <main className="public-event"><SiteHeader nextPath={`/events/${slug}/order`} /><p className="eyebrow">TicketUG event</p><h1>{event.title}</h1><p className="eyebrow">Public event page</p><p className="lede">{event.description}</p><div className="event-meta"><span>{new Date(event.starts_at).toLocaleString('en-UG', { dateStyle: 'full', timeStyle: 'short', timeZone: event.timezone })}</span><span>{event.timezone}</span>{event.venue_name && <span>{event.venue_name}{event.venue_city ? `, ${event.venue_city}` : ''}</span>}</div>{salesOpen && anyAvailable && <div className="row"><Link className="button button-primary" href={`/events/${slug}/order`}>Get tickets</Link></div>}{event.lifecycle_state === 'CANCELLED' && <div className="surface"><p role="alert"><strong>This event has been cancelled.</strong> Contact the organizer about any tickets you already hold.</p></div>}<section className="stack"><div className="section-heading"><div><p className="eyebrow">Ticket types</p><h2>Choose your experience</h2></div></div>{tickets.length ? tickets.map((ticket) => <article className="surface" key={ticket.public_id}><div className="row-between"><div><h3>{ticket.name}</h3><p className="lede">{ticket.description}</p></div><strong>{Number(ticket.price_minor_units).toLocaleString('en-UG')} {ticket.currency}</strong></div><p>{availability(ticket)}</p></article>) : <div className="surface"><p>Ticket types will be announced soon.</p></div>}</section></main>
+  return <main className="public-event"><SiteHeader nextPath={`/events/${slug}/order`} />{heroMedia ? <figure className="event-hero">
+    {/* eslint-disable-next-line @next/next/no-img-element -- organizer-supplied remote media URLs; plain img avoids remote-host allowlisting */}
+    <img src={heroMedia.url} alt={heroMedia.altText || event.title} />
+  </figure> : <div className="event-hero event-hero-fallback" data-vibe={vibeForSlug(event.slug).key} aria-hidden="true"><span className="fallback-emoji">{vibeForSlug(event.slug).emoji}</span><span className="fallback-word">TicketUG</span></div>}<p className="eyebrow">TicketUG event</p><h1>{event.title}</h1><p className="eyebrow">Public event page</p><p className="lede">{event.description}</p><div className="event-meta"><span>{new Date(event.starts_at).toLocaleString('en-UG', { dateStyle: 'full', timeStyle: 'short', timeZone: event.timezone })}</span><span>{event.timezone}</span>{event.venue_name && <span>{event.venue_name}{event.venue_city ? `, ${event.venue_city}` : ''}</span>}</div>{salesOpen && anyAvailable && <div className="row"><Link className="button button-primary" href={`/events/${slug}/order`}>Get tickets</Link></div>}{event.lifecycle_state === 'CANCELLED' && <div className="surface"><p role="alert"><strong>This event has been cancelled.</strong> Contact the organizer about any tickets you already hold.</p></div>}<section className="stack"><div className="section-heading"><div><p className="eyebrow">Ticket types</p><h2>Choose your experience</h2></div></div>{tickets.length ? tickets.map((ticket) => <article className="surface" key={ticket.public_id}><div className="row-between"><div><h3>{ticket.name}</h3><p className="lede">{ticket.description}</p></div><strong>{Number(ticket.price_minor_units).toLocaleString('en-UG')} {ticket.currency}</strong></div><p>{availability(ticket)}</p></article>) : <div className="surface"><p>Ticket types will be announced soon.</p></div>}</section></main>
 }

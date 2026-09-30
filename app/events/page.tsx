@@ -2,6 +2,7 @@ import Link from 'next/link'
 import { SiteHeader } from '@/components/site-header'
 import { EventCard } from '@/components/event-card'
 import { listPublicEvents } from '@/lib/public-events'
+import { EVENT_VIBES } from '@/lib/event-vibes'
 
 export const dynamic = 'force-dynamic'
 
@@ -10,6 +11,7 @@ type SearchParams = { q?: string; page?: string }
 export default async function EventsIndexPage({ searchParams }: { searchParams: Promise<SearchParams> }) {
   const { q, page } = await searchParams
   const search = q?.trim() ?? ''
+  const activeVibe = search ? EVENT_VIBES.find((vibe) => vibe.query === search.toLowerCase()) : undefined
   let result: Awaited<ReturnType<typeof listPublicEvents>> | null = null
   let failed = false
   try {
@@ -31,6 +33,17 @@ export default async function EventsIndexPage({ searchParams }: { searchParams: 
           <button type="submit" className="button button-primary">Search</button>
           {search && <Link href="/events" className="button button-quiet">Clear</Link>}
         </form>
+        <div className="vibe-strip events-vibes" aria-label="Browse by vibe">
+          <Link href="/events" className="vibe-pill vibe-all" data-active={search ? undefined : 'true'} aria-current={search ? undefined : 'page'}>
+            <span className="vibe-emoji" aria-hidden="true">✨</span> All vibes
+          </Link>
+          {EVENT_VIBES.map((vibe) => (
+            <Link key={vibe.key} href={`/events?q=${encodeURIComponent(vibe.query)}`} className="vibe-pill" data-vibe={vibe.key} data-active={activeVibe?.key === vibe.key ? 'true' : undefined} aria-current={activeVibe?.key === vibe.key ? 'page' : undefined}>
+              <span className="vibe-emoji" aria-hidden="true">{vibe.emoji}</span>
+              {vibe.label}
+            </Link>
+          ))}
+        </div>
         {failed && (
           <section className="surface events-empty" role="alert">
             <p><strong>Event listings are temporarily unavailable.</strong> Please try again in a moment.</p>

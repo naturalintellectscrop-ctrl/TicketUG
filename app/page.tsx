@@ -2,6 +2,7 @@ import Link from "next/link"
 import { SiteHeader } from "@/components/site-header"
 import { EventCard } from "@/components/event-card"
 import { getUpcomingPublicEvents, type PublicEventCard } from "@/lib/public-events"
+import { EVENT_VIBES } from "@/lib/event-vibes"
 
 export const dynamic = "force-dynamic"
 
@@ -9,6 +10,17 @@ const pillars = [
   { number: "01", title: "Find your people", body: "Discover the nights, rooms, and sounds worth showing up for — with the details you need before you tap buy." },
   { number: "02", title: "Build the buzz", body: "Publish an event, shape your ticket tiers, and keep the whole door-to-dancefloor story in one place." },
   { number: "03", title: "Open the door", body: "Secure QR tickets make arrival feel less like a queue and more like the beginning of the night." }
+]
+
+// Marketing moodboard, not event data: these are illustrative photos of the
+// kinds of nights TicketUG is built for, shown only while the public listing
+// is empty. Real event cards take over the moment organizers publish.
+const showcaseTiles = [
+  { src: "/showcase/hero-stage.jpg", caption: "Concert nights", alt: "Stage lights over a concert crowd at night" },
+  { src: "/showcase/food-festival.jpg", caption: "Food markets", alt: "Rolex chapati wraps being prepared at a busy food market" },
+  { src: "/showcase/culture-day.jpg", caption: "Culture days", alt: "Traditional dancers in bright kitenge costumes" },
+  { src: "/showcase/football-night.jpg", caption: "Match nights", alt: "Football fans celebrating under stadium lights" },
+  { src: "/showcase/sunday-gospel.jpg", caption: "Sunday sessions", alt: "Gospel choir singing outdoors in golden light" }
 ]
 
 export default async function HomePage() {
@@ -37,14 +49,34 @@ export default async function HomePage() {
           </div>
           <div className="hero-note"><span className="pulse-dot" /> Secure QR tickets, verified at the gate.</div>
         </div>
-        <div className="hero-art" aria-label="Illustration of a live event ticket" role="img">
-          <div className="orbit orbit-one" /><div className="orbit orbit-two" />
-          <div className="ticket-card">
-            <div className="ticket-top"><span>ADMIT ONE</span><span>UG · 001</span></div>
-            <div className="ticket-art"><span className="ticket-spark spark-one">✦</span><span className="ticket-spark spark-two">✦</span><strong>Night<br /><i>shift</i></strong><span className="ticket-ring" /></div>
-            <div className="ticket-bottom"><span>FRI 14 · KLA</span><span className="ticket-barcode" /></div>
-          </div>
+        <div className="hero-art">
+          <div className="hero-blob hero-blob-one" aria-hidden="true" />
+          <div className="hero-blob hero-blob-two" aria-hidden="true" />
+          <figure className="hero-photo hero-photo-main">
+            {/* eslint-disable-next-line @next/next/no-img-element -- static showcase art shipped in /public; plain img keeps the marketing shell dependency-free */}
+            <img src="/showcase/hero-main.jpg" alt="Festival crowd with raised hands at golden hour in Kampala" />
+          </figure>
+          <figure className="hero-photo hero-photo-side">
+            {/* eslint-disable-next-line @next/next/no-img-element -- static showcase art shipped in /public; plain img keeps the marketing shell dependency-free */}
+            <img src="/showcase/hero-dj.jpg" alt="DJ performing under neon party lights" />
+          </figure>
+          <figure className="hero-photo hero-photo-wide">
+            {/* eslint-disable-next-line @next/next/no-img-element -- static showcase art shipped in /public; plain img keeps the marketing shell dependency-free */}
+            <img src="/showcase/hero-stage.jpg" alt="Stage lights over a concert crowd at night" />
+          </figure>
+          <span className="hero-ticket-stub" aria-hidden="true"><span>ADMIT ONE</span><span>UG · 001</span></span>
           <span className="float-label label-top">sold out energy</span><span className="float-label label-bottom">good people inside</span>
+        </div>
+      </section>
+
+      <section className="vibe-section page-reveal" aria-label="Browse events by vibe">
+        <div className="vibe-strip">
+          {EVENT_VIBES.map((vibe) => (
+            <Link key={vibe.key} href={`/events?q=${encodeURIComponent(vibe.query)}`} className="vibe-pill" data-vibe={vibe.key}>
+              <span className="vibe-emoji" aria-hidden="true">{vibe.emoji}</span>
+              {vibe.label}
+            </Link>
+          ))}
         </div>
       </section>
 
@@ -63,10 +95,21 @@ export default async function HomePage() {
             <div className="row"><Link href="/events" className="button button-dark">Browse all events <span aria-hidden="true">↗</span></Link></div>
           </>
         ) : (
-          <div className="events-empty surface">
-            <p><strong>No upcoming events are available right now.</strong></p>
-            <p className="muted">Organizers publish events here the moment they go on sale. Check back soon — or be the one who puts the next night on the board.</p>
-            <Link href="/sign-up" className="text-link">Get on the list <span aria-hidden="true">↗</span></Link>
+          <div className="events-showcase">
+            <div className="showcase-grid">
+              {showcaseTiles.map((tile) => (
+                <figure className="showcase-tile" key={tile.src}>
+                  {/* eslint-disable-next-line @next/next/no-img-element -- static showcase art shipped in /public; plain img keeps the marketing shell dependency-free */}
+                  <img src={tile.src} alt={tile.alt} loading="lazy" />
+                  <figcaption>{tile.caption}</figcaption>
+                </figure>
+              ))}
+            </div>
+            <div className="events-empty surface">
+              <p><strong>No upcoming events are on the board yet.</strong></p>
+              <p className="muted">Organizers publish events here the moment they go on sale. Check back soon — or be the one who puts the next night on the board.</p>
+              <Link href="/sign-up" className="text-link">Be the first to list one <span aria-hidden="true">↗</span></Link>
+            </div>
           </div>
         )}
       </section>
