@@ -198,16 +198,40 @@ h1 em, h2 em { color: var(--brand); font-style: normal; }
 .site-footer a:hover { color: var(--brand); }
 @media (max-width: 760px) { .trust-section { padding: 70px 20px; } .trust-grid { grid-template-columns: 1fr; } }
 
-/* Owner CTA band — closing conversion banner (photo background, ink overlay) --- */
-.cta-band-wrap { padding-left: max(32px, calc((100% - 1180px) / 2)); padding-right: max(32px, calc((100% - 1180px) / 2)); padding-bottom: 110px; }
-.cta-band { position: relative; overflow: hidden; border-radius: 32px; padding: clamp(44px, 6.5vw, 92px); color: #fff8ed; background: linear-gradient(100deg, rgb(23 23 20 / 94%) 4%, rgb(23 23 20 / 82%) 46%, rgb(23 23 20 / 45%) 100%), url('/showcase/hero-stage.jpg') center / cover no-repeat; }
-.cta-band .eyebrow { color: var(--lime); }
-.cta-band h2 { margin: 0; font-family: var(--font-display), sans-serif; font-size: clamp(2.5rem, 5.6vw, 4.4rem); font-weight: 800; letter-spacing: -.05em; line-height: .96; }
-.cta-band h2 em { font-style: italic; color: var(--brand); }
-.cta-band p:not(.eyebrow) { max-width: 540px; margin: 24px 0 0; color: rgb(255 248 237 / 85%); font-size: 1.02rem; line-height: 1.7; }
-.cta-actions { display: flex; flex-wrap: wrap; gap: 14px; margin-top: 36px; }
+/* Welcome hero — the full-screen first view after signing in (rendered on
+   /account and /account/control-center). Full viewport width, edge to edge,
+   and tall enough that headline + CTAs fill the first screen together with
+   the site header. */
+.welcome-hero {
+  position: relative;
+  display: flex;
+  align-items: center;
+  width: 100%;
+  min-height: calc(100vh - 94px);
+  min-height: calc(100svh - 94px);
+  padding: clamp(40px, 6vw, 96px) max(32px, calc((100% - 1180px) / 2));
+  padding-bottom: max(clamp(40px, 6vw, 96px), env(safe-area-inset-bottom, 0px));
+  overflow: hidden;
+  color: #fff8ed;
+  background:
+    linear-gradient(100deg, rgb(23 23 20 / 94%) 4%, rgb(23 23 20 / 82%) 46%, rgb(23 23 20 / 45%) 100%),
+    url('/showcase/hero-stage.jpg') center / cover no-repeat;
+}
+.welcome-hero .eyebrow { color: var(--lime); }
+.welcome-hero h2 { margin: 0; font-family: var(--font-display), sans-serif; font-size: clamp(2.6rem, 6.2vw, 5.2rem); font-weight: 800; letter-spacing: -.05em; line-height: .96; }
+.welcome-hero h2 em { font-style: italic; color: var(--brand); }
+.welcome-hero p:not(.eyebrow) { max-width: 560px; margin: 26px 0 0; color: rgb(255 248 237 / 88%); font-size: clamp(1rem, 1.3vw, 1.1rem); line-height: 1.7; }
+.welcome-hero-actions { display: flex; flex-wrap: wrap; gap: 14px; margin-top: 42px; }
 .button-white { background: #fff8ed; color: var(--ink); }
-@media (max-width: 760px) { .cta-band-wrap { padding-left: 20px; padding-right: 20px; padding-bottom: 72px; } .cta-band { border-radius: 24px; } .cta-actions { flex-direction: column; align-items: stretch; } }
+@media (max-width: 760px) {
+  .welcome-hero { min-height: calc(100vh - 96px); min-height: calc(100svh - 96px); padding-left: 20px; padding-right: 20px; }
+  .welcome-hero-actions { flex-direction: column; align-items: stretch; }
+}
+@media (max-width: 420px) {
+  /* the site nav wraps to a second row here — compensate so the hero still
+     fills the first viewport together with the taller header */
+  .welcome-hero { min-height: calc(100vh - 112px); min-height: calc(100svh - 112px); }
+}
 
 /* Discovery pass: hero photo collage, category pills, filter rail, featured
    carousel, gradient covers, showcase mosaic, and the public event detail

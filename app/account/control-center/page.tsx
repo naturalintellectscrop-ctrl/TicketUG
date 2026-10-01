@@ -4,6 +4,7 @@ import { getTicketUGContext } from '@/lib/request-context'
 import { logServerError } from '@/lib/server/errors'
 import { pool } from '@/lib/db'
 import { SiteHeader } from '@/components/site-header'
+import { WelcomeHero } from '@/components/welcome-hero'
 
 export const dynamic = 'force-dynamic'
 
@@ -60,6 +61,9 @@ export default async function ControlCenterPage() {
   return (
     <>
       <SiteHeader />
+      {/* The platform owner finishes logging in exactly like any other user —
+          the same full-screen welcome, then the platform overview below. */}
+      <WelcomeHero />
       <main className="page-shell">
         <header className="section-heading">
           <div><p className="eyebrow">Ticket Uganda control center</p><h1>Platform overview</h1><p className="lede">A platform-wide view of real users, organizers, events, orders, tickets, and entry activity.</p></div>

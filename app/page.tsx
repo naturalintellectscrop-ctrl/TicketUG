@@ -167,18 +167,6 @@ export default async function HomePage() {
         </div>
       </section>
 
-      <section className="cta-band-wrap" aria-label="Get started with Ticket Uganda">
-        <div className="cta-band page-reveal">
-          <p className="eyebrow"><span className="eyebrow-line" /> Verified events · Secure tickets</p>
-          <h2>A ticket that<br /><em>actually gets you in.</em></h2>
-          <p>Every event on Ticket Uganda is published by a real organizer, and every QR is checked against our servers at the gate. Start with the events on sale right now.</p>
-          <div className="cta-actions">
-            <Link href="/events" className="button button-primary">Browse verified events <ArrowUpRight size={16} strokeWidth={2.6} aria-hidden /></Link>
-            <Link href="#how-it-works" className="button button-white">How it works</Link>
-          </div>
-        </div>
-      </section>
-
       <footer className="site-footer mt-auto"><span className="brand-mark"><span className="brand-dot" />Ticket Uganda</span><span>Built for the moments that matter.</span><Link href="/contact">Contact</Link><span>© 2026 Ticket Uganda</span></footer>
     </main>
   )
