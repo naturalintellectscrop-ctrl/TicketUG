@@ -135,7 +135,7 @@ async function main() {
 
   console.log(`OK: ${email} now holds ${role}.`)
   console.log(`existing platform roles: ${[...existing, role].join(', ')}`)
-  console.log('next: verify at /admin after signing in (PLATFORM_* roles see the control center).')
+  console.log('next: verify at /platform after signing in (PLATFORM_* roles are taken there automatically).')
 }
 
 main()

@@ -300,10 +300,10 @@ The script fails fast without `DATABASE_URL`, refuses non-Supabase hosts without
 grants, and writes a `ticketug.security_event` audit row. It never touches passwords.
 
 **Step 3 (verify):** sign in at `/sign-in` like any other user — platform roles
-land directly on `/account/control-center` (the server reads the role and
-generates the post-sign-in landing; no `/admin` URL to type or remember). The
-header also shows a **Control center** link for platform roles. Then: logout →
-`/account/control-center` redirects to `/sign-in` → a non-admin session hitting
-it is redirected to `/account`. Old `/admin` links forward to
-`/account/control-center`. Full verification matrix:
+land directly on `/platform` (the server reads the role and generates the
+post-sign-in landing; no `/admin` URL to type or remember). The header also
+shows a **Control center** link for platform roles. Then: logout → `/platform`
+redirects to `/sign-in` → a non-admin session hitting it is redirected to
+`/account`. Old `/admin` and `/account/control-center` links forward to
+`/platform`. Full verification matrix:
 `docs/FINAL_PRODUCTION_READINESS_AUDIT.md` §5.

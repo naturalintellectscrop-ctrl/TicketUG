@@ -106,8 +106,8 @@ DATABASE_URL="<session pooler url>" node scripts/provision-platform-admin.mjs na
 The script verifies the auth user exists, resolves/creates the `ticketug.user_profile` idempotently, refuses duplicates, writes a `ticketug.security_event` audit row, and pins strict TLS to the bundled Supabase CA. Optional `--role SUPER_ADMIN` for the top role (default `PLATFORM_ADMIN`).
 
 **Step 3 — verify (also do this after BLOCKER 2c enables signup):**
-login at `/sign-in` like any other user → platform roles land directly on `/account/control-center` (server-computed post-sign-in landing) → role pill shows "Platform admin/support/super admin" → logout → `/account/control-center` redirects to `/sign-in` (307) → an ATTENDEE account hitting it is redirected to `/account`.
-*(2026-10-01 update, post-audit: the control center moved from `/admin` into the signed-in workspace at `/account/control-center` and `/admin` now only forwards there — the server-side role gate is unchanged, so this audit's authorization findings are unaffected.)*
+login at `/sign-in` like any other user → platform roles land directly on `/platform` (server-computed post-sign-in landing) → role pill shows "Platform admin/support/super admin" → logout → `/platform` redirects to `/sign-in` (307) → an ATTENDEE account hitting it is redirected to `/account`.
+*(2026-10-01 update, post-audit: the control center moved from `/admin` to `/account/control-center`, then to the full `/platform` control center — `/admin` and `/account/control-center` now only forward there. The server-side role gate is unchanged, so this audit's authorization findings are unaffected.)*
 
 ---
 

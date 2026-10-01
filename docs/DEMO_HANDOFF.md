@@ -28,7 +28,7 @@ Do not use production credentials or production data. The application does not r
 9. Sign in as event staff and open `/scanner`.
 10. Select the assigned event and scan the attendee QR, or use manual entry.
 11. Scan the same ticket again to verify duplicate rejection.
-12. Sign in with an approved platform role and open `/admin` to review real platform metrics.
+12. Sign in with an approved platform role — you land directly on `/platform`, the read-only platform control center (real metrics, no fabricated data).
 
 ## Safety boundary
 

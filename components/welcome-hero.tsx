@@ -6,7 +6,7 @@ import { ArrowUpRight } from 'lucide-react'
  * finished logging in.
  *
  * Rendered on the post-authentication landing pages (/account for attendees,
- * /account/control-center for platform roles), not on the public landing:
+ * /platform for platform roles), not on the public landing:
  * the public homepage already opens with its own marketing hero, and what
  * belongs here is the "you are in" moment — a full-width, full-height brand
  * welcome with the two paths that matter next (browse events, how it works).

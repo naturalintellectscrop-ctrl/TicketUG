@@ -49,8 +49,8 @@ export async function POST(request: Request) {
 
   // Post-sign-in landing, computed server-side from the platform_role table so
   // the platform owner signs in exactly like any other user and is taken to
-  // the control center automatically. This is a navigation hint ONLY — every
-  // protected page and API re-checks the session and role server-side.
+  // the platform control center automatically. This is a navigation hint ONLY
+  // — every protected page and API re-checks the session and role server-side.
   let redirectTo = '/account'
   if (profileId) {
     const platformRoles = await pool.query<{ role: string }>(
@@ -60,7 +60,7 @@ export async function POST(request: Request) {
     const hasPlatformRole = platformRoles.rows.some((row) =>
       ['PLATFORM_SUPPORT', 'PLATFORM_ADMIN', 'SUPER_ADMIN'].includes(row.role),
     )
-    if (hasPlatformRole) redirectTo = '/account/control-center'
+    if (hasPlatformRole) redirectTo = '/platform'
   }
 
   return NextResponse.json({

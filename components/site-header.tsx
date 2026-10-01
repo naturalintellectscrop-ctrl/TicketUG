@@ -12,9 +12,9 @@ import { SignOutButton } from './sign-out-button'
  * - Signed out: a Sign in link (honouring `nextPath` for post-auth return) and
  *   a Get started CTA, so account checkout is discoverable from every page.
  * - Signed in: Organizer workspace link (when the session holds any active
- *   membership), Control center (platform roles only — the owner reaches it
- *   from the same header as everyone else, no separate admin URL to type),
- *   sign out, and a My orders CTA.
+ *   membership), Control center (platform roles only — the owner reaches the
+ *   /platform console from the same header as everyone else, no separate
+ *   admin URL to type), sign out, and a My orders CTA.
  * - `children` renders page-local nav links (e.g. landing anchors) before the
  *   session affordances.
  */
@@ -38,7 +38,7 @@ export async function SiteHeader({ nextPath, children }: { nextPath?: string; ch
         {context ? (
           <>
             {isOrganizer && <Link href="/organizer" className="nav-always">Organizer</Link>}
-            {isPlatform && <Link href="/account/control-center" className="nav-always">Control center</Link>}
+            {isPlatform && <Link href="/platform" className="nav-always">Control center</Link>}
             <SignOutButton />
             <Link href="/account" className="nav-cta">My orders</Link>
           </>
