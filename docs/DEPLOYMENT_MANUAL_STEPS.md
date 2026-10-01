@@ -279,8 +279,8 @@ pristine).
 
 ## BLOCKER 2e — Platform-admin account provisioning (added 2026-10-01)
 
-A real platform-admin account is required for `/admin` (the control center is
-server-gated to PLATFORM_SUPPORT/PLATFORM_ADMIN/SUPER_ADMIN). No admin bootstrap
+A real platform-admin account is required for the platform control center
+(server-gated to PLATFORM_SUPPORT/PLATFORM_ADMIN/SUPER_ADMIN). No admin bootstrap
 existed in code before 2026-10-01 — roles were only grantable by hand-written
 SQL. The secure path is now:
 
@@ -299,7 +299,11 @@ The script fails fast without `DATABASE_URL`, refuses non-Supabase hosts without
 `--allow-remote`, pins TLS to `certs/supabase-root-2021-ca.pem`, refuses duplicate
 grants, and writes a `ticketug.security_event` audit row. It never touches passwords.
 
-**Step 3 (verify):** sign in → `/admin` renders the control center with the role
-pill → logout → `/admin` redirects to `/sign-in` → a non-admin session hitting
-`/admin` is redirected to `/account`. Full verification matrix:
+**Step 3 (verify):** sign in at `/sign-in` like any other user — platform roles
+land directly on `/account/control-center` (the server reads the role and
+generates the post-sign-in landing; no `/admin` URL to type or remember). The
+header also shows a **Control center** link for platform roles. Then: logout →
+`/account/control-center` redirects to `/sign-in` → a non-admin session hitting
+it is redirected to `/account`. Old `/admin` links forward to
+`/account/control-center`. Full verification matrix:
 `docs/FINAL_PRODUCTION_READINESS_AUDIT.md` §5.

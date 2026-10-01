@@ -38,14 +38,16 @@ export function AuthForm({ mode, nextPath }: { mode: Mode; nextPath?: string }) 
         setError(message)
         return
       }
-      const payload = await response.json().catch(() => null)
+      const payload = await response.json().catch(() => null) as { confirmationRequired?: boolean; redirectTo?: string } | null
       if (payload?.confirmationRequired) {
         setNotice('Account created. Check your email to confirm the address, then sign in.')
         return
       }
       // Honour ?next= when the caller passed a safe internal path (e.g. the
       // event order page), so buyers return to checkout instead of /account.
-      router.push(safeInternalPath(nextPath, '/account'))
+      // Otherwise follow the server-computed landing (platform roles go to
+      // the control center; everyone else to their account workspace).
+      router.push(nextPath ? safeInternalPath(nextPath, '/account') : safeInternalPath(payload?.redirectTo, '/account'))
       router.refresh()
     } catch {
       setError('Authentication is temporarily unavailable. Please try again.')

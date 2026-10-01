@@ -1,6 +1,7 @@
 import { redirect } from 'next/navigation'
 import { ProfileEditor } from '@/components/profile-editor'
 import { SignOutButton } from '@/components/sign-out-button'
+import { SiteHeader } from '@/components/site-header'
 import { getTicketUGContext } from '@/lib/request-context'
 import { pool } from '@/lib/db'
 
@@ -15,12 +16,15 @@ export default async function ProfilePage() {
     [context.profileId],
   )
   return (
-    <main className="page-shell">
-      <p className="eyebrow">Account</p>
-      <h1>Complete your Ticket Uganda profile</h1>
-      <p className="lede">Keep only the contact information needed for ticket delivery and support.</p>
-      <ProfileEditor initial={result.rows[0] ?? { displayName: '' }} />
-      <div className="row"><SignOutButton /></div>
-    </main>
+    <>
+      <SiteHeader />
+      <main className="page-shell">
+        <p className="eyebrow">Account</p>
+        <h1>Complete your Ticket Uganda profile</h1>
+        <p className="lede">Keep only the contact information needed for ticket delivery and support.</p>
+        <ProfileEditor initial={result.rows[0] ?? { displayName: '' }} />
+        <div className="row"><SignOutButton /></div>
+      </main>
+    </>
   )
 }

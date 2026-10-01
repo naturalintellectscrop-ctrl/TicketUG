@@ -3,6 +3,7 @@ import { z } from 'zod'
 import { checkRateLimit, rateLimitKey } from '@/lib/rate-limit'
 import { getSupabaseServerClient } from '@/lib/supabase/server'
 import { ensureUserProfile } from '@/lib/user-profile'
+import { pool } from '@/lib/db'
 
 const credentialsSchema = z.object({
   email: z.string().trim().toLowerCase().email().max(320),
@@ -41,12 +42,29 @@ export async function POST(request: Request) {
   // §12 user mapping: link the Supabase Auth user to its TicketUG profile
   // (idempotent; the profile is the permanent relational identity).
   const metadata = (data.user.user_metadata ?? {}) as Record<string, unknown>
-  await ensureUserProfile({
+  const profileId = await ensureUserProfile({
     authUserId: data.user.id,
     displayName: typeof metadata.name === 'string' ? metadata.name : null,
   })
 
+  // Post-sign-in landing, computed server-side from the platform_role table so
+  // the platform owner signs in exactly like any other user and is taken to
+  // the control center automatically. This is a navigation hint ONLY — every
+  // protected page and API re-checks the session and role server-side.
+  let redirectTo = '/account'
+  if (profileId) {
+    const platformRoles = await pool.query<{ role: string }>(
+      'SELECT role FROM ticketug.platform_role WHERE user_profile_id = $1',
+      [profileId],
+    )
+    const hasPlatformRole = platformRoles.rows.some((row) =>
+      ['PLATFORM_SUPPORT', 'PLATFORM_ADMIN', 'SUPER_ADMIN'].includes(row.role),
+    )
+    if (hasPlatformRole) redirectTo = '/account/control-center'
+  }
+
   return NextResponse.json({
     user: { id: data.user.id, email: data.user.email, name: typeof metadata.name === 'string' ? metadata.name : null },
+    redirectTo,
   })
 }

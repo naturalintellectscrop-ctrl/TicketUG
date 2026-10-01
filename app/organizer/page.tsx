@@ -3,6 +3,7 @@ import { redirect } from 'next/navigation'
 import { getTicketUGContext } from '@/lib/request-context'
 import { pool } from '@/lib/db'
 import { OrganizerOnboarding } from '@/components/organizer-onboarding'
+import { SiteHeader } from '@/components/site-header'
 
 const ROLE_LABELS: Record<string, string> = {
   ORGANIZER_OWNER: 'Owner',
@@ -19,7 +20,9 @@ export default async function OrganizerPage() {
   )
 
   return (
-    <main className="page-shell">
+    <>
+      <SiteHeader />
+      <main className="page-shell">
       <p className="eyebrow">Organizer</p>
       <h1>Your workspaces</h1>
       <p className="lede">Everything you organise lives here — the team behind it, the events you run, and the settings that shape its identity.</p>
@@ -45,6 +48,7 @@ export default async function OrganizerPage() {
       ) : (
         <OrganizerOnboarding />
       )}
-    </main>
+      </main>
+    </>
   )
 }
