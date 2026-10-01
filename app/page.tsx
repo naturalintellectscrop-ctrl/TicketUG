@@ -5,6 +5,7 @@ import { EventCard } from "@/components/event-card"
 import { getUpcomingPublicEvents, type PublicEventCard } from "@/lib/public-events"
 import { EVENT_CATEGORIES } from "@/lib/event-categories"
 import { SITE_NAME, SITE_DESCRIPTION, SITE_URL } from "@/lib/site"
+import { logServerError } from '@/lib/server/errors'
 
 export const dynamic = "force-dynamic"
 
@@ -60,7 +61,8 @@ export default async function HomePage() {
   let eventsUnavailable = false
   try {
     upcoming = await getUpcomingPublicEvents(6)
-  } catch {
+  } catch (error) {
+    logServerError('page:landing', error)
     eventsUnavailable = true
   }
   return (

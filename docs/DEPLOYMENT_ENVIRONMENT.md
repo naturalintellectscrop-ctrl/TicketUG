@@ -15,6 +15,13 @@
 | `SUPABASE_URL` | **YES** (runtime, fail-closed) | Supabase project URL. `lib/supabase/server.ts` builds the server-side auth client per request (sessions in HttpOnly `Secure` `SameSite=Lax` cookies `sb-<ref>-auth-token[.N]`). Auth-dependent requests fail loudly without it in production; builds do not evaluate it. | `https://<project-ref>.supabase.co` |
 | `SUPABASE_ANON_KEY` | **YES** (runtime, fail-closed) | Supabase publishable/anon key (Dashboard → Project Settings → API). **Server-side only by design** — no `NEXT_PUBLIC_*` variable exists anywhere. | `<set in hosting provider>` |
 | `PAYMENT_WINDOW_MINUTES` | no | Order payment window in minutes, clamped 1..120 (default 15). | `15` |
+| `PAYMENT_PROVIDER` | Selects the live payment provider adapter (`nylonpay`). Unset/unknown → live initiation fails closed 503 `PROVIDER_NOT_CONFIGURED` | Server | yes (live) | n/a | set to `nylonpay` for production |
+| `NYLONPAY_API_KEY` | NylonPay merchant API key | Server | yes (live) | n/a | from the NylonPay merchant dashboard |
+| `NYLONPAY_API_SECRET` | NylonPay merchant API secret | Server | yes (live) | n/a | from the NylonPay merchant dashboard |
+| `NYLONPAY_WEBHOOK_SECRET` | Secret NylonPay signs webhooks with (HMAC-SHA256, raw body) | Server | yes (live) | n/a | from the NylonPay merchant dashboard |
+| `NYLONPAY_BASE_URL` | Optional API host override | Server | no | n/a | leave unset unless NylonPay changes hosts |
+| `NYLONPAY_WEBHOOK_TOLERANCE_SECONDS` | Optional webhook replay window (default 300) | Server | no | n/a | leave unset |
+| `NEXT_PUBLIC_SITE_URL` | Canonical public origin for metadata/canonical/sitemap/JSON-LD/OG | Browser+Server | no | `https://ticketug.vercel.app` | set once the production domain exists |
 | `SUPABASE_CA_CERT` | no | Path to a CA PEM overriding the bundled one (CA rotation without a code change). Set-but-unreadable fails loudly. | `/etc/ssl/supabase-root.pem` |
 | `PAYMENT_MODE` | no — **staging only** | `test` enables the simulated payment pathway ONLY in non-production runtimes. Production (`next start`/Vercel) refuses it: 503 `TEST_PAYMENT_DISABLED`. | `<unset in production>` |
 | `PAYMENT_TEST_WEBHOOK_SECRET` | no | Overrides the development-only default webhook secret for the simulated test provider (non-production only). | `<set only in staging>` |
@@ -39,7 +46,7 @@ reach client bundles.
 - Health surfaces: `GET /api/health` (process), `GET /api/readiness` (real
   `SELECT 1` against the database; 503 when the database is unavailable).
 - Migrations: `pnpm migrate` / `pnpm migrate:status` — ledger
-  `ticketug.migration`, files `docs/migrations/000→012`, forward-only,
+  `ticketug.migration`, files `docs/migrations/000, 005→015`, forward-only,
   checksum-pinned, non-destructive.
 
 ## 3. Database (Supabase PostgreSQL)

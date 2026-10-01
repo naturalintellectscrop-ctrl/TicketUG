@@ -6,6 +6,7 @@ import { EventCard } from '@/components/event-card'
 import { EventCarousel } from '@/components/event-carousel'
 import { EventsFilterBar } from '@/components/events-filter-bar'
 import { listPublicEvents } from '@/lib/public-events'
+import { logServerError } from '@/lib/server/errors'
 import {
   categoryByKey,
   normalizeSortKey,
@@ -67,7 +68,8 @@ export default async function EventsIndexPage({ searchParams }: { searchParams: 
       sort: sortKey,
       page: page ? Number(page) : 1,
     })
-  } catch {
+  } catch (error) {
+    logServerError('page:events', error)
     failed = true
   }
 

@@ -3,6 +3,7 @@ import { randomUUID } from 'node:crypto'
 import { z } from 'zod'
 import { canManageMemberRole, canManageOrganizer } from '@/lib/organizer-authorization'
 import { requireTicketUGContext } from '@/lib/request-context'
+import { checkRateLimit, rateLimitKey } from '@/lib/rate-limit'
 import { pool } from '@/lib/db'
 
 const memberSchema = z.object({
@@ -29,6 +30,8 @@ export async function GET(_: Request, { params }: { params: Promise<{ organizerI
 }
 
 export async function POST(request: Request, { params }: { params: Promise<{ organizerId: string }> }) {
+  const limited = checkRateLimit(rateLimitKey(request, 'member-upsert'), 20)
+  if (!limited.allowed) return NextResponse.json({ error: 'Too many requests. Please wait a minute and try again.' }, { status: 429, headers: { 'retry-after': String(Math.ceil((limited.retryAfterMs ?? 60_000) / 1000)) } })
   try {
     const context = await requireTicketUGContext()
     const { organizerId } = await params

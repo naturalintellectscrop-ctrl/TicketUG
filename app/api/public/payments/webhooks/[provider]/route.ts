@@ -1,5 +1,5 @@
 import { NextRequest } from 'next/server'
-import { apiErrorResponse } from '@/lib/server/errors'
+import { apiErrorResponse, logServerError } from '@/lib/server/errors'
 import { applyVerifiedWebhook } from '@/lib/server/payments'
 
 // Payment provider webhook (Pair 6, Supabase-native). Same URL semantics as
@@ -10,14 +10,17 @@ import { applyVerifiedWebhook } from '@/lib/server/payments'
 // machines, ticket issuance). In production the only registered provider is
 // refused (PROVIDER_NOT_CONFIGURED 503) — no live provider exists yet.
 export async function POST(request: NextRequest, context: { params: Promise<{ provider: string }> }) {
+  const { provider } = await context.params
   try {
-    const { provider } = await context.params
     const rawBody = await request.text()
     const body = rawBody ? (JSON.parse(rawBody) as unknown) : null
     const headers = Object.fromEntries(request.headers)
     return Response.json(await applyVerifiedWebhook(provider, headers, body, rawBody))
   } catch (error) {
     if (error instanceof SyntaxError) return Response.json({ message: 'Malformed webhook' }, { status: 400 })
+    // Provider-facing failures are operator-critical (missed webhook = unpaid
+    // order): every non-signature failure leaves one log line for triage.
+    logServerError(`webhook:${provider}`, error)
     return apiErrorResponse(error)
   }
 }

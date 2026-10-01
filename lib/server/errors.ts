@@ -100,8 +100,29 @@ const REASON: Record<number, string> = {
 
 export function apiErrorResponse(error: unknown): Response {
   const apiError = apiErrorFromUnknown(error)
+  // Server-side ops breadcrumb (Vercel runtime logs): failures that were mapped
+  // to a response are still worth one line for incident triage. Never log
+  // payloads/headers — the message may carry a SQL error string at most.
+  if (apiError.status >= 500) logServerError('api', error)
   return Response.json(
     { message: apiError.message, error: REASON[apiError.status] ?? 'Error', statusCode: apiError.status },
     { status: apiError.status },
   )
+}
+
+// Minimal structured server logging seam (zero dependencies). Production
+// operators read these from Vercel runtime logs; scope names the failing
+// surface (e.g. 'webhook:nylonpay', 'cron:expire-stale', 'page:events/[slug]').
+// Log the error TYPE + message only — never request bodies, headers, tokens,
+// or purchaser PII.
+export function logServerError(scope: string, error: unknown): void {
+  const detail = error instanceof Error ? `${error.name}: ${error.message}` : String(error)
+  console.error(`[ticketug:${scope}] ${detail}`)
+}
+
+// requireTicketUGContext() signals a missing/invalid session by throwing a
+// plain Error('UNAUTHENTICATED') — routes that build their own responses use
+// this to separate 401 (deny) from 5xx (outage) instead of conflating them.
+export function isApiAuthError(error: unknown): boolean {
+  return error instanceof Error && error.message === 'UNAUTHENTICATED'
 }

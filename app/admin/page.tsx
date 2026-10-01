@@ -1,6 +1,7 @@
 import Link from 'next/link'
 import { redirect } from 'next/navigation'
 import { getTicketUGContext } from '@/lib/request-context'
+import { logServerError } from '@/lib/server/errors'
 import { pool } from '@/lib/db'
 
 export const dynamic = 'force-dynamic'
@@ -9,7 +10,9 @@ type Metrics = { users: number; organizers: number; events: number; published: n
 
 const emptyMetrics: Metrics = { users: 0, organizers: 0, events: 0, published: 0, orders: 0, tickets: 0, checkIns: 0 }
 
-async function loadMetrics(): Promise<Metrics> {
+// Loads platform-wide counts. A database failure returns `null` (NOT zeros):
+// an operator must never mistake an outage for an empty platform.
+async function loadMetrics(): Promise<Metrics | null> {
   try {
     const result = await pool.query<Metrics>(`SELECT
       (SELECT count(*)::int FROM ticketug.user_profile) AS users,
@@ -20,8 +23,9 @@ async function loadMetrics(): Promise<Metrics> {
       (SELECT count(*)::int FROM ticketug.ticket) AS tickets,
       (SELECT count(*)::int FROM ticketug.check_in) AS "checkIns"`)
     return result.rows[0] ?? emptyMetrics
-  } catch {
-    return emptyMetrics
+  } catch (error) {
+    logServerError('page:admin', error)
+    return null
   }
 }
 
@@ -50,11 +54,13 @@ export default async function AdminPage() {
     <nav className="surface admin-nav" aria-label="Platform areas">
       <Link className="active" href="/admin">Overview</Link><span className="muted">Deeper user, organizer, event, order and payment tooling arrives with live payments and event moderation</span>
     </nav>
-    <section className="metric-grid" aria-label="Platform metrics">
-      {cards.map(([key, label, description]) => <article className="surface metric-card" key={key}><p className="eyebrow">{label}</p><strong>{metrics[key].toLocaleString('en-UG')}</strong><p className="muted">{description}</p></article>)}
-    </section>
+    {metrics === null
+      ? <section className="surface stack" aria-live="polite"><p className="eyebrow">Metrics</p><h2>Platform metrics are temporarily unavailable</h2><p className="muted">The database could not be reached, so no numbers are shown — an outage is never displayed as an empty platform. Check the runtime logs and refresh.</p></section>
+      : <section className="metric-grid" aria-label="Platform metrics">
+          {cards.map(([key, label, description]) => <article className="surface metric-card" key={key}><p className="eyebrow">{label}</p><strong>{metrics[key].toLocaleString('en-UG')}</strong><p className="muted">{description}</p></article>)}
+        </section>}
     <section className="admin-columns">
-      <article className="surface stack"><div><p className="eyebrow">Operational status</p><h2>What is available now</h2></div><div className="status-list"><p><span className="status-dot ready" /> Events and public discovery</p><p><span className="status-dot ready" /> Test payment and ticket issuance</p><p><span className="status-dot ready" /> QR validation and check-in</p><p><span className="status-dot planned" /> Live payments, refunds, settlements</p></div></article>
+      <article className="surface stack"><div><p className="eyebrow">Operational status</p><h2>What is available now</h2></div><div className="status-list"><p><span className="status-dot ready" /> Events and public discovery</p><p><span className="status-dot ready" /> Live payments and ticket issuance</p><p><span className="status-dot ready" /> QR validation and check-in</p><p><span className="status-dot planned" /> Refunds and settlement reporting</p></div></article>
       <article className="surface stack"><div><p className="eyebrow">Governance</p><h2>Safe by role</h2></div><p className="muted">This control center is protected server-side. Organizer, attendee, and staff roles cannot access platform administration by changing a URL.</p><Link href="/scanner">Open operations scanner</Link></article>
     </section>
   </main>

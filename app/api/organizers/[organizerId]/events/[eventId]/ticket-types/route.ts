@@ -1,12 +1,15 @@
 import { NextRequest } from 'next/server'
 import { z } from 'zod'
 import { getTicketUGContext } from '@/lib/request-context'
+import { checkRateLimit, rateLimitKey } from '@/lib/rate-limit'
 import { pool } from '@/lib/db'
 
 const payload = z.object({ name: z.string().trim().min(1).max(160), description: z.string().max(5000).default(''), priceMinorUnits: z.number().int().nonnegative().max(Number.MAX_SAFE_INTEGER), capacity: z.number().int().nonnegative().max(2147483647), saleStartsAt: z.string().datetime({ offset: true }).optional(), saleEndsAt: z.string().datetime({ offset: true }).optional(), active: z.boolean().default(false) }).refine((value) => !value.saleStartsAt || !value.saleEndsAt || new Date(value.saleStartsAt) < new Date(value.saleEndsAt), { message: 'Ticket sale end must be after sale start' })
 
 export async function POST(request: NextRequest, { params }: { params: Promise<{ organizerId: string; eventId: string }> }) {
   const { organizerId, eventId } = await params
+  const limited = checkRateLimit(rateLimitKey(request, 'ticket-type-create'), 30)
+  if (!limited.allowed) return Response.json({ message: 'Too many requests. Please wait a minute and try again.' }, { status: 429, headers: { 'retry-after': String(Math.ceil((limited.retryAfterMs ?? 60_000) / 1000)) } })
   const context = await getTicketUGContext()
   if (!context) return Response.json({ message: 'Authentication required' }, { status: 401 })
   const parsed = payload.safeParse(await request.json())

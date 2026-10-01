@@ -23,7 +23,7 @@ SUPABASE VERIFIED — Postgres (session pooler, strict TLS, pinned CA fingerprin
                     fail-closed, DB-backed PDFs), production-build browser
                     journey (guest checkout → payment → tickets → QR → PDF;
                     desktop + 390 px; console clean)
-BLOCKED           — GitHub push (BLOCKER 0 — no credentials in the agent
+RESOLVED (2026-10-01) — GitHub push works again (user-supplied token; rotate after use).
                     environment), Vercel production deploy (BLOCKERS 1–2),
                     hosted Supabase Auth live flows (BLOCKER 2b — anon key),
                     hosted browser pass (BLOCKER 5)
@@ -35,7 +35,7 @@ OBSOLETE          — the old BLOCKER 3 (host apps/api): Pair 6 removed the
 
 ## BLOCKER 0 — Push the pending commits to GitHub (gates everything else)
 
-- **WHY IT MATTERS:** Vercel deploys FROM GitHub. `origin/main` = `16bc73d`
+- **RESOLVED 2026-10-01: `origin/main` tracks `main` commit-for-commit (single branch, no other refs). Historical context: Vercel deploys FROM GitHub. At the time `origin/main` = `16bc73d`
   (Pair 3); the Supabase migration + the Pair 6 Supabase-native backend live
   in local commits (`a53fe34`, `f8b22d5`, `7bd1c11`, + the Pair 6 commit).
 - **SERVICE:** GitHub → repository `naturalintellectscrop-ctrl/TicketUG`
@@ -178,7 +178,7 @@ until the first signup succeeds.
 
 ## BLOCKER 2d — NylonPay live payments (provider gate CLOSED, integration ready)
 
-The provider decision gate (CONTINUITY §22 row 6) was closed by NI supplying
+The provider decision gate (CONTINUITY §12 row 6) was closed by NI supplying
 production credentials; the integration is implemented through the existing
 adapter seam and verified end-to-end (wire test 17/17: real `collectPayment`
 against the Nylon API, signed webhook chain — IGNORED/DUPLICATE/forged-400/
@@ -207,7 +207,7 @@ pristine).
   retries need no extra config (Nylon re-signs every attempt).
 - Test/sandbox vs live is determined by the API key itself (`payload.mode`
   in every delivery); no extra toggle exists or is needed.
-- DB state: migrations now **11/11** (013 = purchaser phone + search-path
+- DB state: migrations now **12/12** — `000, 005–015` (013 = purchaser phone + search-path
   pinning + PROCESSING tolerance; 014 = `webhook_event` IGNORED status;
   015 = dropped the ambiguous 7-arg `create_order` overload). Checkout now
   collects the **mobile money number** (`order.purchaser_phone`) — the
@@ -274,3 +274,32 @@ pristine).
    rotated, set `SUPABASE_CA_CERT`.
 3. **Email delivery:** SMTP for Supabase Auth emails before public launch if
    "Confirm email" stays enabled.
+
+---
+
+## BLOCKER 2e — Platform-admin account provisioning (added 2026-10-01)
+
+A real platform-admin account is required for `/admin` (the control center is
+server-gated to PLATFORM_SUPPORT/PLATFORM_ADMIN/SUPER_ADMIN). No admin bootstrap
+existed in code before 2026-10-01 — roles were only grantable by hand-written
+SQL. The secure path is now:
+
+**Step 1 (owner, password stays secret):** Supabase dashboard → Authentication →
+Users → **Add user → Create new user** → email `naturalintellectsltd@gmail.com`,
+type the password into the dashboard form, **Auto Confirm User: on**.
+The password must NEVER be pasted into chat, code, scripts, docs, or this
+repository — the dashboard is the only place it is ever entered.
+
+**Step 2 (operator, once the auth user exists):**
+```bash
+DATABASE_URL="<session pooler url>" node scripts/provision-platform-admin.mjs naturalintellectsltd@gmail.com
+# (optionally --role SUPER_ADMIN for the top platform role; default PLATFORM_ADMIN)
+```
+The script fails fast without `DATABASE_URL`, refuses non-Supabase hosts without
+`--allow-remote`, pins TLS to `certs/supabase-root-2021-ca.pem`, refuses duplicate
+grants, and writes a `ticketug.security_event` audit row. It never touches passwords.
+
+**Step 3 (verify):** sign in → `/admin` renders the control center with the role
+pill → logout → `/admin` redirects to `/sign-in` → a non-admin session hitting
+`/admin` is redirected to `/account`. Full verification matrix:
+`docs/FINAL_PRODUCTION_READINESS_AUDIT.md` §5.

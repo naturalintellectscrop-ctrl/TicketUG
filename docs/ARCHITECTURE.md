@@ -25,10 +25,10 @@ Supabase Auth (sessions via @supabase/ssr; server-side getUser() validation)
 - `lib/rules/`: pure state machines and business rules (unit-tested, shared by
   the server layer and the behavioral harness).
 - `lib/payments/`: provider adapters. The only registered adapter is the
-  non-production test provider; the registry refuses every provider in
+  non-production test provider plus the LIVE NylonPay adapter (`lib/payments/nylonpay.ts`, in-repo timing-safe HMAC webhook verification); without provider credentials the registry fails closed 503 `PROVIDER_NOT_CONFIGURED`, and the test provider is additionally refused in production runtimes (
   production (fail-closed `TEST_PAYMENT_DISABLED` / `PROVIDER_NOT_CONFIGURED`).
 - `scripts/migrate.mjs` (`pnpm migrate`): ledgered SQL migrations
-  (`docs/migrations/000→012`).
+  (`docs/migrations/000, 005→015`).
 - `scripts/staging-verify/`: behavioral harnesses (57-check gate/scanner/PDF
   matrix; 28-check SQL-function matrix) run against throwaway/staging data.
 
@@ -44,6 +44,6 @@ the Next.js server layer + PostgreSQL functions. See
 - Integer minor-unit money values; server-calculated totals; price snapshots.
 - Verified payment webhooks, idempotency, and reconciliation before ticket
   issuance (`ticketug.apply_payment_event` is the only issuance path).
-- No payment provider is hard-coded until provider selection is approved.
+- Payment providers are selected through the registry (`PAYMENT_PROVIDER` env; NylonPay registered since `c69e968`) — no provider is hard-coded into call sites.
 - `ticketug` is NOT exposed via PostgREST; the anon role holds zero privileges
   on it (verified Pair 5.1). No `NEXT_PUBLIC_*` variables exist.

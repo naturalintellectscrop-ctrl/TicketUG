@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { createInvitation, invitationInput, listInvitations } from '@/lib/invitations'
 import { requireTicketUGContext } from '@/lib/request-context'
+import { checkRateLimit, rateLimitKey } from '@/lib/rate-limit'
 
 export async function GET(_request: Request, { params }: { params: Promise<{ organizerId: string }> }) {
   try {
@@ -16,6 +17,8 @@ export async function GET(_request: Request, { params }: { params: Promise<{ org
 }
 
 export async function POST(request: Request, { params }: { params: Promise<{ organizerId: string }> }) {
+  const limited = checkRateLimit(rateLimitKey(request, 'invitation-create'), 10)
+  if (!limited.allowed) return NextResponse.json({ error: 'Too many requests. Please wait a minute and try again.' }, { status: 429, headers: { 'retry-after': String(Math.ceil((limited.retryAfterMs ?? 60_000) / 1000)) } })
   try {
     const context = await requireTicketUGContext()
     const { organizerId } = await params

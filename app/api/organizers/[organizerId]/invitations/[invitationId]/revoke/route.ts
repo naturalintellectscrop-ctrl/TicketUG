@@ -1,8 +1,11 @@
 import { NextResponse } from 'next/server'
 import { revokeInvitation } from '@/lib/invitations'
 import { requireTicketUGContext } from '@/lib/request-context'
+import { checkRateLimit, rateLimitKey } from '@/lib/rate-limit'
 
 export async function PATCH(_request: Request, { params }: { params: Promise<{ organizerId: string; invitationId: string }> }) {
+  const limited = checkRateLimit(rateLimitKey(_request, 'invitation-revoke'), 20)
+  if (!limited.allowed) return NextResponse.json({ error: 'Too many requests. Please wait a minute and try again.' }, { status: 429, headers: { 'retry-after': String(Math.ceil((limited.retryAfterMs ?? 60_000) / 1000)) } })
   try {
     const context = await requireTicketUGContext()
     const { organizerId, invitationId } = await params

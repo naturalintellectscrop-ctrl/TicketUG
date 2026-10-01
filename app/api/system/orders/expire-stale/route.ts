@@ -1,5 +1,6 @@
 import { NextRequest } from 'next/server'
-import { apiErrorResponse } from '@/lib/server/errors'
+import { timingSafeEqual } from 'node:crypto'
+import { apiErrorResponse, logServerError } from '@/lib/server/errors'
 import { expireStaleOrders } from '@/lib/server/orders'
 
 // Operator/cron sweep (Pair 6, Supabase-native). The sweep uses FOR UPDATE SKIP
@@ -9,21 +10,29 @@ import { expireStaleOrders } from '@/lib/server/orders'
 //
 // Authentication is fail-closed: when CRON_SECRET is unset the endpoint 401s
 // unconditionally, so it can never be silently unauthenticated. Two header
-// forms are accepted, both compared to the same secret:
+// forms are accepted, both compared to the same secret (constant-time):
 //   * x-cron-secret: <CRON_SECRET>          — operator/external schedulers
 //   * Authorization: Bearer <CRON_SECRET>   — Vercel Cron (its automatic form
 //     when the CRON_SECRET environment variable is configured)
+function secretMatches(secret: string, presented: string | null): boolean {
+  if (!presented) return false
+  const a = Buffer.from(secret, 'utf8')
+  const b = Buffer.from(presented, 'utf8')
+  return a.length === b.length && timingSafeEqual(a, b)
+}
+
 async function runSweep(request: NextRequest) {
   const secret = process.env.CRON_SECRET
   const header = request.headers.get('x-cron-secret')
   const bearer = request.headers.get('authorization')?.replace(/^Bearer\s+/i, '') ?? null
-  if (!secret || (header !== secret && bearer !== secret)) {
+  if (!secret || !(secretMatches(secret, header) || secretMatches(secret, bearer))) {
     return Response.json({ message: 'System endpoint authentication required' }, { status: 401 })
   }
   try {
     const body = (await request.json().catch(() => ({}))) as { limit?: number }
     return Response.json(await expireStaleOrders(body?.limit))
   } catch (error) {
+    logServerError('cron:expire-stale', error)
     return apiErrorResponse(error)
   }
 }

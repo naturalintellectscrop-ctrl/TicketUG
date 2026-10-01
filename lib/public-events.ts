@@ -1,5 +1,5 @@
 import { pool } from './db'
-import { sanitizeKeywords, type EventSortKey } from './event-categories'
+import { normalizeSortKey, sanitizeKeywords, type EventSortKey } from './event-categories'
 
 // Single source of truth for public event visibility. The public detail page,
 // the /events discovery index, and the landing-page listing all filter through
@@ -36,15 +36,13 @@ export type ResolvedListParams = {
   offset: number
 }
 
-const EVENT_SORT_KEYS = ['trending', 'newest', 'soonest'] as const
-
 export function resolveListParams(params: PublicEventListParams): ResolvedListParams {
   const rawSearch = typeof params.search === 'string' ? params.search.trim() : ''
   const search = rawSearch ? rawSearch.slice(0, 120) : null
   const keywords = sanitizeKeywords(params.keywords)
   const startsFrom = params.startsFrom instanceof Date && !Number.isNaN(params.startsFrom.getTime()) ? params.startsFrom : null
   const startsTo = params.startsTo instanceof Date && !Number.isNaN(params.startsTo.getTime()) ? params.startsTo : null
-  const sort = (EVENT_SORT_KEYS as readonly string[]).includes(params.sort ?? '') ? (params.sort as EventSortKey) : 'trending'
+  const sort = normalizeSortKey(params.sort ?? null)
   const parsedPage = Math.floor(Number(params.page ?? 1))
   const page = Number.isFinite(parsedPage) && parsedPage > 0 ? Math.min(parsedPage, 10_000) : 1
   const parsedSize = Math.floor(Number(params.pageSize ?? 12))

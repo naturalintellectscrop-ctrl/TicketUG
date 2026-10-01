@@ -29,7 +29,7 @@ response JSON shapes, status codes) is preserved endpoint-for-endpoint (see NEST
 | **Next.js server modules** (`lib/server/*.ts`, route handlers) | validation (zod), session resolution (`getTicketUGContext`), guest-token issuance/rotation (Node CSPRNG), payment **initiation** (provider call interleaves inside one transaction), reads with authz-in-SQL, QR/PDF rendering, error→HTTP mapping | Orchestration where an external call (future payment provider) must participate in the transaction, and where a trusted server holds DB credentials. NOT client code — the browser never talks to the DB. |
 | **Supabase Auth** (unchanged) | identity; sessions in HttpOnly/Secure/SameSite=Lax cookies; `supabase.auth.getUser()` validates server-side (refresh-aware) | already Supabase-native; no second auth system; no local JWT verification needed any more (no cross-service bearer forwarding) |
 | **PostgREST / supabase-js data access** | NOT used for `ticketug` | keeps the verified Pair-5.1 posture: `anon` has zero privileges on `ticketug`, schema not exposed; raw pg + TLS pinning retained (strict `rejectUnauthorized`, bundled Supabase Root CA) |
-| **Edge Functions** | **DEFERRED** (Case F) | the only candidate is a future LIVE payment provider's webhook; today's webhook is the staging-only test provider, served by a Next route. Deploying Edge Functions requires a Supabase access token this environment does not have. Documented in Future Improvements. |
+| **Edge Functions** | **DEFERRED** (Case F) | the only candidate is a LIVE payment provider's webhook; the NylonPay live webhook is served by the same Next route (`app/api/public/payments/webhooks/[provider]`) and works without Edge Functions. Deploying Edge Functions requires a Supabase access token this environment does not have. Documented in Future Improvements. |
 | **RLS** | **NOT expanded** (smallest secure surface = none new) | access path is unchanged: only the trusted server pool (postgres role) touches `ticketug`; enabling RLS on a role that bypasses it adds no guarantee while policies on 23 tables add risk. Re-audit trigger: if `ticketug` is ever exposed to PostgREST roles, RLS becomes mandatory first. |
 
 ## 3. Data-flow examples
@@ -55,7 +55,7 @@ Server-calculated totals (integer minor units, BigInt-safe) inside the SQL funct
 order_item and ticket rows; payment_attempt idempotency keys; webhook dedupe by (provider, provider_event_id);
 amount/currency/order-reference validation before any state change; payment vs order state separation with explicit
 state machines (payment.rules / order.rules — now also encoded in SQL guards); issuance only from `apply_payment_event`
-(never from a browser signal); **`TEST_PAYMENT_DISABLED` 503 in production preserved verbatim**; no live provider introduced.
+(never from a browser signal); **`TEST_PAYMENT_DISABLED` 503 in production preserved verbatim**; the live NylonPay adapter was added in `c69e968` through this same boundary.
 
 ## 5. Authorization model (unchanged, relocated)
 
@@ -78,7 +78,7 @@ transformer, reflect-metadata, rxjs, helmet, express from the API, jose), Swagge
 
 Vercel (Next.js) + Supabase (Postgres + Auth). No additional host. The migration runner (`pnpm migrate`) applies
 `012-supabase-native.sql` (functions) through the session pooler as today. `/api/health` + `/api/readiness`
-(升级: real SELECT 1) serve process/DB health. CORS is no longer needed on the API (same-origin); no cookie changes.
+(— real `SELECT 1`) serve process/DB health. CORS is no longer needed on the API (same-origin); no cookie changes.
 
 ## 8. Future Improvements (documented, NOT implemented — §31)
 

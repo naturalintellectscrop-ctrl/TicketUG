@@ -89,13 +89,16 @@ const tickets = (await pool.query(`SELECT t.public_id, t.status FROM ticketug.ti
 check('exactly 2 tickets issued for the 2-item order', tickets.length === 2 && tickets.every((t) => t.status === 'ISSUED'), JSON.stringify(tickets.map((t) => t.public_id.slice(0, 8))))
 
 // --- 4. cleanup + census -------------------------------------------------------
+// Every DELETE is scoped to the wire-test markers (MARK-prefixed emails, the
+// seeded event/organizer/profile ids). Nothing provider-wide: real webhook
+// audit rows and real check-ins must survive the wire test.
 await pool.query(`DELETE FROM ticketug.ticket WHERE order_id IN (SELECT id FROM ticketug.order WHERE purchaser_email LIKE '${MARK}%')`)
 await pool.query(`DELETE FROM ticketug.ticket_issuance_event WHERE order_id IN (SELECT id FROM ticketug.order WHERE purchaser_email LIKE '${MARK}%')`)
-await pool.query(`DELETE FROM ticketug.check_in WHERE ticket_id IN (SELECT id FROM ticketug.ticket WHERE order_id IS NULL)`)
+await pool.query(`DELETE FROM ticketug.check_in WHERE ticket_id IN (SELECT t.id FROM ticketug.ticket t JOIN ticketug.order o ON o.id = t.order_id WHERE o.purchaser_email LIKE '${MARK}%')`)
 await pool.query(`DELETE FROM ticketug.order_item WHERE order_id IN (SELECT id FROM ticketug.order WHERE purchaser_email LIKE '${MARK}%')`)
+await pool.query(`DELETE FROM ticketug.webhook_event WHERE payload->'payload'->>'reference' IN (SELECT provider_attempt_reference::text FROM ticketug.payment_attempt WHERE payment_id IN (SELECT id FROM ticketug.payment WHERE order_id IN (SELECT id FROM ticketug.order WHERE purchaser_email LIKE '${MARK}%')))`)
 await pool.query(`DELETE FROM ticketug.payment_attempt WHERE payment_id IN (SELECT id FROM ticketug.payment WHERE order_id IN (SELECT id FROM ticketug.order WHERE purchaser_email LIKE '${MARK}%'))`)
 await pool.query(`DELETE FROM ticketug.payment WHERE order_id IN (SELECT id FROM ticketug.order WHERE purchaser_email LIKE '${MARK}%')`)
-await pool.query(`DELETE FROM ticketug.webhook_event WHERE payload->'payload'->>'reference' IS NOT NULL AND provider = 'nylonpay'`)
 await pool.query(`DELETE FROM ticketug.order WHERE purchaser_email LIKE '${MARK}%'`)
 await pool.query(`DELETE FROM ticketug.ticket_type WHERE event_id = $1`, [eventId])
 await pool.query(`DELETE FROM ticketug.event WHERE id = $1`, [eventId])

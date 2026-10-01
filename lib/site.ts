@@ -4,7 +4,6 @@
 // getTicketUGContext) are functional contracts and intentionally stay as-is —
 // only the human-facing name is "Ticket Uganda".
 export const SITE_NAME = 'Ticket Uganda'
-export const SITE_LEGAL_NAME = 'Ticket Uganda · Natural Intellects Ltd'
 export const SITE_URL = (process.env.NEXT_PUBLIC_SITE_URL?.trim() || 'https://ticketug.vercel.app').replace(/\/$/, '')
 export const SITE_TAGLINE = 'Built for the moments that matter.'
 export const SITE_DESCRIPTION =

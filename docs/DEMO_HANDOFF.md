@@ -1,8 +1,8 @@
-# TicketUG Development Demo
+# Ticket Uganda Development Demo
 
 ## Purpose
 
-This is a development-only product walkthrough. Payment is simulated with the `test` adapter and no money moves. Live payment-provider support is not configured.
+This is a development-only product walkthrough for local demos. In production the live NylonPay provider handles payment when configured (`PAYMENT_PROVIDER=nylonpay` + secrets); without credentials the registry fails closed 503, and the `test` adapter runs ONLY outside production runtimes.
 
 ## Start-up requirements
 
@@ -36,8 +36,8 @@ The test payment action is only enabled outside production when `PAYMENT_MODE=te
 
 ## Known limitations
 
-- No live provider has been approved.
+- Live provider: NylonPay is approved and integrated (operator steps in DEPLOYMENT_MANUAL_STEPS BLOCKER 2d).
 - Refunds, settlements, ledger accounting, and reconciliation are not implemented.
 - PostgreSQL concurrency remains environment-unverified.
 - Physical camera decoding depends on the current browser/device; manual QR entry remains available.
-- Development credentials must be created through the configured Neon Auth flow; no production credentials are committed here.
+- Development credentials are created through Supabase Auth (dashboard or the sign-up route once "Allow new users to sign up" is enabled); no production credentials are committed here.

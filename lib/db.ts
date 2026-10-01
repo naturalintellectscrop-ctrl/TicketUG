@@ -36,7 +36,7 @@ function loadSupabaseCa(connectionString: string): string | undefined {
 // UNCAUGHT aggregate error, crashing the process before any try/catch can run.
 // A stub whose queries reject with a clear error keeps every surface honest:
 // pages render their designed error states instead of 500ing.
-const UNCONFIGURED_MESSAGE = 'DATABASE_URL is not configured — TicketUG is running without a database'
+const UNCONFIGURED_MESSAGE = 'DATABASE_URL is not configured — Ticket Uganda is running without a database'
 
 function unconfiguredPool(): Pool {
   const reject = () => Promise.reject(new Error(UNCONFIGURED_MESSAGE))

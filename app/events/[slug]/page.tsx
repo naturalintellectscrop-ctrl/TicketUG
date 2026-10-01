@@ -3,7 +3,9 @@ import type { Metadata } from 'next'
 import { notFound } from 'next/navigation'
 import { SiteHeader } from '@/components/site-header'
 import { pool } from '@/lib/db'
+import { logServerError } from '@/lib/server/errors'
 import { categoryForSlug } from '@/lib/event-categories'
+import { PUBLIC_EVENT_VISIBILITY_SQL } from '@/lib/public-events'
 import { SITE_NAME, SITE_URL } from '@/lib/site'
 
 export const dynamic = 'force-dynamic'
@@ -13,12 +15,13 @@ type TicketRow = { public_id: string; name: string; description: string; price_m
 
 async function loadPublicEvent(slug: string): Promise<{ event: PublicEventRow; tickets: TicketRow[] } | null> {
   try {
-    const result = await pool.query<PublicEventRow>('SELECT e.public_id, e.slug, e.title, e.description, e.timezone, e.starts_at, e.ends_at, e.lifecycle_state, o.name AS organizer_name, v.name AS venue_name, v.city AS venue_city, COALESCE(json_agg(json_build_object(\'url\',em.url,\'altText\',em.alt_text,\'mediaType\',em.media_type) ORDER BY em.sort_order) FILTER (WHERE em.id IS NOT NULL), \'[]\') AS media FROM ticketug.event e LEFT JOIN ticketug.organizer o ON o.id=e.organizer_id LEFT JOIN ticketug.venue v ON v.id=e.venue_id LEFT JOIN ticketug.event_media em ON em.event_id=e.id WHERE e.slug=$1 AND e.publication_state=\'PUBLIC\' AND e.discoverable=true GROUP BY e.id,o.name,v.name,v.city', [slug])
+    const result = await pool.query<PublicEventRow>(`SELECT e.public_id, e.slug, e.title, e.description, e.timezone, e.starts_at, e.ends_at, e.lifecycle_state, o.name AS organizer_name, v.name AS venue_name, v.city AS venue_city, COALESCE(json_agg(json_build_object('url',em.url,'altText',em.alt_text,'mediaType',em.media_type) ORDER BY em.sort_order) FILTER (WHERE em.id IS NOT NULL), '[]') AS media FROM ticketug.event e LEFT JOIN ticketug.organizer o ON o.id=e.organizer_id LEFT JOIN ticketug.venue v ON v.id=e.venue_id LEFT JOIN ticketug.event_media em ON em.event_id=e.id WHERE e.slug=$1 AND ${PUBLIC_EVENT_VISIBILITY_SQL} GROUP BY e.id,o.name,v.name,v.city`, [slug])
     const found = result.rows[0]
     if (!found) return null
-    const ticketResult = await pool.query<TicketRow>('SELECT t.public_id, t.name, t.description, t.price_minor_units, t.currency, t.remaining_capacity, t.sale_starts_at, t.sale_ends_at, t.active FROM ticketug.ticket_type t JOIN ticketug.event e ON e.id=t.event_id WHERE e.slug=$1 AND e.publication_state=\'PUBLIC\' AND e.discoverable=true AND t.active=true ORDER BY t.sort_order, t.created_at', [slug])
+    const ticketResult = await pool.query<TicketRow>(`SELECT t.public_id, t.name, t.description, t.price_minor_units, t.currency, t.remaining_capacity, t.sale_starts_at, t.sale_ends_at, t.active FROM ticketug.ticket_type t JOIN ticketug.event e ON e.id=t.event_id WHERE e.slug=$1 AND ${PUBLIC_EVENT_VISIBILITY_SQL} AND t.active=true ORDER BY t.sort_order, t.created_at`, [slug])
     return { event: found, tickets: ticketResult.rows }
-  } catch {
+  } catch (error) {
+    logServerError('page:events/[slug]', error)
     return null
   }
 }

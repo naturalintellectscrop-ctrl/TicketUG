@@ -6,6 +6,7 @@ import { pool } from '@/lib/db'
 import { listInvitations } from '@/lib/invitations'
 import { canManageOrganizer } from '@/lib/organizer-authorization'
 import { getTicketUGContext } from '@/lib/request-context'
+import { ArrowLeft } from 'lucide-react'
 
 export default async function MembersPage({ params }: { params: Promise<{ organizerId: string }> }) {
   const context = await getTicketUGContext()
@@ -31,7 +32,7 @@ export default async function MembersPage({ params }: { params: Promise<{ organi
   const invitations = canManage ? await listInvitations(context, organizerId) : []
   return (
     <main className="page-shell">
-      <p><Link href="/organizer" className="text-link">← Organizer workspaces</Link> · <Link href={`/organizer/${organizerId}/settings`} className="text-link">Workspace settings</Link></p>
+      <p><Link href="/organizer" className="text-link"><ArrowLeft size={14} strokeWidth={2.5} aria-hidden /> Organizer workspaces</Link> · <Link href={`/organizer/${organizerId}/settings`} className="text-link">Workspace settings</Link></p>
       <p className="eyebrow">Team</p>
       <h1>{organizer.rows[0].name}</h1>
       <p className="lede">Everyone with access to this workspace, plus the invitations on their way in.</p>

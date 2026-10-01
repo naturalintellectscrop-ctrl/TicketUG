@@ -2,7 +2,7 @@ import { createHash, randomBytes } from 'node:crypto'
 import { z } from 'zod'
 import { pool } from '@/lib/db'
 import { PAYMENT_WINDOW_MINUTES } from '@/lib/rules/order-rules'
-import { notFound, unauthorized } from '@/lib/server/errors'
+import { notFound } from '@/lib/server/errors'
 
 // Order domain — Supabase-native replacement for the removed NestJS
 // OrdersService. Reads are owner/guest-scoped single statements; the atomic
@@ -140,11 +140,4 @@ export async function expireStaleOrders(limit?: number): Promise<{ expiredCount:
   )
   const orders = (result.rows[0]?.result ?? []) as unknown as Array<{ publicId: string; orderNumber: string; status: string; inventoryRestored: number }>
   return { expiredCount: orders.length, windowMinutes: PAYMENT_WINDOW_MINUTES, orders }
-}
-
-// Input-shape guard for guest header surfaces (kept explicit so a missing
-// header never reaches SQL as an empty-string credential).
-export function requireGuestToken(token: string | null | undefined): string {
-  if (!token) throw unauthorized('Guest access token required')
-  return token
 }

@@ -26,9 +26,10 @@ export const metadata: Metadata = {
     description: SITE_DESCRIPTION
   },
   twitter: {
-    card: "summary_large_image",
-    title: "Ticket Uganda — Buy Event Tickets in Uganda",
-    description: SITE_DESCRIPTION
+    card: "summary_large_image"
+    // No title/description here: page-level titles (e.g. event names) must
+    // inherit into the Twitter card instead of being overridden by the
+    // site-wide default. The card image comes from app/opengraph-image.tsx.
   },
   robots: {
     index: true,

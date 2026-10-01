@@ -3,7 +3,8 @@ import { randomUUID } from 'node:crypto'
 import { canManageOrganizer } from '@/lib/organizer-authorization'
 import { staffAssignmentSchema } from '@/lib/gates'
 import { requireTicketUGContext } from '@/lib/request-context'
-import { pool } from '@/lib/db'
+import { checkRateLimit, rateLimitKey } from '@/lib/rate-limit'
+import { pool, withTransaction } from '@/lib/db'
 
 type RouteContext = { params: Promise<{ organizerId: string; eventId: string }> }
 
@@ -34,6 +35,8 @@ export async function GET(_: Request, { params }: RouteContext) {
 }
 
 export async function POST(request: Request, { params }: RouteContext) {
+  const limited = checkRateLimit(rateLimitKey(request, 'staff-assign'), 30)
+  if (!limited.allowed) return NextResponse.json({ error: 'Too many requests. Please wait a minute and try again.' }, { status: 429, headers: { 'retry-after': String(Math.ceil((limited.retryAfterMs ?? 60_000) / 1000)) } })
   try {
     const context = await requireTicketUGContext()
     const { organizerId, eventId } = await params
@@ -41,24 +44,31 @@ export async function POST(request: Request, { params }: RouteContext) {
     if (!(await loadEvent(organizerId, eventId))) return NextResponse.json({ error: 'Event not found' }, { status: 404 })
     const parsed = staffAssignmentSchema.safeParse(await request.json())
     if (!parsed.success) return NextResponse.json({ error: 'Invalid staff assignment' }, { status: 400 })
-    // Only active members of this organizer can be assigned as event staff.
-    const member = (await pool.query(`SELECT 1 FROM ticketug.organizer_member WHERE organizer_id = $1 AND user_profile_id = $2 AND status = 'ACTIVE'`, [organizerId, parsed.data.userProfileId])).rowCount
-    if (member !== 1) return NextResponse.json({ error: 'User is not an active member of this organizer' }, { status: 400 })
-    // Optional gate scope (Pair 1B): when provided, the gate must belong to this
-    // event and be active; omitting it keeps the legacy event-wide assignment.
-    const gateId = parsed.data.gateId ?? null
-    if (gateId) {
-      const gate = await pool.query(`SELECT 1 FROM ticketug.event_gate WHERE id = $1 AND event_id = $2 AND is_active = true`, [gateId, eventId])
-      if (gate.rowCount !== 1) return NextResponse.json({ error: 'Gate not found for this event (it may be disabled)' }, { status: 400 })
-    }
-    const result = await pool.query(
-      `INSERT INTO ticketug.event_staff_assignment (id, event_id, user_profile_id, gate_id, status)
-       VALUES ($1, $2, $3, $4, 'ACTIVE')
-       ON CONFLICT (event_id, user_profile_id) DO UPDATE SET status = 'ACTIVE', gate_id = EXCLUDED.gate_id
-       RETURNING id, event_id, user_profile_id, gate_id, status, created_at`,
-      [randomUUID(), eventId, parsed.data.userProfileId, gateId],
-    )
-    return NextResponse.json({ assignment: result.rows[0] }, { status: 201 })
+    // Assignment write is one transaction: the member-active and gate-scope
+    // prechecks plus the upsert stay consistent even under concurrent edits
+    // (same discipline as every other mutating route).
+    const assignment = await withTransaction(async (client) => {
+      // Only active members of this organizer can be assigned as event staff.
+      const member = (await client.query(`SELECT 1 FROM ticketug.organizer_member WHERE organizer_id = $1 AND user_profile_id = $2 AND status = 'ACTIVE' FOR UPDATE`, [organizerId, parsed.data.userProfileId])).rowCount
+      if (member !== 1) return { error: 'User is not an active member of this organizer' as const }
+      // Optional gate scope (Pair 1B): when provided, the gate must belong to this
+      // event and be active; omitting it keeps the legacy event-wide assignment.
+      const gateId = parsed.data.gateId ?? null
+      if (gateId) {
+        const gate = await client.query(`SELECT 1 FROM ticketug.event_gate WHERE id = $1 AND event_id = $2 AND is_active = true`, [gateId, eventId])
+        if (gate.rowCount !== 1) return { error: 'Gate not found for this event (it may be disabled)' as const }
+      }
+      const result = await client.query(
+        `INSERT INTO ticketug.event_staff_assignment (id, event_id, user_profile_id, gate_id, status)
+         VALUES ($1, $2, $3, $4, 'ACTIVE')
+         ON CONFLICT (event_id, user_profile_id) DO UPDATE SET status = 'ACTIVE', gate_id = EXCLUDED.gate_id
+         RETURNING id, event_id, user_profile_id, gate_id, status, created_at`,
+        [randomUUID(), eventId, parsed.data.userProfileId, gateId],
+      )
+      return { assignment: result.rows[0] }
+    })
+    if ('error' in assignment) return NextResponse.json({ error: assignment.error }, { status: 400 })
+    return NextResponse.json({ assignment: assignment.assignment }, { status: 201 })
   } catch (error) {
     if (error instanceof Error && error.message === 'UNAUTHENTICATED') return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     return NextResponse.json({ error: 'Unable to assign event staff' }, { status: 500 })
@@ -66,6 +76,8 @@ export async function POST(request: Request, { params }: RouteContext) {
 }
 
 export async function DELETE(request: Request, { params }: RouteContext) {
+  const limited = checkRateLimit(rateLimitKey(request, 'staff-assign'), 30)
+  if (!limited.allowed) return NextResponse.json({ error: 'Too many requests. Please wait a minute and try again.' }, { status: 429, headers: { 'retry-after': String(Math.ceil((limited.retryAfterMs ?? 60_000) / 1000)) } })
   try {
     const context = await requireTicketUGContext()
     const { organizerId, eventId } = await params

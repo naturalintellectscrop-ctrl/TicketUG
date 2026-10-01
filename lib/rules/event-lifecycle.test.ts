@@ -1,6 +1,9 @@
 import { describe, expect, it } from 'vitest'
-import { assertTransition, canTransition, publicationStateForTransition } from './event-lifecycle'
+import { canTransition } from './event-lifecycle'
 
+// The transition map here must stay in lockstep with the adjacency table
+// encoded inside ticketug.transition_event_lifecycle (migration 012) — the
+// route check is a fast-fail mirror of the database's authoritative copy.
 describe('event lifecycle', () => {
   it('allows the canonical forward flow', () => {
     expect(canTransition('DRAFT', 'PUBLISHED')).toBe(true)
@@ -11,14 +14,11 @@ describe('event lifecycle', () => {
   })
   it('rejects skipping states and reopening archived events', () => {
     expect(canTransition('DRAFT', 'SALES_OPEN')).toBe(false)
-    expect(() => assertTransition('ARCHIVED', 'PUBLISHED')).toThrow()
+    expect(canTransition('ARCHIVED', 'PUBLISHED')).toBe(false)
   })
-  it('preserves publication state for sales and event lifecycle transitions', () => {
-    expect(publicationStateForTransition('PUBLISHED')).toBe('PUBLIC')
-    expect(publicationStateForTransition('DRAFT')).toBe('PRIVATE')
-    expect(publicationStateForTransition('SALES_OPEN')).toBeUndefined()
-    expect(publicationStateForTransition('SALES_CLOSED')).toBeUndefined()
-    expect(publicationStateForTransition('EVENT_LIVE')).toBeUndefined()
-    expect(publicationStateForTransition('COMPLETED')).toBeUndefined()
+  it('keeps terminal states terminal', () => {
+    expect(canTransition('COMPLETED', 'COMPLETED')).toBe(false)
+    expect(canTransition('CANCELLED', 'PUBLISHED')).toBe(false)
+    expect(canTransition('ARCHIVED', 'ARCHIVED')).toBe(false)
   })
 })

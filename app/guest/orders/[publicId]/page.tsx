@@ -3,6 +3,7 @@
 import Link from 'next/link'
 import { useCallback, useEffect, useState } from 'react'
 import { buildRecoveryPath, guestTokenStorageKey, recoveryKeyFromSearch } from '@/lib/guest-order-access'
+import { ArrowLeft } from 'lucide-react'
 
 type GuestOrderItem = { ticketTypeId: string; ticketName: string; quantity: number; unitPriceMinorUnits: number; currency: string; lineTotalMinorUnits: number }
 type GuestOrder = { publicId: string; orderNumber: string; status: string; purchaserName: string; purchaserEmail: string; currency: string; totalMinorUnits: number; createdAt: string; updatedAt: string; cancelledAt: string | null; paymentExpiresAt: string | null; items: GuestOrderItem[] }
@@ -156,9 +157,9 @@ export default function GuestOrderPage({ params }: { params: Promise<{ publicId:
   }
 
   if (hasToken === false) {
-    return <main className="auth-page stack"><Link className="text-link" href="/">← Return home</Link><p className="eyebrow">Guest order status</p><h1>Access key needed</h1><section className="surface stack" aria-label="Access key required"><p>This order page is unlocked by a private access key. It lives in this browser if the order was placed here, or inside a recovery link like <code>/guest/orders/…?key=…</code>.</p><p className="muted">Reopen the confirmation page from the browser you ordered in, or ask the event organizer for help with your order reference.</p></section></main>
+    return <main className="auth-page stack"><Link className="text-link" href="/"><ArrowLeft size={14} strokeWidth={2.5} aria-hidden /> Return home</Link><p className="eyebrow">Guest order status</p><h1>Access key needed</h1><section className="surface stack" aria-label="Access key required"><p>This order page is unlocked by a private access key. It lives in this browser if the order was placed here, or inside a recovery link like <code>/guest/orders/…?key=…</code>.</p><p className="muted">Reopen the confirmation page from the browser you ordered in, or ask the event organizer for help with your order reference.</p></section></main>
   }
-  if (error) return <main className="auth-page stack"><Link className="text-link" href="/">← Return home</Link><p className="eyebrow">Guest order status</p><h1>Order unavailable</h1><p role="alert" className="error-text">{error}</p></main>
+  if (error) return <main className="auth-page stack"><Link className="text-link" href="/"><ArrowLeft size={14} strokeWidth={2.5} aria-hidden /> Return home</Link><p className="eyebrow">Guest order status</p><h1>Order unavailable</h1><p role="alert" className="error-text">{error}</p></main>
   if (!order) return <main className="auth-page"><p>Loading order…</p></main>
 
   const remaining = order.paymentExpiresAt ? new Date(order.paymentExpiresAt).getTime() - now : null
@@ -166,7 +167,7 @@ export default function GuestOrderPage({ params }: { params: Promise<{ publicId:
   const isActive = ACTIVE_STATUSES.includes(order.status)
 
   return <main className="auth-page stack">
-    <Link className="text-link" href="/">← Return home</Link>
+    <Link className="text-link" href="/"><ArrowLeft size={14} strokeWidth={2.5} aria-hidden /> Return home</Link>
     <p className="eyebrow">Guest order status</p>
     <div className="row-between">
       <h1>{order.orderNumber}</h1>

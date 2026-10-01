@@ -18,7 +18,6 @@ import {
   Palette,
   PartyPopper,
   Presentation,
-  Sparkles,
   Trophy,
   Users,
   UtensilsCrossed,
@@ -152,5 +151,3 @@ export function sanitizeKeywords(keywords: string[] | null | undefined): string[
   return cleaned
 }
 
-// Re-export so legacy imports keep a single icon surface for the "all" chip.
-export const ALL_EVENTS_ICON = Sparkles

@@ -6,33 +6,53 @@
 
 ---
 
-## 1. Current architecture (verified at source level)
+## 1. Current architecture (verified at source level, 2026-10-01 audit)
 
-Monorepo, pnpm@10.34.3 workspaces:
+Single Next.js 16 App Router application (React 19, TS 5.8), pnpm@10.34.3:
 
 ```
-/                        Next.js 16.3.5 App Router frontend (React 19, TS 5.8)
+/                        Next.js 16 App Router app — the ONLY application host (Vercel)
   app/                   Public/attendee/organizer/admin/scanner surfaces (server components + thin client islands)
-  app/api/               Next route handlers — the SECURITY BOUNDARY (session-aware, rate-limited proxies into Nest + direct raw-pg paths)
-  lib/                   Shared Next-side modules: auth, authorization ladder, invitations, members, organizer-settings,
-                         guest-order-access, safe-redirect, rate-limit, ics, request-context, db (raw pg pool) — each pure module ships its own vitest suite
-components/              Client islands (scanner-client, roster-manager, event-staff-manager, workspace-rename-form, …)
-apps/api/                NestJS 11 API (port per env; global prefix /api/v1)
-  src/ modules: audit, auth, check-ins, common, events, integration, orders, organizers, payments,
-                ticket-types, tickets, users, future-domains (empty placeholder manifest — NOT wired)
-docs/                    PHASE_3…PHASE_11 specs + audits, migrations/, API_AUTHENTICATION.md, ADRs
+  app/api/               Next route handlers — the SECURITY BOUNDARY (session-aware, rate-limited,
+                         all DB access via the ticketug SQL functions or owner-scoped raw SQL)
+  lib/                   Server layer + shared modules: auth (Supabase), request-context (role resolution),
+                         organizer-authorization, invitations, members, organizer-settings, guest-order-access,
+                         safe-redirect, rate-limit, ics, public-events, event-categories, rules/* (pure),
+                         server/* (orders, payments, tickets, check-ins, events, errors), payments/* (provider
+                         registry + NylonPay live adapter + non-production test provider), tickets/* (qr, pdf, contracts),
+                         db (raw pg pool, pinned Supabase CA)
+components/              Client islands (scanner-client, roster-manager, event-staff-manager, event-carousel,
+                         events-filter-bar, gate-manager, invitation-manager, workspace-rename-form, …)
+scripts/                 migrate.mjs (ledgered runner), staging-verify/ (SQL + behavioral harnesses),
+                         wire-nylonpay.mjs (end-to-end money-chain wire test), provision-platform-admin.mjs
+docs/                    PHASE_3…PHASE_11 (historical), migrations/ 000,005–015, ADRs, audits, runbooks
 ```
 
-- **Database**: Neon Postgres via raw `pg` (NO ORM). Schema lives in `ticketug.*`. Prisma is FORBIDDEN (a stale spec mentioned it; decision stands).
-- **Auth**: Neon Auth (Better Auth compatible). Next side `lib/auth.ts` + `lib/auth-secret.ts`; Nest side `apps/api/src/auth/neon-auth.ts`. Roles: `ticketug.platform_role` (PLATFORM_SUPPORT < PLATFORM_ADMIN < SUPER_ADMIN) and organizer roles (`ORGANIZER_OWNER` > `ORGANIZER_MANAGER` > `EVENT_STAFF`) in `organizer_member`.
-- **Authorization ladder**: pure functions in `lib/authorization.ts` (`canManageOrganizer`, `canManageMemberRole`) — imported directly into client components so the UI can never offer an action the API would refuse.
-- **Payments**: provider-agnostic abstraction + dev simulated/test pathway + webhook processing. **No live provider selected yet — provider selection is a GATE (directive §15).**
+- **Database**: Supabase Postgres via raw `pg` (NO ORM). Schema lives in `ticketug.*` (23 tables).
+  Prisma is FORBIDDEN (a stale spec mentioned it; decision stands). The NestJS API was REMOVED
+  (commit `4aa0859`); there is no `apps/` directory and no `/api/v1` prefix anywhere.
+- **Auth**: Supabase Auth (GoTrue) via `@supabase/ssr` — server-side password grant, HttpOnly/
+  Secure/SameSite=Lax cookie sessions; `lib/request-context.ts` re-validates every session with
+  `getUser()` and resolves roles fresh from the DB per request. Roles: `ticketug.platform_role`
+  (PLATFORM_SUPPORT < PLATFORM_ADMIN < SUPER_ADMIN) and organizer roles (`ORGANIZER_OWNER` >
+  `ORGANIZER_MANAGER` > `EVENT_STAFF`) in `organizer_member`. `lib/organizer-authorization.ts`
+  is the authority ladder (context-based; the old `lib/authorization.ts` module was removed in
+  the 2026-10-01 audit as dead code).
+- **Payments**: provider-agnostic registry (`lib/payments/provider.ts`) with the LIVE NylonPay
+  adapter registered (`lib/payments/nylonpay.ts`; HMAC webhook verification is implemented
+  in-repo, timing-safe, replay-windowed) and the non-production test provider (refused in
+  production runtimes: 503 TEST_PAYMENT_DISABLED). Issuance happens ONLY inside
+  `ticketug.apply_payment_event` after a signature-verified webhook event.
+- **Brand**: the human-facing name is **"Ticket Uganda"** (see `lib/site.ts`); product/code
+  identifiers (`ticketug` schema, `ticketug:v1:` QR prefix, `ticketug-ticket-*.pdf` filenames,
+  `@ticketug.ug` ICS UID domain, `getTicketUGContext` helpers) are intentional contracts.
 
 ## 2. Current branch / commit / canonical state
 
 - **Canonical branch: `main`** on `https://github.com/naturalintellectscrop-ctrl/TicketUG`.
-- **HEAD: Pair 1 (this commit) — local main = origin/main (push auth lives only in the clone's `.git/config`, never in tracked files).**
-- Pair-1 chain: `dbca44c` (dependency audit) → **this commit** (public event discovery + gate-level access; see §14 + CHANGELOG).
+- **Working policy: single branch — `main` is pushed after every verified round; no other branch exists locally or on origin (verified 2026-10-01).**
+- **HEAD (2026-10-01 audit): `fb18547` + the audit remediation commit — see `docs/FINAL_PRODUCTION_READINESS_AUDIT.md` for the full evidence matrix.**
+- History highlights: Pair 6 removed NestJS (Supabase-native backend, migrations 012+); `c69e968` landed the NylonPay live provider (migrations 013–015); `2b2db65`/`e1854e4` were the pictures/filters/discovery passes; `fb18547` rebranded to "Ticket Uganda" with the SEO foundation.
 - Working tree policy: main is always pushed after every verified round; backup branches `cron/round-N-*` exist per round.
 
 ### Branch reconciliation table (directive §4 — completed 2026-09-26)
@@ -116,26 +136,26 @@ Sandbox ceiling: **Level 2 + targeted auth-guard live smoke (401/307/429)**. Lev
 | Migrations | PARTIAL | 1 (source) | 005–010 present, deterministic, manual psql; **001–004 untracked; NO runner** — see §9 |
 | Security hardening | STRONG | 2 | Rate limits per surface, secrets fail-closed, token hashing, webhooks verified, PII gates, security_event audit trail |
 
-## 7. Environment requirements
+## 7. Environment requirements (current — 2026-10-01)
 
-- `DATABASE_URL` (Neon Postgres, `ticketug` schema), `BETTER_AUTH_SECRET` (≥32 chars — **enforced both tiers now**), `NEON_AUTH_BASE_URL` (or VITE_NEON_AUTH_URL), `CRON_SECRET` (sweeper; unset ⇒ sweep endpoint 401s — fails closed), payment mode/credentials (dev simulated only until provider selected).
-- pnpm 10.34.3 via corepack shims (`/usr/lib/node_modules/corepack/shims/pnpm` in the dev sandbox).
-- `pnpm build` is blocked without `BETTER_AUTH_SECRET` **by design** — deployment env only.
-- Verification chain per change: `pnpm test` · `pnpm api:test` · `pnpm typecheck` · `pnpm lint` · `pnpm api:build`.
+- `DATABASE_URL` (Supabase Postgres session pooler, `ticketug` schema, strict TLS with the bundled CA), `SUPABASE_URL`, `SUPABASE_ANON_KEY`, `NEXT_PUBLIC_SITE_URL` (canonical origin — required once the production domain exists), `CRON_SECRET` (sweeper; unset ⇒ sweep endpoint 401s — fails closed), `PAYMENT_PROVIDER=nylonpay` + `NYLONPAY_API_KEY` / `NYLONPAY_API_SECRET` / `NYLONPAY_WEBHOOK_SECRET` for live payments (fail closed 503 without them), optional `PAYMENT_WINDOW_MINUTES` (clamped 1..120, default 15).
+- `PAYMENT_MODE` / `PAYMENT_TEST_WEBHOOK_SECRET` must stay UNSET in production (test provider refuses production runtimes anyway).
+- pnpm 10.34.3 via corepack. `pnpm build` is green with no env set.
+- Verification chain per change: `pnpm test` (vitest unit+application) · `pnpm typecheck` · `pnpm lint` · `pnpm build` · plus `scripts/staging-verify/` harnesses against a real/staging DB when DB credentials are available (`verify-sql-functions.ts`, `verify-gates.ts`; pass the real `DATABASE_URL` + `PAYMENT_MODE=test` + `--allow-remote`).
+- Full variable table: `docs/DEPLOYMENT_ENVIRONMENT.md` + `.env.example`.
 
-## 8. Payment status / authentication status / production readiness
+## 8. Payment status / authentication status / production readiness (current — 2026-10-01)
 
-- **Payment**: simulated/test pathway complete incl. webhooks and state machine; amount/currency/order-reference verification on the webhook path; browser redirects never authoritative. Live provider: NOT SELECTED — produce a ≥3-provider decision matrix (Uganda availability, MoMo, split settlement, settlement timing, fees, webhooks) before any integration. NyloPay is a candidate only.
-- **Authentication**: Neon Auth on both tiers; per-request role resolution; production fail-closed on weak/missing secrets (both tiers, unit-tested); no auth bypasses for testing convenience.
-- **Production readiness: NOT READY.** Test-path product logic is strong (Level 2), but Levels 3–6 (real DB, browser, E2E, production) are unproven, migrations 001–004 are unreproducible, no migration runner, no live payments, no PDF tickets, no discovery surface. Do not ship.
-- **2026-09-28 Phase C dependency audit: COMPLETE — see §12.** Production readiness unchanged (NOT READY). Single next implementation batch: public event discovery + visibility list architecture.
+- **Payment**: the LIVE NylonPay provider is registered and deployed (`c69e968`): mobile-money collect initiation, in-repo timing-safe HMAC webhook verification with replay window, PROCESSING events recorded as IGNORED (migration 013/014), full state machine + issuance in `ticketug.apply_payment_event`. Wire test: 17/17 against the real API (see DEPLOYMENT_MANUAL_STEPS.md for the dashboard-reading guide). The non-production test provider remains for local dev, refused in production. Registration of the webhook URL in the merchant dashboard + production env vars is an operator step (BLOCKER 2d).
+- **Authentication**: Supabase Auth (server-side password grant, HttpOnly cookie sessions, per-request re-validation + role resolution, fail-closed everywhere). **Outstanding operator blocker: "Allow new users to sign up" must be ON in the Supabase dashboard (BLOCKER 2c) — signup 400s until it is flipped.**
+- **Production readiness: see `docs/FINAL_PRODUCTION_READINESS_AUDIT.md`** — the 2026-10-01 forensic audit with the area-by-area evidence matrix and the final verdict. Earlier snapshots below are historical.
 
-## 9. Database / migration status (KNOWN BLOCKER — do not "fix" carelessly)
+## 9. Database / migration status (current — 2026-10-01)
 
-- Tracked: `005-events`, `006-ticket-types`, `007-orders`, `008-payments` (repaired CHECK + payment-state CHECK + partial expiry index), `009-tickets`, `010-check-in`. Forward-only, manually applied (psql). **No runner.**
-- **001–004 are absent from the repo** — `organizer`, `user_profile`, `organizer_member`, `organizer_invitation` DDL is untracked. The code deliberately writes defensively around unknown CHECK constraints (membership removal DELETEs rows; invitation revoke expires-in-place; no invented status values).
-- **Do NOT fabricate 001–004 or add a runner blind** — rebuilding these tables wrong against the real Neon DB would be destructive. Recovery requires access to the real database (`pg_dump --schema-only`) or NI's original SQL. Until then: fresh-database setup does NOT work from the repo alone.
-- Never use production DB as a test DB. Never write destructive migrations without explicit justification.
+- Runner: `scripts/migrate.mjs` (ledgered in `ticketug.migration`, checksum-verified, transactional). Status any time: `pnpm migrate:status`.
+- Files: `docs/migrations/` holds `000-base-foundation.sql` (the Pair-5 reconstruction — identity/organizer/invitation/event DDL), then `005`–`012` (events, ticket types, orders, payments, tickets, check-in, gates, SQL functions + PostgREST hardening), `013` (NylonPay: purchaser_phone, search_path pinning, PROCESSING→IGNORED), `014` (webhook_event IGNORED status), `015` (drop of the obsolete 7-arg `create_order` overload). 001–004 were never recovered and are superseded by `000`.
+- Production ledger count after applying everything: **12/12 applied (000, 005–015)**.
+- Never use production DB as a test DB. Never write destructive migrations without explicit justification (014/015 were reviewed, targeted drops).
 
 ## 10. Roadmap position & next recommended task
 
@@ -163,14 +183,21 @@ Then Phase D (full core journey test, needs real env) → Phase E (readiness gat
 - The raw-pg security boundary (`lib/*` + Next route handlers as the session-aware gate). No Prisma. No direct Nest mutations outside it.
 - The authority ladder (`canManageOrganizer`/`canManageMemberRole`) and the pure-decision test pattern (no mocks).
 - DELETE-based membership removal and expire-in-place invitation revocation (CHECK-constraint-unknown defensive design).
-- Webhook signature verification, `assertOrderTransition` state machine, guarded inventory restore, FOR UPDATE/SKIP LOCKED expiry sweep.
+- Webhook signature verification (timing-safe, in-repo), the SQL state machines (`ticketug.apply_payment_event`), guarded inventory decrement/restore, FOR UPDATE/SKIP LOCKED expiry sweep.
 - Production fail-closed secrets (both tiers), rate limits, invited-email binding, safe `?next=`.
 - The **gate conceptual model**: staff assignment → event+gate; ticket type → permitted gates; backend decides gate permission (implement in Pair 3A without duplicating scanner logic).
 - No fake metrics, no placeholder buttons, no invented business/status values, no committed secrets, no new `apps/api/dist` artifacts.
 - The **shared public-visibility predicate** (`lib/public-events.ts` `PUBLIC_EVENT_VISIBILITY_SQL`) — every public listing/filter must go through it; never fork a second visibility rule.
-- The **shared gate rules seam** (`apps/api/src/check-ins/gate.rules.ts`) — both scanners import it; the fail-closed semantics (unmapped ticket type = rejected at every active gate; deleted/disabled gate = scanners fail closed, assignments never widened) must survive any refactor.
+- The **shared gate rules seam** (`lib/rules/gate-rules.ts`) — the scanner server module imports it; the fail-closed semantics (unmapped ticket type = rejected at every active gate; deleted/disabled gate = scanners fail closed, assignments never widened) must survive any refactor.
 
 ## 12. Core Completion Dependency Matrix (Phase C audit, 2026-09-28)
+
+> **HISTORICAL RECORD (2026-09-28, baseline `f5e31de`).** Written before the NestJS removal and
+> the NylonPay integration. Code anchors citing Nest files (`payments.service.ts`, `tickets.service.ts`,
+> `check-ins.service.ts`) are stale — the live implementations are `lib/server/*`, `lib/payments/*`,
+> and the `ticketug.*` SQL functions. Rows 6/8/9/10 (live provider, PDF, discovery, migration runner)
+> are CLOSED as of `fb18547`. Kept for decision provenance; for current state read
+> `docs/FINAL_PRODUCTION_READINESS_AUDIT.md`.
 
 Evidence-based audit of the 20 remaining CORE production requirements. Every state below was verified against the code at `f5e31de` (file:line evidence in the sandbox worklog, Task 17). Verification levels per §25; "SOURCE-verified absence" means exhaustive searches confirmed the capability does not exist anywhere in the repo.
 

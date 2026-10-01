@@ -44,14 +44,14 @@
   admin-bypass), gate-deletion CASCADE fail-closed, DB-backed owner+guest PDFs
   with wrong-token refusal.
 - **Pre-launch data state confirmed before harness runs:** all ticketug data
-  tables 0 rows, migration ledger 9/9 (000, 005–012), `auth.users` = 0.
+  tables 0 rows, migration ledger 12/12 (000, 005–015) as of 2026-10-01, `auth.users` = 0 until the owner creates the platform-admin account.
   **Post-harness census re-verified:** 0 data rows, ledger untouched,
   `auth.users` untouched — zero test artifacts (harness records were
   truncated using the harness's own documented reset list).
 
 ### Automated pipeline (this gate, this commit)
 
-- **Tests:** vitest **103/103 passed** (17 files)
+- **Tests:** vitest **137/137 passed** (19 files) at `fb18547`; re-baselined at 126/126 (18 files) in the 2026-10-01 audit after dead test-code removal
 - **Typecheck:** PASS (`tsc --noEmit`)
 - **Lint:** PASS (`eslint .`)
 - **Build:** PASS (`next build` — all routes compiled)
@@ -92,7 +92,7 @@
 
 ## 3. DEFERRED (intentionally not implemented in this gate)
 
-- **Live payment provider** (Flutterwave/MTN MoMo/etc.) — the production
+- ~~Live payment provider~~ — **CLOSED 2026-09-30:** NylonPay approved and integrated (`c69e968`); merchant-side registration of the webhook URL + production env vars remain operator steps (DEPLOYMENT_MANUAL_STEPS BLOCKER 2d). ~~(Flutterwave/MTN MoMo/etc.)~~ — the production
   fail-closed boundary stays until NI approves a provider (CONTINUITY §12
   row 6); an Edge Function for its webhook is the documented extension point.
 - **Refunds, settlements, ledger/reconciliation, notifications** — documented
@@ -124,7 +124,8 @@
 | `NEXT_PUBLIC_SUPABASE_URL` / `NEXT_PUBLIC_*` | NOT REQUIRED — browser never calls Supabase | n/a | n/a | n/a | do NOT set |
 | `CRON_SECRET` | RECOMMENDED (sweep 401s without it) | Server (Next.js) | Secret | generated (`openssl rand -hex 32`) | NI sets in Vercel |
 | `PAYMENT_WINDOW_MINUTES` | Optional (clamped 1..120, default 15) | Server | Public | operator choice | optional |
-| `PAYMENT_MODE` / `PAYMENT_PROVIDER` / `PAYMENT_TEST_WEBHOOK_SECRET` | MUST BE UNSET in production (fail-closed boundary) | Server | n/a | n/a | do NOT set |
+| `PAYMENT_MODE` / `PAYMENT_TEST_WEBHOOK_SECRET` | MUST BE UNSET in production (test provider is refused in production runtimes regardless) | Server | n/a | n/a | do NOT set |
+| `PAYMENT_PROVIDER` / `NYLONPAY_API_KEY` / `NYLONPAY_API_SECRET` / `NYLONPAY_WEBHOOK_SECRET` | REQUIRED for live payments (`PAYMENT_PROVIDER=nylonpay` + the three NylonPay secrets; fail-closed 503 `PROVIDER_NOT_CONFIGURED` without them) | Server | n/a | n/a | set from the NylonPay merchant dashboard |
 | `SUPABASE_CA_CERT` | Optional override | Server | Public (path) | only on CA rotation | unset |
 | `TEST_DATABASE_URL` | Tests only (never production) | Test | Secret | throwaway DB | unset |
 | `API_ORIGIN` / `WEB_ORIGIN` / `API_PORT` / `API_HOST` | OBSOLETE (removed since Pair 6) | n/a | n/a | n/a | removed from local `.env`; do NOT set |

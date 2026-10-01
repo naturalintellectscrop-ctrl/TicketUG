@@ -1,6 +1,7 @@
 import type { MetadataRoute } from 'next'
 import { SITE_URL } from '@/lib/site'
 import { listPublicEvents } from '@/lib/public-events'
+import { logServerError } from '@/lib/server/errors'
 
 export const dynamic = 'force-dynamic'
 
@@ -23,7 +24,8 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       changeFrequency: 'daily' as const,
       priority: 0.8
     }))]
-  } catch {
+  } catch (error) {
+    logServerError('sitemap', error)
     return staticEntries
   }
 }

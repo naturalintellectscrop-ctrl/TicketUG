@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import { z } from 'zod'
 import { randomUUID } from 'node:crypto'
 import { requireTicketUGContext } from '@/lib/request-context'
+import { checkRateLimit, rateLimitKey } from '@/lib/rate-limit'
 import { pool, withTransaction } from '@/lib/db'
 
 const organizerSchema = z.object({
@@ -10,6 +11,8 @@ const organizerSchema = z.object({
 })
 
 export async function POST(request: Request) {
+  const limited = checkRateLimit(rateLimitKey(request, 'organizer-create'), 10)
+  if (!limited.allowed) return NextResponse.json({ error: 'Too many requests. Please wait a minute and try again.' }, { status: 429, headers: { 'retry-after': String(Math.ceil((limited.retryAfterMs ?? 60_000) / 1000)) } })
   try {
     const context = await requireTicketUGContext()
     const parsed = organizerSchema.safeParse(await request.json())

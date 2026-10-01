@@ -6,6 +6,7 @@ import { useEffect, useState } from 'react'
 import { buildEventIcs } from '@/lib/ics'
 import { guestTokenStorageKey } from '@/lib/guest-order-access'
 import { DownloadTicketPdfButton } from '@/components/download-ticket-pdf'
+import { ArrowLeft } from 'lucide-react'
 
 type Ticket = { eventTitle: string; eventStartsAt: string; eventEndsAt: string; venueName: string | null; venueCity: string | null; ticketTypeName: string; attendeeName: string; status: string; publicId: string; qrDataUrl?: string }
 
@@ -24,7 +25,7 @@ export default function GuestTicketPage({ params }: { params: Promise<{ publicId
   function downloadCalendar() {
     if (!ticket) return
     try {
-      const ics = buildEventIcs({ uid: `${ticket.publicId}@ticketug.ug`, title: `${ticket.eventTitle} — ${ticket.ticketTypeName} (${ticket.attendeeName})`, startsAt: ticket.eventStartsAt, endsAt: ticket.eventEndsAt, location: [ticket.venueName, ticket.venueCity].filter(Boolean).join(', ') || null, description: `Ticket ${ticket.publicId} · show the QR credential at the entrance scan point · TicketUG by Natural Intellects Ltd` })
+      const ics = buildEventIcs({ uid: `${ticket.publicId}@ticketug.ug`, title: `${ticket.eventTitle} — ${ticket.ticketTypeName} (${ticket.attendeeName})`, startsAt: ticket.eventStartsAt, endsAt: ticket.eventEndsAt, location: [ticket.venueName, ticket.venueCity].filter(Boolean).join(', ') || null, description: `Ticket ${ticket.publicId} · show the QR credential at the entrance scan point · Ticket Uganda by Natural Intellects Ltd` })
       const blob = new Blob([ics], { type: 'text/calendar;charset=utf-8' })
       const url = URL.createObjectURL(blob)
       const anchor = document.createElement('a')
@@ -40,7 +41,7 @@ export default function GuestTicketPage({ params }: { params: Promise<{ publicId
   if (!ticket) return <main className="auth-page"><p>Loading ticket…</p></main>
   const venue = ticket.venueName ?? 'Venue to be announced'
   return <main className="auth-page stack">
-    <Link className="text-link" href={orderPublicId ? `/guest/orders/${orderPublicId}` : '/'}>← Back to order</Link>
+    <Link className="text-link" href={orderPublicId ? `/guest/orders/${orderPublicId}` : '/'}><ArrowLeft size={14} strokeWidth={2.5} aria-hidden /> Back to order</Link>
     <p className="eyebrow">Guest digital ticket</p>
     <div className="row-between">
       <h1>{ticket.eventTitle}</h1>

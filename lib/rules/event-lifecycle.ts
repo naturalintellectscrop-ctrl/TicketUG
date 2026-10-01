@@ -16,13 +16,3 @@ const transitions: Record<EventLifecycleState, readonly EventLifecycleState[]> =
 export function canTransition(from: EventLifecycleState, to: EventLifecycleState) {
   return transitions[from]?.includes(to) ?? false
 }
-
-export function assertTransition(from: EventLifecycleState, to: EventLifecycleState) {
-  if (!canTransition(from, to)) throw new Error(`Invalid event lifecycle transition: ${from} -> ${to}`)
-}
-
-export function publicationStateForTransition(to: EventLifecycleState) {
-  if (to === 'PUBLISHED') return 'PUBLIC' as const
-  if (to === 'DRAFT') return 'PRIVATE' as const
-  return undefined
-}
