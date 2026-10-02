@@ -1,6 +1,5 @@
 import Link from 'next/link'
 import { ArrowUpRight } from 'lucide-react'
-import { WelcomeHero } from '@/components/welcome-hero'
 import { AlertList, Metric, StatusPill, UnavailablePanel, stateTone } from '@/components/platform/ui'
 import { derivePlatformAlerts } from '@/lib/platform/alerts'
 import { loadPlatformMetrics, loadRecentActivity } from '@/lib/platform/queries'
@@ -10,17 +9,18 @@ export const dynamic = 'force-dynamic'
 
 /**
  * Platform overview — the screen the platform owner lands on right after
- * signing in. Every number is read live from the database; when the database
- * cannot be reached the page says so instead of rendering zeros, and the
- * alert strip is derived (lib/platform/alerts.ts) purely from those real
- * counters.
+ * signing in. The console opens straight into operations: the marketing
+ * welcome hero lives only on the customer signed-in screen (/account),
+ * never on this admin surface. Every number is read live from the database;
+ * when the database cannot be reached the page says so instead of rendering
+ * zeros, and the alert strip is derived (lib/platform/alerts.ts) purely from
+ * those real counters.
  */
 export default async function PlatformOverviewPage() {
   const [metrics, recent] = await Promise.all([loadPlatformMetrics(), loadRecentActivity()])
 
   return (
     <main>
-      <WelcomeHero />
       <div className="platform-shell">
         <header className="section-heading">
           <div>
