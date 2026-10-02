@@ -1,4 +1,5 @@
 import Link from 'next/link'
+import { PageHeader, SectionHead } from '@/components/console/page-head'
 import { Metric, UnavailablePanel } from '@/components/platform/ui'
 import { loadCheckInOverview } from '@/lib/platform/queries'
 import { formatDateTime } from '@/lib/platform/format'
@@ -14,30 +15,28 @@ export default async function PlatformCheckInsPage() {
   const totalScans = overview?.perEvent.reduce((sum, event) => sum + event.checkedIn, 0) ?? 0
 
   return (
-    <main className="platform-shell">
-      <header className="section-heading">
-        <div>
-          <p className="eyebrow">Verified entry</p>
-          <h1>Check-ins</h1>
-          <p className="lede">What the gates have actually verified, straight from the check-in registry. Each ticket can check in exactly once — the database enforces it, so these numbers are the door&apos;s truth.</p>
-        </div>
-      </header>
+    <>
+      <PageHeader
+        crumb="Operations"
+        title="Check-ins"
+        lede="What the gates have actually verified, straight from the check-in registry. Each ticket can check in exactly once — the database enforces it, so these numbers are the door&apos;s truth."
+      />
 
       {overview === null ? (
         <UnavailablePanel what="Check-in data" />
       ) : (
         <>
-          <section className="platform-section">
+          <section className="console-section" aria-label="Gate activity totals" style={{ marginTop: 0 }}>
             <div className="metric-grid">
-              <Metric label="Verified entries" value={totalScans.toLocaleString('en-UG')} note="Sum over events with activity" />
+              <Metric accent label="Verified entries" value={totalScans.toLocaleString('en-UG')} note="Sum over events with activity" />
               <Metric label="Events with check-ins" value={overview.perEvent.length.toLocaleString('en-UG')} note="Events seen at a gate" />
               <Metric label="Active scanners" value={overview.scanners.length.toLocaleString('en-UG')} note="Staff who have scanned" />
               <Metric label="Duplicate attempts" value="Not recorded" note="Rejected at write time by the registry — never persisted" />
             </div>
           </section>
 
-          <section className="platform-section">
-            <div className="section-heading"><div><p className="eyebrow">By event</p><h2>Gate totals</h2></div></div>
+          <section className="console-section" aria-label="Gate totals by event">
+            <SectionHead title="Gate totals" note="By event" />
             {overview.perEvent.length === 0 ? <p className="muted empty-state">No check-ins anywhere on the platform yet.</p> : (
               <div className="platform-scroll">
                 <table className="platform-table">
@@ -59,8 +58,8 @@ export default async function PlatformCheckInsPage() {
             )}
           </section>
 
-          <section className="platform-section">
-            <div className="section-heading"><div><p className="eyebrow">People</p><h2>Scanners &amp; latest scans</h2></div></div>
+          <section className="console-section" aria-label="Scanners and latest scans">
+            <SectionHead title="Scanners &amp; latest scans" note="People" />
             <div className="admin-columns">
               <article className="surface stack">
                 <p className="eyebrow">Most active scanners</p>
@@ -84,6 +83,6 @@ export default async function PlatformCheckInsPage() {
           </section>
         </>
       )}
-    </main>
+    </>
   )
 }

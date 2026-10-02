@@ -213,6 +213,14 @@ pristine).
   collects the **mobile money number** (`order.purchaser_phone`) — the
   prompt goes to that number; orders without it refuse initiation
   (422 CUSTOMER_PHONE_REQUIRED).
+- **Migration 016 (developer API keys) — required for the Developer API:**
+  run `pnpm migrate` (ledger-pinned runner) against the deployment database.
+  Until it is applied, the organizer *API & Webhooks* page, the platform
+  *API & Integrations* page and every `/api/v1/*` route answer with an honest
+  `API_NOT_PROVISIONED` 503 / "not provisioned" panel — nothing is faked.
+  After it, workspace owners/managers issue keys at
+  `/organizer/<workspace>/api`; the public contract is `/developers` +
+  `/openapi.json`.
 - **AFTER SAVING:** redeploy (env vars only apply to new builds), then run
   one real 500-UGX sandbox/live-key transaction from `/events` to confirm
   the prompt arrives and the webhook flips the order to PAID.

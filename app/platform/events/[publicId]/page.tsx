@@ -1,5 +1,6 @@
 import Link from 'next/link'
 import { notFound } from 'next/navigation'
+import { PageHeader, SectionHead } from '@/components/console/page-head'
 import { StatusPill, stateTone } from '@/components/platform/ui'
 import { loadPlatformEventDetail } from '@/lib/platform/queries'
 import { formatDateTime, formatMoney, labelOf, LIFECYCLE_LABELS } from '@/lib/platform/format'
@@ -16,32 +17,31 @@ export default async function PlatformEventDetailPage({ params }: { params: Prom
   const { event, ticketTypes, gates, staff, orders, checkIns, sales } = detail
 
   return (
-    <main className="platform-shell">
-      <p><Link href="/platform/events" className="text-link">← All events</Link></p>
-      <header className="section-heading">
-        <div>
-          <p className="eyebrow">{event.organizerName} · {event.publicId}</p>
-          <h1>{event.title}</h1>
-          <p className="lede">{formatDateTime(event.startsAt)} → {formatDateTime(event.endsAt)} · {event.timezone} · {event.venueName ?? 'no venue'}</p>
-          <div className="row" style={{ marginTop: 10 }}>
-            <StatusPill tone={event.publicationState === 'PUBLIC' ? 'ok' : 'info'}>{event.publicationState === 'PUBLIC' ? 'Public listing' : 'Private listing'}</StatusPill>
-            <StatusPill tone={stateTone(event.lifecycleState)}>{labelOf(LIFECYCLE_LABELS, event.lifecycleState)}</StatusPill>
-            {event.discoverable && <StatusPill tone="brand">Discoverable</StatusPill>}
-          </div>
-        </div>
-      </header>
+    <>
+      <PageHeader
+        crumb="Events"
+        title={event.title}
+        lede={`${formatDateTime(event.startsAt)} → ${formatDateTime(event.endsAt)} · ${event.timezone} · ${event.venueName ?? 'no venue'} · ${event.publicId}`}
+        actions={<Link className="button button-quiet" href="/platform/events">All events</Link>}
+      />
 
-      <section className="platform-section">
+      <div className="row" style={{ margin: '-10px 0 6px' }}>
+        <StatusPill tone={event.publicationState === 'PUBLIC' ? 'ok' : 'info'}>{event.publicationState === 'PUBLIC' ? 'Public listing' : 'Private listing'}</StatusPill>
+        <StatusPill tone={stateTone(event.lifecycleState)}>{labelOf(LIFECYCLE_LABELS, event.lifecycleState)}</StatusPill>
+        {event.discoverable && <StatusPill tone="brand">Discoverable</StatusPill>}
+      </div>
+
+      <section className="console-section" aria-label="Sales and entry" style={{ marginTop: 18 }}>
         <div className="metric-grid">
           <article className="surface metric-card"><p className="eyebrow">Paid orders</p><strong>{(sales?.paidOrderCount ?? 0).toLocaleString('en-UG')}</strong><p className="muted">Orders with payment_state PAID</p></article>
-          <article className="surface metric-card"><p className="eyebrow">Collected on this event</p><strong>{formatMoney(sales?.paidRevenueMinor ?? 0)}</strong><p className="muted">Paid order totals · pre-fee</p></article>
+          <article className="surface metric-card" data-accent="true"><p className="eyebrow">Collected on this event</p><strong>{formatMoney(sales?.paidRevenueMinor ?? 0)}</strong><p className="muted">Paid order totals · pre-fee</p></article>
           <article className="surface metric-card"><p className="eyebrow">Tickets issued</p><strong>{(sales?.ticketsIssued ?? event.ticketsIssued).toLocaleString('en-UG')}</strong><p className="muted">{event.ticketTypeCount} ticket types</p></article>
           <article className="surface metric-card"><p className="eyebrow">Checked in</p><strong>{(sales?.checkedIn ?? 0).toLocaleString('en-UG')}</strong><p className="muted">Verified entries at gates</p></article>
         </div>
       </section>
 
-      <section className="platform-section">
-        <div className="section-heading"><div><p className="eyebrow">Inventory</p><h2>Ticket types</h2></div></div>
+      <section className="console-section" aria-label="Ticket types">
+        <SectionHead title="Inventory" note="Ticket types" />
         {ticketTypes.length === 0 ? <p className="muted empty-state">No ticket types configured yet.</p> : (
           <div className="platform-scroll">
             <table className="platform-table">
@@ -63,8 +63,8 @@ export default async function PlatformEventDetailPage({ params }: { params: Prom
         )}
       </section>
 
-      <section className="platform-section">
-        <div className="section-heading"><div><p className="eyebrow">Door configuration</p><h2>Gates &amp; staff</h2></div></div>
+      <section className="console-section" aria-label="Gates and staff">
+        <SectionHead title="Door configuration" note="Gates &amp; staff" />
         <div className="admin-columns">
           <article className="surface stack">
             <p className="eyebrow">Gates</p>
@@ -81,12 +81,12 @@ export default async function PlatformEventDetailPage({ params }: { params: Prom
         </div>
       </section>
 
-      <section className="platform-section">
-        <div className="section-heading"><div><p className="eyebrow">Commerce</p><h2>Recent orders</h2></div></div>
+      <section className="console-section" aria-label="Recent orders">
+        <SectionHead title="Commerce" note="Recent orders" />
         {orders.length === 0 ? <p className="muted empty-state">No orders touch this event yet.</p> : (
           <div className="platform-scroll">
             <table className="platform-table">
-              <thead><tr><th scope="col">Order</th><th scope="col">Buyer</th><th scope="col">State</th><th scope="col">Total</th><th scope="col">Placed</th></tr></thead>
+              <thead><tr><th scope="col">Order</th><th scope="col">Buyer</th><th scope="col">State</th><th scope="col" className="num">Total</th><th scope="col">Placed</th></tr></thead>
               <tbody>
                 {orders.map((order) => (
                   <tr key={order.publicId}>
@@ -103,8 +103,8 @@ export default async function PlatformEventDetailPage({ params }: { params: Prom
         )}
       </section>
 
-      <section className="platform-section">
-        <div className="section-heading"><div><p className="eyebrow">Entry</p><h2>Latest check-ins</h2></div></div>
+      <section className="console-section" aria-label="Latest check-ins">
+        <SectionHead title="Entry" note="Latest check-ins" />
         {checkIns.length === 0 ? <p className="muted empty-state">No check-ins recorded for this event yet.</p> : (
           <div className="platform-scroll">
             <table className="platform-table">
@@ -122,6 +122,6 @@ export default async function PlatformEventDetailPage({ params }: { params: Prom
           </div>
         )}
       </section>
-    </main>
+    </>
   )
 }

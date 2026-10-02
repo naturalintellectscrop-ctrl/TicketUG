@@ -1,5 +1,6 @@
 import Link from 'next/link'
 import { notFound } from 'next/navigation'
+import { PageHeader, SectionHead } from '@/components/console/page-head'
 import { StatusPill, stateTone } from '@/components/platform/ui'
 import { loadPlatformOrderDetail } from '@/lib/platform/queries'
 import { formatDateTime, formatMoney, labelOf, ORDER_PAYMENT_STATE_LABELS, PAYMENT_STATUS_LABELS, TICKET_STATUS_LABELS } from '@/lib/platform/format'
@@ -17,22 +18,21 @@ export default async function PlatformOrderDetailPage({ params }: { params: Prom
   const { order, items, payment, attempts, tickets, issuance } = detail
 
   return (
-    <main className="platform-shell">
-      <p><Link href="/platform/orders" className="text-link">← All orders</Link></p>
-      <header className="section-heading">
-        <div>
-          <p className="eyebrow">Order · {order.publicId}</p>
-          <h1>{order.orderNumber}</h1>
-          <p className="lede">{order.purchaserName} · {order.purchaserEmail}{order.purchaserPhone ? ` · ${order.purchaserPhone}` : ''}</p>
-          <div className="row" style={{ marginTop: 10 }}>
-            <StatusPill tone={stateTone(order.paymentState)}>{labelOf(ORDER_PAYMENT_STATE_LABELS, order.paymentState)}</StatusPill>
-            <StatusPill tone={order.isGuest ? 'info' : 'brand'}>{order.isGuest ? 'Guest checkout' : 'Signed-in buyer'}</StatusPill>
-            {order.buyerEmail && <StatusPill tone="info">Account: {order.buyerEmail}</StatusPill>}
-          </div>
-        </div>
-      </header>
+    <>
+      <PageHeader
+        crumb="Orders"
+        title={order.orderNumber}
+        lede={`${order.purchaserName} · ${order.purchaserEmail}${order.purchaserPhone ? ` · ${order.purchaserPhone}` : ''} · ${order.publicId}`}
+        actions={<Link className="button button-quiet" href="/platform/orders">All orders</Link>}
+      />
 
-      <section className="platform-section">
+      <div className="row" style={{ marginTop: 0 }}>
+        <StatusPill tone={stateTone(order.paymentState)}>{labelOf(ORDER_PAYMENT_STATE_LABELS, order.paymentState)}</StatusPill>
+        <StatusPill tone={order.isGuest ? 'info' : 'brand'}>{order.isGuest ? 'Guest checkout' : 'Signed-in buyer'}</StatusPill>
+        {order.buyerEmail && <StatusPill tone="info">Account: {order.buyerEmail}</StatusPill>}
+      </div>
+
+      <section className="console-section" aria-label="Order summary" style={{ marginTop: 0 }}>
         <div className="admin-columns">
           <article className="surface stack">
             <p className="eyebrow">Order</p>
@@ -56,8 +56,8 @@ export default async function PlatformOrderDetailPage({ params }: { params: Prom
         </div>
       </section>
 
-      <section className="platform-section">
-        <div className="section-heading"><div><p className="eyebrow">Money</p><h2>Payment record</h2></div></div>
+      <section className="console-section" aria-label="Payment record">
+        <SectionHead title="Payment record" note="Money" />
         {!payment ? (
           <p className="muted empty-state">No payment record exists for this order — checkout never reached the payment step.</p>
         ) : (
@@ -90,8 +90,8 @@ export default async function PlatformOrderDetailPage({ params }: { params: Prom
         )}
       </section>
 
-      <section className="platform-section">
-        <div className="section-heading"><div><p className="eyebrow">Fulfilment</p><h2>Tickets &amp; issuance audit</h2></div></div>
+      <section className="console-section" aria-label="Tickets and issuance audit">
+        <SectionHead title="Tickets &amp; issuance audit" note="Fulfilment" />
         <div className="admin-columns">
           <article className="surface stack">
             <p className="eyebrow">Tickets ({tickets.length})</p>
@@ -113,6 +113,6 @@ export default async function PlatformOrderDetailPage({ params }: { params: Prom
           </article>
         </div>
       </section>
-    </main>
+    </>
   )
 }

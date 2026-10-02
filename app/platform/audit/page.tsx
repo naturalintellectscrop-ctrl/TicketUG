@@ -1,4 +1,5 @@
 import Link from 'next/link'
+import { PageHeader } from '@/components/console/page-head'
 import { Pagination, StatusPill, UnavailablePanel } from '@/components/platform/ui'
 import { listPlatformAudit, PAGE_SIZE } from '@/lib/platform/queries'
 import { buildFilterQuery, clampPage, formatDateTime } from '@/lib/platform/format'
@@ -17,14 +18,12 @@ export default async function PlatformAuditPage({ searchParams }: { searchParams
   const result = await listPlatformAudit({ eventType: type, page })
 
   return (
-    <main className="platform-shell">
-      <header className="section-heading">
-        <div>
-          <p className="eyebrow">Who did what</p>
-          <h1>Audit stream</h1>
-          <p className="lede">Security events as recorded by the application: role grants, membership changes and the like. Today the stream is deliberately small — it is a real record, not a reconstruction, and it grows as flows write to it.</p>
-        </div>
-      </header>
+    <>
+      <PageHeader
+        crumb="Platform"
+        title="Audit stream"
+        lede="Security events as recorded by the application: role grants, membership changes and the like. Today the stream is deliberately small — it is a real record, not a reconstruction, and it grows as flows write to it."
+      />
 
       <form className="filter-bar" method="get" action="/platform/audit" role="search">
         <label>Event type
@@ -65,6 +64,6 @@ export default async function PlatformAuditPage({ searchParams }: { searchParams
           <Pagination page={page} pageSize={PAGE_SIZE} total={result.total} baseHref={`/platform/audit${buildFilterQuery({ type })}`} />
         </>
       )}
-    </main>
+    </>
   )
 }

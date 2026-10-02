@@ -118,8 +118,9 @@ export function AlertList({ alerts }: { alerts: PlatformAlert[] }) {
 }
 
 /** Simple metric tile. `note` carries the semantics that keep a number honest
- * (e.g. "pre-fee, provider-collected"). */
-export function Metric({ label, value, note, href }: { label: string; value: string; note?: string; href?: string }) {
+ * (e.g. "pre-fee, provider-collected"). `accent` marks the single most
+ * important tile on a board (dark emphasis) — use at most one per grid. */
+export function Metric({ label, value, note, href, accent }: { label: string; value: string; note?: string; href?: string; accent?: boolean }) {
   const body = (
     <>
       <p className="eyebrow">{label}</p>
@@ -127,7 +128,8 @@ export function Metric({ label, value, note, href }: { label: string; value: str
       {note && <p className="muted">{note}</p>}
     </>
   )
-  return href
-    ? <Link className="surface metric-card metric-link" href={href}>{body}</Link>
-    : <article className="surface metric-card">{body}</article>
+  if (href) {
+    return <Link className="surface metric-card metric-link" href={href} data-accent={accent ? 'true' : undefined}>{body}</Link>
+  }
+  return <article className="surface metric-card" data-accent={accent ? 'true' : undefined}>{body}</article>
 }

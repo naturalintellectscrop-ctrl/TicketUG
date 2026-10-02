@@ -1,4 +1,5 @@
 import Link from 'next/link'
+import { PageHeader } from '@/components/console/page-head'
 import { Pagination, StatusPill, UnavailablePanel } from '@/components/platform/ui'
 import { listPlatformUsers, PAGE_SIZE } from '@/lib/platform/queries'
 import { buildFilterQuery, clampPage, formatDateTime } from '@/lib/platform/format'
@@ -20,14 +21,12 @@ export default async function PlatformUsersPage({ searchParams }: { searchParams
   const result = await listPlatformUsers({ q, page })
 
   return (
-    <main className="platform-shell">
-      <header className="section-heading">
-        <div>
-          <p className="eyebrow">Identities</p>
-          <h1>Users</h1>
-          <p className="lede">Every profile on the platform with its roles and footprint. Roles grant exactly what the authorization model says — this listing never edits them.</p>
-        </div>
-      </header>
+    <>
+      <PageHeader
+        crumb="Directory"
+        title="Users"
+        lede="Every profile on the platform with its roles and footprint. Roles grant exactly what the authorization model says — this listing never edits them."
+      />
 
       <form className="filter-bar" method="get" action="/platform/users" role="search">
         <label>Search<input type="search" name="q" defaultValue={q} placeholder="Name or email" maxLength={120} /></label>
@@ -61,6 +60,6 @@ export default async function PlatformUsersPage({ searchParams }: { searchParams
           <Pagination page={page} pageSize={PAGE_SIZE} total={result.total} baseHref={`/platform/users${buildFilterQuery({ q })}`} />
         </>
       )}
-    </main>
+    </>
   )
 }

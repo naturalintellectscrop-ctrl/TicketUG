@@ -1,4 +1,5 @@
 import Link from 'next/link'
+import { PageHeader, SectionHead } from '@/components/console/page-head'
 import { StatusPill, UnavailablePanel } from '@/components/platform/ui'
 import { countExpirableOrders, loadSystemStatus } from '@/lib/platform/queries'
 import { formatDateTime } from '@/lib/platform/format'
@@ -14,16 +15,14 @@ export default async function PlatformSystemPage() {
   const [status, expirable] = await Promise.all([loadSystemStatus(), countExpirableOrders()])
 
   return (
-    <main className="platform-shell">
-      <header className="section-heading">
-        <div>
-          <p className="eyebrow">Runtime truth</p>
-          <h1>System</h1>
-          <p className="lede">What this deployment can actually reach and what it is actually configured with, measured on every load. Values of secrets are never shown — only whether they exist.</p>
-        </div>
-      </header>
+    <>
+      <PageHeader
+        crumb="Platform"
+        title="System"
+        lede="What this deployment can actually reach and what it is actually configured with, measured on every load. Values of secrets are never shown — only whether they exist."
+      />
 
-      <section className="platform-section">
+      <section className="console-section" aria-label="Database and authentication status" style={{ marginTop: 0 }}>
         <div className="admin-columns">
           <article className="surface stack">
             <p className="eyebrow">Database</p>
@@ -45,7 +44,7 @@ export default async function PlatformSystemPage() {
         </div>
       </section>
 
-      <section className="platform-section">
+      <section className="console-section" aria-label="Payment boundary and background work">
         <div className="admin-columns">
           <article className="surface stack">
             <p className="eyebrow">Payment boundary</p>
@@ -70,13 +69,13 @@ export default async function PlatformSystemPage() {
       </section>
 
       {status.database.reachable ? null : (
-        <section className="platform-section">
+        <section className="console-section">
           <UnavailablePanel what="Database-dependent status" />
         </section>
       )}
 
-      <section className="platform-section">
-        <div className="section-heading"><div><p className="eyebrow">Boundaries</p><h2>What this console deliberately does not do</h2></div></div>
+      <section className="console-section" aria-label="Console boundaries">
+        <SectionHead title="What this console deliberately does not do" note="Boundaries" />
         <article className="surface stack platform-prose">
           <ul>
             <li>No state mutation: every lifecycle, order, payment and membership change stays with its owning flow and its transactional SQL function.</li>
@@ -87,6 +86,6 @@ export default async function PlatformSystemPage() {
           <p className="muted">See <Link href="/platform/docs" className="text-link">Docs</Link> for the full architecture and the deferred-features list.</p>
         </article>
       </section>
-    </main>
+    </>
   )
 }

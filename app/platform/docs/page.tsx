@@ -1,12 +1,12 @@
-import Link from 'next/link'
 import type { ReactNode } from 'react'
+import { PageHeader, SectionHead } from '@/components/console/page-head'
 
 export const dynamic = 'force-dynamic'
 
 function Section({ title, children }: { title: string; children: ReactNode }) {
   return (
-    <section className="platform-section platform-prose">
-      <div className="section-heading"><div><p className="eyebrow">Reference</p><h2>{title}</h2></div></div>
+    <section className="console-section platform-prose" aria-label={title}>
+      <SectionHead title={title} note="Reference" />
       {children}
     </section>
   )
@@ -18,14 +18,12 @@ function Section({ title, children }: { title: string; children: ReactNode }) {
  * capability exists when it does not. */
 export default function PlatformDocsPage() {
   return (
-    <main className="platform-shell">
-      <header className="section-heading">
-        <div>
-          <p className="eyebrow">How this platform works</p>
-          <h1>Docs</h1>
-          <p className="lede">The actual TicketUG architecture as built — not aspirational. Every capability listed here exists in code today; everything not listed is deferred and named as such.</p>
-        </div>
-      </header>
+    <>
+      <PageHeader
+        crumb="Resources"
+        title="Docs"
+        lede="The actual TicketUG architecture as built — not aspirational. Every capability listed here exists in code today; everything not listed is deferred and named as such."
+      />
 
       <Section title="Architecture">
         <ul>
@@ -65,14 +63,16 @@ export default function PlatformDocsPage() {
           <li><code>/api/public/payments/webhooks/[provider]</code> — provider event intake.</li>
           <li><code>/api/system/orders/expire-stale</code> — cron sweep, <code>x-cron-secret</code> protected, fails closed.</li>
           <li><code>/api/health · /api/readiness</code> — liveness/readiness.</li>
+          <li><code>/api/v1/*</code> — the Developer API (read-only, bearer-key auth, organizer-scoped): <code>organizer</code>, <code>events</code>, <code>events/[publicId]</code>, <code>orders</code>, <code>orders/[publicId]</code>, <code>tickets</code>. Documented publicly at <code>/developers</code> with the machine contract at <code>/openapi.json</code>; credentials are created/revoked by workspace owners/managers under <em>API &amp; Webhooks</em> (audited as <code>API_KEY_CREATED</code>/<code>API_KEY_REVOKED</code>) and visible platform-wide on this console under API &amp; Integrations.</li>
         </ul>
-        <p>There is no public developer API and no API-key system — see Deferred.</p>
+        <p>The routes above this list are the internal application API (session/guest-token/cron/webhook authenticated). The Developer API under <code>/api/v1</code> is the only externally credentialed surface — read-only and organizer-scoped by construction.</p>
       </Section>
 
       <Section title="Audit vocabulary (what is actually recorded)">
         <ul>
           <li><code>MEMBERSHIP_CHANGED</code> — organizer membership create/promote/demote/remove/transfer.</li>
           <li><code>PLATFORM_ROLE_GRANTED:&lt;role&gt;</code> — provisioning-script role grants.</li>
+          <li><code>API_KEY_CREATED / API_KEY_REVOKED</code> — developer credential lifecycle (who, never the secret).</li>
           <li>The stream is intentionally small today. The control center renders it verbatim and never invents entries; the webhook stream (<code>webhook_event</code>) and issuance events (<code>ticket_issuance_event</code>) are the system-action audit trails for payments.</li>
         </ul>
       </Section>
@@ -80,7 +80,7 @@ export default function PlatformDocsPage() {
       <Section title="Deferred — named honestly, not faked">
         <ul>
           <li><strong>Refunds, settlements, ledger, reconciliation, fees:</strong> the schema has payments (provider-collected, UGX) but no refund/settlement/ledger primitives. &quot;Gross collected&quot; in this console means provider-collected payments, pre-fee, pre-settlement — never platform revenue.</li>
-          <li><strong>Public API &amp; API keys:</strong> no API-key authentication architecture exists; building key management without it would be pretend security. Deferred until a signed-key model is designed.</li>
+          <li><strong>Developer API write operations, outbound developer webhooks, hosted sandbox:</strong> the v1 Developer API is read-only and no outbound webhook delivery exists — these are the next API increments and are not simulated. Credentials themselves ARE implemented (see the endpoint catalog above).</li>
           <li><strong>Notifications:</strong> no email/SMS delivery infrastructure exists (ticket delivery is in-app/PDF); nothing is faked.</li>
           <li><strong>Rejected scan history:</strong> duplicate/rejected scan attempts are rejected at write time and not persisted, so no rejection statistics are shown.</li>
           <li><strong>Platform settings UI:</strong> no setting has a runtime consumer yet; the deployment environment (env vars) is the current configuration surface.</li>
@@ -96,6 +96,6 @@ export default function PlatformDocsPage() {
           <li>Deep operational reference lives in the repository: <code>docs/ARCHITECTURE.md</code>, <code>docs/SUPABASE_NATIVE_ARCHITECTURE.md</code>, <code>docs/FINAL_PRODUCTION_READINESS_AUDIT.md</code>.</li>
         </ul>
       </Section>
-    </main>
+    </>
   )
 }

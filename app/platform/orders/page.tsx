@@ -1,4 +1,5 @@
 import Link from 'next/link'
+import { PageHeader } from '@/components/console/page-head'
 import { Pagination, StatusPill, UnavailablePanel, stateTone } from '@/components/platform/ui'
 import { listPlatformOrders, ORDER_PAYMENT_STATES, PAGE_SIZE } from '@/lib/platform/queries'
 import { buildFilterQuery, clampPage, formatDateTime, formatMoney, labelOf, ORDER_PAYMENT_STATE_LABELS } from '@/lib/platform/format'
@@ -18,14 +19,12 @@ export default async function PlatformOrdersPage({ searchParams }: { searchParam
   const result = await listPlatformOrders({ q, state: params.state, page })
 
   return (
-    <main className="platform-shell">
-      <header className="section-heading">
-        <div>
-          <p className="eyebrow">Commerce</p>
-          <h1>Orders</h1>
-          <p className="lede">Every order with its payment state and provider link. State changes only ever come from checkout, verified provider webhooks, or the expiry sweep — this view explains an order, it never edits one.</p>
-        </div>
-      </header>
+    <>
+      <PageHeader
+        crumb="Operations"
+        title="Orders"
+        lede="Every order with its payment state and provider link. State changes only ever come from checkout, verified provider webhooks, or the expiry sweep — this view explains an order, it never edits one."
+      />
 
       <form className="filter-bar" method="get" action="/platform/orders" role="search">
         <label>Search<input type="search" name="q" defaultValue={q} placeholder="Order number, email, public id" maxLength={120} /></label>
@@ -66,6 +65,6 @@ export default async function PlatformOrdersPage({ searchParams }: { searchParam
           <Pagination page={page} pageSize={PAGE_SIZE} total={result.total} baseHref={`/platform/orders${buildFilterQuery({ q, state: params.state })}`} />
         </>
       )}
-    </main>
+    </>
   )
 }

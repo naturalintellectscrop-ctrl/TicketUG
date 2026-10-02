@@ -1,4 +1,5 @@
 import Link from 'next/link'
+import { PageHeader, SectionHead } from '@/components/console/page-head'
 import { Pagination, StatusPill, UnavailablePanel, stateTone } from '@/components/platform/ui'
 import { listPlatformPayments, listPlatformWebhooks, PAYMENT_STATUSES, WEBHOOK_STATUSES, PAGE_SIZE } from '@/lib/platform/queries'
 import { buildFilterQuery, clampPage, formatDateTime, formatMoney, labelOf, PAYMENT_STATUS_LABELS, WEBHOOK_STATUS_LABELS } from '@/lib/platform/format'
@@ -24,17 +25,15 @@ export default async function PlatformPaymentsPage({ searchParams }: { searchPar
   const webhooksQuery = buildFilterQuery({ status: params.status, webhook: params.webhook })
 
   return (
-    <main className="platform-shell">
-      <header className="section-heading">
-        <div>
-          <p className="eyebrow">Money movement</p>
-          <h1>Payments</h1>
-          <p className="lede">Payment records and attempts created by checkout, plus the provider webhook stream that drives them. Initiated, pending, verified, failed are distinct states here — settlement does not exist in the architecture yet and is never implied.</p>
-        </div>
-      </header>
+    <>
+      <PageHeader
+        crumb="Operations"
+        title="Payments"
+        lede="Payment records and attempts created by checkout, plus the provider webhook stream that drives them. Initiated, pending, verified, failed are distinct states here — settlement does not exist in the architecture yet and is never implied."
+      />
 
-      <section className="platform-section">
-        <div className="section-heading"><div><p className="eyebrow">Provider</p><h2>NylonPay configuration</h2></div></div>
+      <section className="console-section" aria-label="Provider configuration" style={{ marginTop: 0 }}>
+        <SectionHead title="NylonPay configuration" note="Provider" />
         <div className="admin-columns">
           <article className="surface stack">
             <dl className="def-list">
@@ -53,8 +52,8 @@ export default async function PlatformPaymentsPage({ searchParams }: { searchPar
         </div>
       </section>
 
-      <section className="platform-section">
-        <div className="section-heading"><div><p className="eyebrow">Records</p><h2>Payments</h2></div></div>
+      <section className="console-section" aria-label="Payment records">
+        <SectionHead title="Payments" note="Records" />
         <form className="filter-bar" method="get" action="/platform/payments" role="search">
           <input type="hidden" name="webhook" value={params.webhook ?? ''} />
           <label>Status
@@ -94,8 +93,8 @@ export default async function PlatformPaymentsPage({ searchParams }: { searchPar
         )}
       </section>
 
-      <section className="platform-section">
-        <div className="section-heading"><div><p className="eyebrow">Provider events</p><h2>Webhook stream</h2></div></div>
+      <section className="console-section" aria-label="Webhook intake stream">
+        <SectionHead title="Webhook stream" note="Provider events" />
         <form className="filter-bar" method="get" action="/platform/payments" role="search">
           <input type="hidden" name="status" value={params.status ?? ''} />
           <label>Processing status
@@ -135,6 +134,6 @@ export default async function PlatformPaymentsPage({ searchParams }: { searchPar
           </>
         )}
       </section>
-    </main>
+    </>
   )
 }

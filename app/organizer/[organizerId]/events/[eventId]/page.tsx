@@ -1,5 +1,7 @@
 import Link from 'next/link'
 import { notFound, redirect } from 'next/navigation'
+import { PageHeader, SectionHead } from '@/components/console/page-head'
+import { StatusPill, stateTone } from '@/components/platform/ui'
 import { getTicketUGContext } from '@/lib/request-context'
 import { canManageOrganizer } from '@/lib/organizer-authorization'
 import { EventLifecycleControls } from '@/components/event-lifecycle-controls'
@@ -7,6 +9,7 @@ import { EventStaffManager } from '@/components/event-staff-manager'
 import { GateManager } from '@/components/gate-manager'
 import { loadEventSalesMetrics } from '@/lib/event-sales-metrics'
 import { pool } from '@/lib/db'
+import { labelOf, LIFECYCLE_LABELS } from '@/lib/platform/format'
 
 export default async function OrganizerEventDetailPage({ params }: { params: Promise<{ organizerId: string; eventId: string }> }) {
   const { organizerId, eventId } = await params
@@ -58,32 +61,31 @@ export default async function OrganizerEventDetailPage({ params }: { params: Pro
     ? (await pool.query('SELECT id, public_id AS "publicId", name, active FROM ticketug.ticket_type WHERE event_id = $1 ORDER BY sort_order, created_at', [eventId])).rows
     : []
   return (
-    <main className="page-shell">
-      <Link href={`/organizer/${organizerId}/events`}>Back to events</Link>
-      <div className="surface" style={{ marginTop: 24 }}>
-        <p className="eyebrow">{event.lifecycle_state} · {event.publication_state}</p>
-        <h1>{event.title}</h1>
-        <p className="lede">{event.description || 'No description added yet.'}</p>
+    <>
+      <PageHeader
+        crumb="Events"
+        title={event.title}
+        lede={event.description || 'No description added yet.'}
+        actions={
+          <>
+            <StatusPill tone={stateTone(event.lifecycle_state)}>{labelOf(LIFECYCLE_LABELS, event.lifecycle_state)}</StatusPill>
+            <StatusPill tone={event.publication_state === 'PUBLIC' ? 'ok' : 'info'}>{event.publication_state === 'PUBLIC' ? 'Public' : 'Private'}</StatusPill>
+            <Link className="button button-quiet" href={`/organizer/${organizerId}/events/${eventId}/tickets`}>Issued tickets</Link>
+            <Link className="button button-dark" href={`/organizer/${organizerId}/events/${eventId}/orders`}>View orders</Link>
+          </>
+        }
+      />
+      <section className="surface stack" aria-label="Event schedule">
         <div className="event-meta"><span>{new Date(event.starts_at).toLocaleString('en-UG', { timeZone: event.timezone })}</span><span>{new Date(event.ends_at).toLocaleString('en-UG', { timeZone: event.timezone })}</span><span>{event.timezone}</span></div>
         <p>Slug: {event.slug}</p>
-        <div className="row">
-          <Link className="button" href={`/organizer/${organizerId}/events/${eventId}/tickets`}>Issued tickets</Link>
-          <Link className="button" href={`/organizer/${organizerId}/events/${eventId}/orders`}>View orders</Link>
-        </div>
-      </div>
-      <div style={{ marginTop: 24 }}>
+      </section>
+      <section className="console-section">
         <EventLifecycleControls organizerId={organizerId} eventId={eventId} currentState={event.lifecycle_state} canManage={canManage} isOwner={isOwner} />
-      </div>
+      </section>
       {sales && (
-        <div style={{ marginTop: 24 }}>
-          <section className="surface stack" aria-label="Event sales summary">
-            <div className="row-between">
-              <div>
-                <p className="eyebrow">Sales</p>
-                <h2>Sales summary</h2>
-              </div>
-              <span className="muted">{sales.paidOrderCount} paid {sales.paidOrderCount === 1 ? 'order' : 'orders'}</span>
-            </div>
+        <section className="console-section" aria-label="Event sales summary">
+          <SectionHead title="Sales summary" note={`${sales.paidOrderCount} paid ${sales.paidOrderCount === 1 ? 'order' : 'orders'}`} />
+          <section className="surface stack">
             <section className="metric-grid" aria-label="Sales totals">
               <article className="surface metric-card">
                 <p className="eyebrow">Paid revenue (UGX)</p>
@@ -128,16 +130,16 @@ export default async function OrganizerEventDetailPage({ params }: { params: Pro
               )}
             </div>
           </section>
-        </div>
+        </section>
       )}
       {canManage && (
-        <div style={{ marginTop: 24 }}>
+        <section className="console-section">
           <GateManager organizerId={organizerId} eventId={eventId} initialGates={gates} ticketTypes={ticketTypes} />
-        </div>
+        </section>
       )}
-      <div style={{ marginTop: 24 }}>
+      <section className="console-section">
         <EventStaffManager organizerId={organizerId} eventId={eventId} initialStaff={staff} members={members} gates={gates.map((gate) => ({ id: gate.id, name: gate.name, isActive: gate.isActive }))} />
-      </div>
-    </main>
+      </section>
+    </>
   )
 }

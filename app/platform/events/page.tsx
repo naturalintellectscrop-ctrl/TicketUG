@@ -1,4 +1,5 @@
 import Link from 'next/link'
+import { PageHeader } from '@/components/console/page-head'
 import { Pagination, StatusPill, UnavailablePanel, stateTone } from '@/components/platform/ui'
 import { EVENT_LIFECYCLE_STATES, listPlatformEvents } from '@/lib/platform/queries'
 import { buildFilterQuery, clampPage, formatDateTime, labelOf, LIFECYCLE_LABELS } from '@/lib/platform/format'
@@ -18,14 +19,12 @@ export default async function PlatformEventsPage({ searchParams }: { searchParam
   const baseHref = '/platform/events' + buildFilterQuery({ q, lifecycle: params.lifecycle, publication: params.publication })
 
   return (
-    <main className="platform-shell">
-      <header className="section-heading">
-        <div>
-          <p className="eyebrow">Across every organizer</p>
-          <h1>Events</h1>
-          <p className="lede">Every event on the platform with its publication and lifecycle state. Lifecycle changes belong to the owning organizer through the state machine — this view investigates, it does not override.</p>
-        </div>
-      </header>
+    <>
+      <PageHeader
+        crumb="Operations"
+        title="Events"
+        lede="Every event on the platform with its publication and lifecycle state. Lifecycle changes belong to the owning organizer through the state machine — this view investigates, it does not override."
+      />
 
       <form className="filter-bar" method="get" action="/platform/events" role="search">
         <label>Search<input type="search" name="q" defaultValue={q} placeholder="Title, slug, public id, organizer" maxLength={120} /></label>
@@ -73,6 +72,6 @@ export default async function PlatformEventsPage({ searchParams }: { searchParam
           <Pagination page={page} pageSize={PAGE_SIZE} total={result.total} baseHref={baseHref} />
         </>
       )}
-    </main>
+    </>
   )
 }

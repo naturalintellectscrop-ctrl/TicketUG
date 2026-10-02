@@ -1,4 +1,5 @@
 import Link from 'next/link'
+import { PageHeader } from '@/components/console/page-head'
 import { Pagination, StatusPill, UnavailablePanel, stateTone } from '@/components/platform/ui'
 import { listPlatformTickets, TICKET_STATUSES, PAGE_SIZE } from '@/lib/platform/queries'
 import { buildFilterQuery, clampPage, formatDateTime, labelOf, TICKET_STATUS_LABELS } from '@/lib/platform/format'
@@ -18,14 +19,12 @@ export default async function PlatformTicketsPage({ searchParams }: { searchPara
   const result = await listPlatformTickets({ q, status: params.status, page })
 
   return (
-    <main className="platform-shell">
-      <header className="section-heading">
-        <div>
-          <p className="eyebrow">Issued credentials</p>
-          <h1>Tickets</h1>
-          <p className="lede">Every ticket with its order, event and entry state. QR payloads and credential hashes are never displayed in this console — validity is decided by the scanner against the registry, not by inspecting codes here.</p>
-        </div>
-      </header>
+    <>
+      <PageHeader
+        crumb="Operations"
+        title="Tickets"
+        lede="Every ticket with its order, event and entry state. QR payloads and credential hashes are never displayed in this console — validity is decided by the scanner against the registry, not by inspecting codes here."
+      />
 
       <form className="filter-bar" method="get" action="/platform/tickets" role="search">
         <label>Search<input type="search" name="q" defaultValue={q} placeholder="Ticket id, attendee, order number" maxLength={120} /></label>
@@ -66,6 +65,6 @@ export default async function PlatformTicketsPage({ searchParams }: { searchPara
           <Pagination page={page} pageSize={PAGE_SIZE} total={result.total} baseHref={`/platform/tickets${buildFilterQuery({ q, status: params.status })}`} />
         </>
       )}
-    </main>
+    </>
   )
 }

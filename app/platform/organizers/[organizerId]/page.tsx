@@ -1,5 +1,6 @@
 import Link from 'next/link'
 import { notFound } from 'next/navigation'
+import { PageHeader, SectionHead } from '@/components/console/page-head'
 import { StatusPill, stateTone } from '@/components/platform/ui'
 import { loadPlatformOrganizerDetail } from '@/lib/platform/queries'
 import { formatDateTime, labelOf, LIFECYCLE_LABELS } from '@/lib/platform/format'
@@ -22,18 +23,21 @@ export default async function PlatformOrganizerDetailPage({ params }: { params: 
   const { organizer, members, invitations, events, venues } = detail
 
   return (
-    <main className="platform-shell">
-      <p><Link href="/platform/organizers" className="text-link">← All organizers</Link></p>
-      <header className="section-heading">
-        <div>
-          <p className="eyebrow">Organizer workspace · /{organizer.slug}</p>
-          <h1>{organizer.name}</h1>
-          <p className="lede">Created {formatDateTime(organizer.createdAt)}{organizer.createdByEmail ? ` by ${organizer.createdByEmail}` : ''}</p>
-        </div>
-      </header>
+    <>
+      <PageHeader
+        crumb="Organizers"
+        title={organizer.name}
+        lede={`/${organizer.slug} · Created ${formatDateTime(organizer.createdAt)}${organizer.createdByEmail ? ` by ${organizer.createdByEmail}` : ''}`}
+        actions={
+          <>
+            <Link className="button button-quiet" href="/platform/organizers">All organizers</Link>
+            <Link className="button button-dark" href={`/platform/events?q=${encodeURIComponent(organizer.name)}`}>Events</Link>
+          </>
+        }
+      />
 
-      <section className="platform-section">
-        <div className="section-heading"><div><p className="eyebrow">Team</p><h2>Members</h2></div></div>
+      <section className="console-section" aria-label="Team members" style={{ marginTop: 0 }}>
+        <SectionHead title="Members" note="Team" />
         {members.length === 0 ? <p className="muted empty-state">No members — an empty workspace.</p> : (
           <div className="platform-scroll">
             <table className="platform-table">
@@ -53,8 +57,8 @@ export default async function PlatformOrganizerDetailPage({ params }: { params: 
         )}
       </section>
 
-      <section className="platform-section">
-        <div className="section-heading"><div><p className="eyebrow">Access</p><h2>Recent invitations</h2></div></div>
+      <section className="console-section" aria-label="Recent invitations">
+        <SectionHead title="Recent invitations" note="Access" />
         {invitations.length === 0 ? <p className="muted empty-state">No invitations sent from this workspace.</p> : (
           <div className="platform-scroll">
             <table className="platform-table">
@@ -75,8 +79,8 @@ export default async function PlatformOrganizerDetailPage({ params }: { params: 
         )}
       </section>
 
-      <section className="platform-section">
-        <div className="section-heading"><div><p className="eyebrow">Programme</p><h2>Events</h2></div></div>
+      <section className="console-section" aria-label="Workspace events">
+        <SectionHead title="Events" note="Programme" />
         {events.length === 0 ? <p className="muted empty-state">This workspace has not created events yet.</p> : (
           <div className="platform-scroll">
             <table className="platform-table">
@@ -97,8 +101,8 @@ export default async function PlatformOrganizerDetailPage({ params }: { params: 
         )}
       </section>
 
-      <section className="platform-section">
-        <div className="section-heading"><div><p className="eyebrow">Places</p><h2>Venues</h2></div></div>
+      <section className="console-section" aria-label="Saved venues">
+        <SectionHead title="Venues" note="Places" />
         {venues.length === 0 ? <p className="muted empty-state">No venues saved.</p> : (
           <div className="platform-scroll">
             <table className="platform-table">
@@ -116,6 +120,6 @@ export default async function PlatformOrganizerDetailPage({ params }: { params: 
           </div>
         )}
       </section>
-    </main>
+    </>
   )
 }

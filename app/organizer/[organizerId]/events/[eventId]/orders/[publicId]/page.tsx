@@ -1,7 +1,10 @@
 import Link from 'next/link'
 import { notFound, redirect } from 'next/navigation'
+import { PageHeader } from '@/components/console/page-head'
+import { StatusPill, stateTone } from '@/components/platform/ui'
 import { getAuthSession } from '@/lib/auth'
 import { pool } from '@/lib/db'
+import { labelOf, ORDER_PAYMENT_STATE_LABELS } from '@/lib/platform/format'
 
 export const dynamic = 'force-dynamic'
 
@@ -13,5 +16,23 @@ export default async function OrganizerOrderDetailPage({ params }: { params: Pro
   const order = result.rows[0]
   if (!order) notFound()
   const items = (await pool.query<{ ticket_name_snapshot: string; quantity: number; unit_price_minor_units: string; line_total_minor_units: string }>('SELECT ticket_name_snapshot, quantity, unit_price_minor_units, line_total_minor_units FROM ticketug.order_item WHERE order_id=$1 ORDER BY created_at', [order.id])).rows
-  return <main className="auth-page stack"><Link href={`/organizer/${organizerId}/events/${eventId}/orders`}>Event orders</Link><p className="eyebrow">{order.order_number}</p><h1>Order detail</h1><section className="surface"><p>Status: {order.status}</p><p>{order.purchaser_name} · {order.purchaser_email}</p><p>{new Date(order.created_at).toLocaleString('en-UG')}</p></section>{items.map((item) => <section className="surface row-between" key={item.ticket_name_snapshot}><div><h2>{item.ticket_name_snapshot}</h2><p>{item.quantity} × {Number(item.unit_price_minor_units).toLocaleString('en-UG')} {order.currency}</p></div><strong>{Number(item.line_total_minor_units).toLocaleString('en-UG')} {order.currency}</strong></section>)}<section className="surface row-between"><strong>Total</strong><strong>{Number(order.total_minor_units).toLocaleString('en-UG')} {order.currency}</strong></section></main>
+  return (
+    <>
+      <PageHeader
+        crumb="Orders"
+        title={order.order_number}
+        lede={`${order.purchaser_name} · ${order.purchaser_email}`}
+        actions={<Link className="button button-quiet" href={`/organizer/${organizerId}/events/${eventId}/orders`}>Event orders</Link>}
+      />
+      <div className="stack">
+        <section className="surface stack" aria-label="Order summary">
+          <p>Status: <StatusPill tone={stateTone(order.status)}>{labelOf(ORDER_PAYMENT_STATE_LABELS, order.status)}</StatusPill></p>
+          <p>{order.purchaser_name} · {order.purchaser_email}</p>
+          <p>{new Date(order.created_at).toLocaleString('en-UG')}</p>
+        </section>
+        {items.map((item) => <section className="surface row-between" key={item.ticket_name_snapshot}><div><h2>{item.ticket_name_snapshot}</h2><p>{item.quantity} × {Number(item.unit_price_minor_units).toLocaleString('en-UG')} {order.currency}</p></div><strong>{Number(item.line_total_minor_units).toLocaleString('en-UG')} {order.currency}</strong></section>)}
+        <section className="surface row-between"><strong>Total</strong><strong>{Number(order.total_minor_units).toLocaleString('en-UG')} {order.currency}</strong></section>
+      </div>
+    </>
+  )
 }

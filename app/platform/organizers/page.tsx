@@ -1,4 +1,5 @@
 import Link from 'next/link'
+import { PageHeader } from '@/components/console/page-head'
 import { Pagination, UnavailablePanel } from '@/components/platform/ui'
 import { listPlatformOrganizers, PAGE_SIZE } from '@/lib/platform/queries'
 import { buildFilterQuery, clampPage, formatDate, formatMoney } from '@/lib/platform/format'
@@ -18,14 +19,12 @@ export default async function PlatformOrganizersPage({ searchParams }: { searchP
   const result = await listPlatformOrganizers({ q, page })
 
   return (
-    <main className="platform-shell">
-      <header className="section-heading">
-        <div>
-          <p className="eyebrow">Workspaces</p>
-          <h1>Organizers</h1>
-          <p className="lede">Every organizer workspace with its team, event, and sales footprint. Tenant isolation is untouched: this lists workspaces, it does not open one.</p>
-        </div>
-      </header>
+    <>
+      <PageHeader
+        crumb="Directory"
+        title="Organizers"
+        lede="Every organizer workspace with its team, event, and sales footprint. Tenant isolation is untouched: this lists workspaces, it does not open one."
+      />
 
       <form className="filter-bar" method="get" action="/platform/organizers" role="search">
         <label>Search<input type="search" name="q" defaultValue={q} placeholder="Workspace name or slug" maxLength={120} /></label>
@@ -59,6 +58,6 @@ export default async function PlatformOrganizersPage({ searchParams }: { searchP
           <Pagination page={page} pageSize={PAGE_SIZE} total={result.total} baseHref={`/platform/organizers${buildFilterQuery({ q })}`} />
         </>
       )}
-    </main>
+    </>
   )
 }

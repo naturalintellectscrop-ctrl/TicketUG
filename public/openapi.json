@@ -1,0 +1,440 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "Ticket Uganda Developer API",
+    "version": "1.0.0",
+    "summary": "Read-only, organizer-scoped REST API for event, order and ticket data.",
+    "description": "Ticket Uganda Developer API v1. Every credential (tug_sk_…) belongs to exactly one organizer workspace and can only read that workspace's data. Authentication: Authorization: Bearer. Human-readable documentation: /developers. This file is the machine-readable contract and is kept in lockstep with the implementation (lib/api/*).",
+    "license": { "name": "Proprietary", "identifier": "LicenseRef-Proprietary" }
+  },
+  "servers": [
+    { "url": "https://ticketug.vercel.app", "description": "Production deployment" }
+  ],
+  "security": [
+    { "bearerAuth": [] }
+  ],
+  "tags": [
+    { "name": "identity", "description": "Credential identity and scopes" },
+    { "name": "events", "description": "Events and inventory" },
+    { "name": "orders", "description": "Orders and line items" },
+    { "name": "tickets", "description": "Issued-ticket roster" }
+  ],
+  "paths": {
+    "/api/v1/organizer": {
+      "get": {
+        "operationId": "getOrganizerIdentity",
+        "tags": ["identity"],
+        "summary": "Identity card of the presented key",
+        "responses": {
+          "200": {
+            "description": "The workspace the key belongs to, its scopes and prefix.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": ["data"],
+                  "properties": {
+                    "data": {
+                      "type": "object",
+                      "required": ["organizer", "key", "apiVersion", "readOnly"],
+                      "properties": {
+                        "organizer": { "$ref": "#/components/schemas/Organizer" },
+                        "key": {
+                          "type": "object",
+                          "required": ["prefix", "scopes"],
+                          "properties": {
+                            "prefix": { "type": "string", "example": "tug_sk_Ab12Cd34" },
+                            "createdAt": { "type": "string", "format": "date-time", "nullable": true },
+                            "scopes": { "type": "array", "items": { "type": "string" }, "example": ["events.read", "orders.read", "tickets.read"] }
+                          }
+                        },
+                        "apiVersion": { "const": "v1" },
+                        "readOnly": { "const": true }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": { "$ref": "#/components/responses/Unauthorized" },
+          "429": { "$ref": "#/components/responses/RateLimited" },
+          "503": { "$ref": "#/components/responses/Unavailable" }
+        }
+      }
+    },
+    "/api/v1/events": {
+      "get": {
+        "operationId": "listEvents",
+        "tags": ["events"],
+        "summary": "List the organizer's events",
+        "parameters": [
+          { "name": "q", "in": "query", "schema": { "type": "string", "maxLength": 120 }, "description": "Title/slug substring search." },
+          { "name": "lifecycle", "in": "query", "schema": { "$ref": "#/components/schemas/LifecycleState" } },
+          { "name": "publication", "in": "query", "schema": { "$ref": "#/components/schemas/PublicationState" } },
+          { "$ref": "#/components/parameters/limit" },
+          { "$ref": "#/components/parameters/offset" }
+        ],
+        "responses": {
+          "200": {
+            "description": "Paginated event list, newest first.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": ["data", "pagination"],
+                  "properties": {
+                    "data": { "type": "array", "items": { "$ref": "#/components/schemas/EventSummary" } },
+                    "pagination": { "$ref": "#/components/schemas/Pagination" }
+                  }
+                }
+              }
+            }
+          },
+          "400": { "$ref": "#/components/responses/BadRequest" },
+          "401": { "$ref": "#/components/responses/Unauthorized" },
+          "429": { "$ref": "#/components/responses/RateLimited" },
+          "503": { "$ref": "#/components/responses/Unavailable" }
+        }
+      }
+    },
+    "/api/v1/events/{publicId}": {
+      "get": {
+        "operationId": "getEvent",
+        "tags": ["events"],
+        "summary": "Event detail with ticket types and live stats",
+        "parameters": [
+          { "name": "publicId", "in": "path", "required": true, "schema": { "type": "string" } }
+        ],
+        "responses": {
+          "200": {
+            "description": "Event, its ticket types (price in minor units) and live stats.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": ["data"],
+                  "properties": {
+                    "data": {
+                      "type": "object",
+                      "required": ["event", "ticketTypes", "stats"],
+                      "properties": {
+                        "event": { "$ref": "#/components/schemas/EventDetail" },
+                        "ticketTypes": { "type": "array", "items": { "$ref": "#/components/schemas/TicketType" } },
+                        "stats": {
+                          "type": "object",
+                          "required": ["paidOrders", "ticketsIssued", "checkedIn"],
+                          "properties": {
+                            "paidOrders": { "type": "integer" },
+                            "ticketsIssued": { "type": "integer" },
+                            "checkedIn": { "type": "integer" }
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": { "$ref": "#/components/responses/Unauthorized" },
+          "404": { "$ref": "#/components/responses/NotFound" },
+          "429": { "$ref": "#/components/responses/RateLimited" }
+        }
+      }
+    },
+    "/api/v1/orders": {
+      "get": {
+        "operationId": "listOrders",
+        "tags": ["orders"],
+        "summary": "List orders across the organizer's events",
+        "parameters": [
+          { "name": "event", "in": "query", "schema": { "type": "string" }, "description": "Filter by event public id." },
+          { "name": "status", "in": "query", "schema": { "$ref": "#/components/schemas/OrderPaymentState" } },
+          { "$ref": "#/components/parameters/limit" },
+          { "$ref": "#/components/parameters/offset" }
+        ],
+        "responses": {
+          "200": {
+            "description": "Paginated order list, newest first.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": ["data", "pagination"],
+                  "properties": {
+                    "data": { "type": "array", "items": { "$ref": "#/components/schemas/OrderSummary" } },
+                    "pagination": { "$ref": "#/components/schemas/Pagination" }
+                  }
+                }
+              }
+            }
+          },
+          "400": { "$ref": "#/components/responses/BadRequest" },
+          "401": { "$ref": "#/components/responses/Unauthorized" },
+          "429": { "$ref": "#/components/responses/RateLimited" }
+        }
+      }
+    },
+    "/api/v1/orders/{publicId}": {
+      "get": {
+        "operationId": "getOrder",
+        "tags": ["orders"],
+        "summary": "Order detail with items and issued tickets",
+        "description": "Ticket QR credentials are never included in API responses.",
+        "parameters": [
+          { "name": "publicId", "in": "path", "required": true, "schema": { "type": "string" } }
+        ],
+        "responses": {
+          "200": {
+            "description": "Order with line items (immutable snapshots) and issued tickets.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": ["data"],
+                  "properties": {
+                    "data": {
+                      "type": "object",
+                      "required": ["order", "items", "tickets"],
+                      "properties": {
+                        "order": { "$ref": "#/components/schemas/OrderSummary" },
+                        "items": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "required": ["ticketTypePublicId", "ticketTypeName", "quantity", "unitPriceMinorUnits", "currency", "lineTotalMinorUnits"],
+                            "properties": {
+                              "ticketTypePublicId": { "type": "string" },
+                              "ticketTypeName": { "type": "string" },
+                              "quantity": { "type": "integer" },
+                              "unitPriceMinorUnits": { "type": "string" },
+                              "currency": { "type": "string", "example": "UGX" },
+                              "lineTotalMinorUnits": { "type": "string" }
+                            }
+                          }
+                        },
+                        "tickets": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "required": ["publicId", "status", "unitNumber", "attendeeName", "ticketTypeName", "issuedAt"],
+                            "properties": {
+                              "publicId": { "type": "string" },
+                              "status": { "$ref": "#/components/schemas/TicketStatus" },
+                              "unitNumber": { "type": "integer" },
+                              "attendeeName": { "type": "string" },
+                              "ticketTypeName": { "type": "string" },
+                              "issuedAt": { "type": "string", "format": "date-time" }
+                            }
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": { "$ref": "#/components/responses/Unauthorized" },
+          "404": { "$ref": "#/components/responses/NotFound" },
+          "429": { "$ref": "#/components/responses/RateLimited" }
+        }
+      }
+    },
+    "/api/v1/tickets": {
+      "get": {
+        "operationId": "listTickets",
+        "tags": ["tickets"],
+        "summary": "Issued-ticket roster across the organizer's events",
+        "parameters": [
+          { "name": "event", "in": "query", "schema": { "type": "string" } },
+          { "name": "status", "in": "query", "schema": { "$ref": "#/components/schemas/TicketStatus" } },
+          { "$ref": "#/components/parameters/limit" },
+          { "$ref": "#/components/parameters/offset" }
+        ],
+        "responses": {
+          "200": {
+            "description": "Paginated ticket roster with attendee snapshots and check-in state.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": ["data", "pagination"],
+                  "properties": {
+                    "data": { "type": "array", "items": { "$ref": "#/components/schemas/TicketRow" } },
+                    "pagination": { "$ref": "#/components/schemas/Pagination" }
+                  }
+                }
+              }
+            }
+          },
+          "400": { "$ref": "#/components/responses/BadRequest" },
+          "401": { "$ref": "#/components/responses/Unauthorized" },
+          "429": { "$ref": "#/components/responses/RateLimited" }
+        }
+      }
+    }
+  },
+  "components": {
+    "securitySchemes": {
+      "bearerAuth": {
+        "type": "http",
+        "scheme": "bearer",
+        "description": "Developer API key: tug_sk_… created by a workspace owner/manager in the Ticket Uganda dashboard. Only SHA-256 hashes are stored; keys are shown once at creation and can be revoked instantly."
+      }
+    },
+    "parameters": {
+      "limit": { "name": "limit", "in": "query", "schema": { "type": "integer", "minimum": 1, "maximum": 100, "default": 25 } },
+      "offset": { "name": "offset", "in": "query", "schema": { "type": "integer", "minimum": 0, "default": 0 } }
+    },
+    "schemas": {
+      "ErrorEnvelope": {
+        "type": "object",
+        "required": ["error"],
+        "properties": {
+          "error": {
+            "type": "object",
+            "required": ["code", "message"],
+            "properties": {
+              "code": { "type": "string", "example": "API_KEY_INVALID" },
+              "message": { "type": "string" }
+            }
+          }
+        }
+      },
+      "Pagination": {
+        "type": "object",
+        "required": ["total", "limit", "offset"],
+        "properties": {
+          "total": { "type": "integer" },
+          "limit": { "type": "integer" },
+          "offset": { "type": "integer" }
+        }
+      },
+      "Organizer": {
+        "type": "object",
+        "required": ["id", "name", "slug"],
+        "properties": {
+          "id": { "type": "string", "format": "uuid" },
+          "name": { "type": "string" },
+          "slug": { "type": "string" }
+        }
+      },
+      "LifecycleState": {
+        "type": "string",
+        "enum": ["DRAFT", "PUBLISHED", "SALES_OPEN", "SALES_CLOSED", "EVENT_LIVE", "COMPLETED", "CANCELLED", "SUSPENDED", "ARCHIVED"]
+      },
+      "PublicationState": { "type": "string", "enum": ["PUBLIC", "PRIVATE"] },
+      "OrderPaymentState": { "type": "string", "enum": ["AWAITING_PAYMENT", "PAYMENT_PROCESSING", "PAID", "CANCELLED", "EXPIRED"] },
+      "TicketStatus": { "type": "string", "enum": ["ISSUED", "CHECKED_IN", "CANCELLED", "REFUNDED", "VOID"] },
+      "EventSummary": {
+        "type": "object",
+        "required": ["publicId", "title", "slug", "lifecycleState", "publicationState", "startsAt", "endsAt", "timezone", "ticketTypeCount", "ticketsIssued"],
+        "properties": {
+          "publicId": { "type": "string" },
+          "title": { "type": "string" },
+          "slug": { "type": "string" },
+          "lifecycleState": { "$ref": "#/components/schemas/LifecycleState" },
+          "publicationState": { "$ref": "#/components/schemas/PublicationState" },
+          "startsAt": { "type": "string", "format": "date-time" },
+          "endsAt": { "type": "string", "format": "date-time" },
+          "timezone": { "type": "string", "example": "Africa/Kampala" },
+          "venueName": { "type": "string", "nullable": true },
+          "ticketTypeCount": { "type": "integer" },
+          "ticketsIssued": { "type": "integer", "description": "Tickets in ISSUED or CHECKED_IN state." }
+        }
+      },
+      "EventDetail": {
+        "allOf": [
+          { "$ref": "#/components/schemas/EventSummary" },
+          {
+            "type": "object",
+            "required": ["description"],
+            "properties": { "description": { "type": "string" } }
+          }
+        ]
+      },
+      "TicketType": {
+        "type": "object",
+        "required": ["publicId", "name", "priceMinorUnits", "currency", "capacity", "remainingCapacity", "active"],
+        "properties": {
+          "publicId": { "type": "string" },
+          "name": { "type": "string" },
+          "priceMinorUnits": { "type": "string", "description": "Minor units as a decimal string." },
+          "currency": { "type": "string", "example": "UGX" },
+          "capacity": { "type": "integer" },
+          "remainingCapacity": { "type": "integer" },
+          "active": { "type": "boolean" },
+          "saleStartsAt": { "type": "string", "format": "date-time", "nullable": true },
+          "saleEndsAt": { "type": "string", "format": "date-time", "nullable": true }
+        }
+      },
+      "OrderSummary": {
+        "type": "object",
+        "required": ["publicId", "orderNumber", "purchaserName", "purchaserEmail", "status", "totalMinorUnits", "currency", "createdAt"],
+        "properties": {
+          "publicId": { "type": "string" },
+          "orderNumber": { "type": "string", "example": "UG-2026-00042" },
+          "purchaserName": { "type": "string" },
+          "purchaserEmail": { "type": "string", "format": "email" },
+          "purchaserPhone": { "type": "string", "nullable": true },
+          "status": { "$ref": "#/components/schemas/OrderPaymentState" },
+          "totalMinorUnits": { "type": "string" },
+          "currency": { "type": "string", "example": "UGX" },
+          "createdAt": { "type": "string", "format": "date-time" },
+          "updatedAt": { "type": "string", "format": "date-time" },
+          "eventPublicId": { "type": "string" },
+          "eventTitle": { "type": "string" }
+        }
+      },
+      "TicketRow": {
+        "type": "object",
+        "required": ["publicId", "status", "unitNumber", "attendeeName", "attendeeEmail", "ticketTypePublicId", "ticketTypeName", "orderNumber", "orderPublicId", "eventPublicId", "eventTitle", "issuedAt"],
+        "properties": {
+          "publicId": { "type": "string" },
+          "status": { "$ref": "#/components/schemas/TicketStatus" },
+          "unitNumber": { "type": "integer" },
+          "attendeeName": { "type": "string" },
+          "attendeeEmail": { "type": "string" },
+          "ticketTypePublicId": { "type": "string" },
+          "ticketTypeName": { "type": "string" },
+          "orderNumber": { "type": "string" },
+          "orderPublicId": { "type": "string" },
+          "eventPublicId": { "type": "string" },
+          "eventTitle": { "type": "string" },
+          "issuedAt": { "type": "string", "format": "date-time" },
+          "checkedInAt": { "type": "string", "format": "date-time", "nullable": true }
+        }
+      }
+    },
+    "responses": {
+      "BadRequest": {
+        "description": "Invalid pagination or filter value.",
+        "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" }, "example": { "error": { "code": "INVALID_PAGINATION", "message": "limit must be between 1 and 100." } } } }
+      },
+      "Unauthorized": {
+        "description": "Missing, malformed, unknown or revoked credential.",
+        "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" }, "example": { "error": { "code": "API_KEY_INVALID", "message": "The presented API key is malformed or does not exist." } } } }
+      },
+      "NotFound": {
+        "description": "Resource does not exist or belongs to a different organizer (indistinguishable).",
+        "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" }, "example": { "error": { "code": "NOT_FOUND", "message": "No matching resource within your organizer scope." } } } }
+      },
+      "RateLimited": {
+        "description": "Per-key rate limit exceeded; honour retry-after.",
+        "headers": {
+          "retry-after": { "schema": { "type": "integer" } },
+          "x-ratelimit-limit": { "schema": { "type": "integer" } },
+          "x-ratelimit-remaining": { "schema": { "type": "integer" } },
+          "x-ratelimit-reset": { "schema": { "type": "integer" } }
+        },
+        "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" }, "example": { "error": { "code": "RATE_LIMITED", "message": "Rate limit exceeded. Retry after 42 seconds." } } } }
+      },
+      "Unavailable": {
+        "description": "Credential service/database unavailable, or migration 016 (API_NOT_PROVISIONED) not applied on this deployment.",
+        "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } } }
+      }
+    }
+  }
+}

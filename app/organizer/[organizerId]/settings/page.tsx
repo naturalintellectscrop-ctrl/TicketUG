@@ -1,9 +1,8 @@
-import Link from 'next/link'
 import { redirect } from 'next/navigation'
+import { PageHeader } from '@/components/console/page-head'
 import { WorkspaceRenameForm } from '@/components/workspace-rename-form'
 import { pool } from '@/lib/db'
 import { getTicketUGContext } from '@/lib/request-context'
-import { ArrowLeft } from 'lucide-react'
 
 export default async function OrganizerSettingsPage({ params }: { params: Promise<{ organizerId: string }> }) {
   const context = await getTicketUGContext()
@@ -20,11 +19,12 @@ export default async function OrganizerSettingsPage({ params }: { params: Promis
   ])
   const isOwner = membership.role === 'ORGANIZER_OWNER'
   return (
-    <main className="page-shell">
-      <p><Link href={`/organizer/${organizerId}/members`} className="text-link"><ArrowLeft size={14} strokeWidth={2.5} aria-hidden /> Team</Link> · <Link href="/organizer" className="text-link">Organizer workspaces</Link></p>
-      <p className="eyebrow">Workspace settings</p>
-      <h1>{workspace.name}</h1>
-      <p className="lede">The identity of this workspace across events, tickets, and public pages.</p>
+    <>
+      <PageHeader
+        crumb="Workspace"
+        title="Settings"
+        lede="The identity of this workspace across events, tickets, and public pages."
+      />
       <div className="stack">
         <section className="surface stack" aria-label="Workspace details" style={{ marginTop: 0 }}>
           <div className="row-between"><div><p className="eyebrow">Overview</p><h2>Details</h2></div></div>
@@ -48,6 +48,6 @@ export default async function OrganizerSettingsPage({ params }: { params: Promis
           )}
         </section>
       </div>
-    </main>
+    </>
   )
 }

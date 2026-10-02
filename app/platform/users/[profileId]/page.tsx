@@ -1,5 +1,6 @@
 import Link from 'next/link'
 import { notFound } from 'next/navigation'
+import { PageHeader, SectionHead } from '@/components/console/page-head'
 import { StatusPill, stateTone } from '@/components/platform/ui'
 import { loadPlatformUserDetail } from '@/lib/platform/queries'
 import { formatDateTime, formatMoney, labelOf, ORDER_PAYMENT_STATE_LABELS, TICKET_STATUS_LABELS } from '@/lib/platform/format'
@@ -17,17 +18,15 @@ export default async function PlatformUserDetailPage({ params }: { params: Promi
   const { profile, platformRoles, memberships, staffAssignments, orders, tickets, checkIns, audit } = detail
 
   return (
-    <main className="platform-shell">
-      <p><Link href="/platform/users" className="text-link">← All users</Link></p>
-      <header className="section-heading">
-        <div>
-          <p className="eyebrow">Identity profile · {profile.id.slice(0, 8)}…</p>
-          <h1>{profile.displayName || profile.email || 'Unnamed profile'}</h1>
-          <p className="lede">{profile.email ?? 'No auth identity linked'}{profile.emailConfirmed ? '' : ' · email not confirmed'}</p>
-        </div>
-      </header>
+    <>
+      <PageHeader
+        crumb="Users"
+        title={profile.displayName || profile.email || 'Unnamed profile'}
+        lede={`${profile.id.slice(0, 8)}… · ${profile.email ?? 'No auth identity linked'}${profile.emailConfirmed ? '' : ' · email not confirmed'}`}
+        actions={<Link className="button button-quiet" href="/platform/users">All users</Link>}
+      />
 
-      <section className="platform-section">
+      <section className="console-section" aria-label="Account and platform roles" style={{ marginTop: 0 }}>
         <div className="admin-columns">
           <article className="surface stack">
             <p className="eyebrow">Account</p>
@@ -49,8 +48,8 @@ export default async function PlatformUserDetailPage({ params }: { params: Promi
         </div>
       </section>
 
-      <section className="platform-section">
-        <div className="section-heading"><div><p className="eyebrow">Access</p><h2>Workspaces &amp; assignments</h2></div></div>
+      <section className="console-section" aria-label="Workspaces and assignments">
+        <SectionHead title="Workspaces &amp; assignments" note="Access" />
         <div className="admin-columns">
           <article className="surface stack">
             <p className="eyebrow">Organizer memberships</p>
@@ -73,8 +72,8 @@ export default async function PlatformUserDetailPage({ params }: { params: Promi
         </div>
       </section>
 
-      <section className="platform-section">
-        <div className="section-heading"><div><p className="eyebrow">Commerce</p><h2>Orders &amp; tickets</h2></div></div>
+      <section className="console-section" aria-label="Orders and tickets">
+        <SectionHead title="Orders &amp; tickets" note="Commerce" />
         <div className="admin-columns">
           <article className="surface stack">
             <p className="eyebrow">Orders placed</p>
@@ -97,8 +96,8 @@ export default async function PlatformUserDetailPage({ params }: { params: Promi
         </div>
       </section>
 
-      <section className="platform-section">
-        <div className="section-heading"><div><p className="eyebrow">Activity</p><h2>Scanner history &amp; security events</h2></div></div>
+      <section className="console-section" aria-label="Scanner history and security events">
+        <SectionHead title="Scanner history &amp; security events" note="Activity" />
         <div className="admin-columns">
           <article className="surface stack">
             <p className="eyebrow">Check-ins performed</p>
@@ -114,6 +113,6 @@ export default async function PlatformUserDetailPage({ params }: { params: Promi
           </article>
         </div>
       </section>
-    </main>
+    </>
   )
 }

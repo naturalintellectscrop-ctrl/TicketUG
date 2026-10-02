@@ -1,12 +1,11 @@
-import Link from 'next/link'
 import { redirect } from 'next/navigation'
+import { PageHeader } from '@/components/console/page-head'
 import { InvitationManager } from '@/components/invitation-manager'
 import { RosterManager, type MemberRow } from '@/components/roster-manager'
 import { pool } from '@/lib/db'
 import { listInvitations } from '@/lib/invitations'
 import { canManageOrganizer } from '@/lib/organizer-authorization'
 import { getTicketUGContext } from '@/lib/request-context'
-import { ArrowLeft } from 'lucide-react'
 
 export default async function MembersPage({ params }: { params: Promise<{ organizerId: string }> }) {
   const context = await getTicketUGContext()
@@ -31,11 +30,12 @@ export default async function MembersPage({ params }: { params: Promise<{ organi
   const canManage = canManageOrganizer(context, organizerId)
   const invitations = canManage ? await listInvitations(context, organizerId) : []
   return (
-    <main className="page-shell">
-      <p><Link href="/organizer" className="text-link"><ArrowLeft size={14} strokeWidth={2.5} aria-hidden /> Organizer workspaces</Link> · <Link href={`/organizer/${organizerId}/settings`} className="text-link">Workspace settings</Link></p>
-      <p className="eyebrow">Team</p>
-      <h1>{organizer.rows[0].name}</h1>
-      <p className="lede">Everyone with access to this workspace, plus the invitations on their way in.</p>
+    <>
+      <PageHeader
+        crumb="Workspace"
+        title="Team"
+        lede="Everyone with access to this workspace, plus the invitations on their way in."
+      />
       <div className="stack">
         <section className="surface stack" aria-label="Team members">
           <div className="row-between"><div><p className="eyebrow">Roster</p><h2>Members</h2></div><span className="muted">{roster.length} {roster.length === 1 ? 'member' : 'members'}</span></div>
@@ -43,6 +43,6 @@ export default async function MembersPage({ params }: { params: Promise<{ organi
         </section>
         {canManage && <InvitationManager organizerId={organizerId} actorRole={membership.role} initialInvitations={invitations} />}
       </div>
-    </main>
+    </>
   )
 }
