@@ -9,7 +9,15 @@ const contacts = [
   { label: "Call or WhatsApp", value: "+256762449504", href: "tel:+256762449504" },
 ]
 
-export const metadata = { title: "Contact Ticket Uganda support" }
+export const metadata = {
+  title: "Contact Ticket Uganda support",
+  description: "Reach the Ticket Uganda team by phone or WhatsApp at +256 752 256 576 / +256 762 449 504 — help with orders, tickets, check-ins, payouts and organizer onboarding.",
+  alternates: { canonical: "/contact" },
+  openGraph: {
+    title: "Contact Ticket Uganda support",
+    description: "Phone or WhatsApp the Ticket Uganda team — help with orders, tickets, check-ins, payouts and organizer onboarding."
+  }
+}
 
 export default function ContactPage() {
   return (

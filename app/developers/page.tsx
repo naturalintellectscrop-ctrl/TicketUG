@@ -6,6 +6,7 @@ import { SITE_URL } from '@/lib/site'
 export const metadata: Metadata = {
   title: 'Developer API — Ticket Uganda',
   description: 'The Ticket Uganda Developer API v1: authentication, endpoints, pagination, rate limits and errors for reading organizer event, order and ticket data.',
+  alternates: { canonical: '/developers' }
 }
 
 /**

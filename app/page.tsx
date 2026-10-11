@@ -9,6 +9,9 @@ import { logServerError } from '@/lib/server/errors'
 
 export const dynamic = "force-dynamic"
 
+// The landing page owns the root canonical (the layout deliberately sets none).
+export const metadata = { alternates: { canonical: "/" } }
+
 const pillars = [
   { number: "01", title: "Find your people", body: "Discover the nights, rooms, and sounds worth showing up for — with the details you need before you tap buy." },
   { number: "02", title: "Build the buzz", body: "Publish an event, shape your ticket tiers, and keep the whole door-to-dancefloor story in one place." },
@@ -50,6 +53,12 @@ const jsonLd = {
       name: 'Ticket Uganda',
       legalName: 'Natural Intellects Ltd',
       url: SITE_URL,
+      logo: `${SITE_URL}/icon.png`,
+      // Real support channels, verbatim from /contact (never invent contact details).
+      contactPoint: [
+        { '@type': 'ContactPoint', contactType: 'customer support', telephone: '+256752256576', availableLanguage: ['en'] },
+        { '@type': 'ContactPoint', contactType: 'customer support', telephone: '+256762449504', availableLanguage: ['en'] }
+      ],
       areaServed: { '@type': 'Country', name: 'Uganda' },
       knowsAbout: ['event ticketing', 'concerts', 'festivals', 'parties', 'sports events', 'Uganda']
     }
@@ -75,7 +84,6 @@ export default async function HomePage() {
 
       <section className="hero-section page-reveal">
         <div className="hero-copy">
-          <p className="eyebrow"><span className="eyebrow-line" /> Kampala, Uganda · Live now</p>
           <h1>Make room<br /><em>for more.</em></h1>
           <p className="hero-lede">Ticket Uganda is where Uganda&apos;s best nights find their people. Buy your seat, build your crowd, and walk in ready.</p>
           <div className="hero-actions">

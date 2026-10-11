@@ -21,7 +21,11 @@ export const dynamic = 'force-dynamic'
 export const metadata: Metadata = {
   title: 'Events in Uganda — find concerts, festivals, parties & more',
   description: 'Browse upcoming events in Uganda — concerts, music nights, food markets, sports, conferences, church gatherings and parties. Filter by date and category, then buy tickets with mobile money on Ticket Uganda.',
-  alternates: { canonical: '/events' }
+  alternates: { canonical: '/events' },
+  openGraph: {
+    title: 'Events in Uganda — find concerts, festivals, parties & more',
+    description: 'Browse upcoming events in Uganda and buy tickets with mobile money — secure QR entry, verified at the gate.'
+  }
 }
 
 type SearchParams = { q?: string; page?: string; category?: string; when?: string; sort?: string }

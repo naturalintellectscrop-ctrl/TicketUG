@@ -16,7 +16,10 @@ export const metadata: Metadata = {
   description: SITE_DESCRIPTION,
   keywords: SITE_KEYWORDS,
   applicationName: SITE_NAME,
-  alternates: { canonical: "/" },
+  // NOTE: no site-wide `alternates.canonical` here — Next merges metadata per
+  // segment, so a root canonical would be INHERITED by every page that doesn't
+  // declare its own, telling search engines /contact, /developers, /events
+  // …are duplicates of "/". Each public page owns its canonical instead.
   openGraph: {
     type: "website",
     locale: "en_UG",
