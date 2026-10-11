@@ -2,6 +2,7 @@
 
 import { FormEvent, useState } from 'react'
 import { useRouter } from 'next/navigation'
+import { ArrowRight, CheckCircle2, CircleAlert, Eye, EyeOff, Lock, Mail, User } from 'lucide-react'
 import { safeInternalPath } from '@/lib/safe-redirect'
 
 type Mode = 'sign-in' | 'sign-up'
@@ -11,6 +12,7 @@ export function AuthForm({ mode, nextPath }: { mode: Mode; nextPath?: string }) 
   const [error, setError] = useState<string | null>(null)
   const [notice, setNotice] = useState<string | null>(null)
   const [pending, setPending] = useState(false)
+  const [showPassword, setShowPassword] = useState(false)
 
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
@@ -58,12 +60,58 @@ export function AuthForm({ mode, nextPath }: { mode: Mode; nextPath?: string }) 
 
   return (
     <form onSubmit={submit} className="auth-form">
-      {mode === 'sign-up' && <label>Name<input name="name" required autoComplete="name" /></label>}
-      <label>Email<input name="email" type="email" required autoComplete="email" /></label>
-      <label>Password<input name="password" type="password" required minLength={8} autoComplete={mode === 'sign-up' ? 'new-password' : 'current-password'} /></label>
-      {error && <p role="alert">{error}</p>}
-      {notice && <p role="status">{notice}</p>}
-      <button disabled={pending} type="submit">{pending ? 'Please wait…' : mode === 'sign-up' ? 'Create account' : 'Sign in'}</button>
+      {mode === 'sign-up' && (
+        <label className="authfield">
+          <span className="authfield-label">Full name</span>
+          <span className="authfield-box">
+            <User size={17} strokeWidth={2.2} aria-hidden className="authfield-icon" />
+            <input name="name" required autoComplete="name" placeholder="Your full name" />
+          </span>
+        </label>
+      )}
+
+      <label className="authfield">
+        <span className="authfield-label">Email</span>
+        <span className="authfield-box">
+          <Mail size={17} strokeWidth={2.2} aria-hidden className="authfield-icon" />
+          <input name="email" type="email" required autoComplete="email" placeholder="you@example.com" inputMode="email" />
+        </span>
+      </label>
+
+      <label className="authfield">
+        <span className="authfield-label">Password</span>
+        <span className="authfield-box has-toggle">
+          <Lock size={17} strokeWidth={2.2} aria-hidden className="authfield-icon" />
+          <input
+            name="password"
+            type={showPassword ? 'text' : 'password'}
+            required
+            minLength={8}
+            autoComplete={mode === 'sign-up' ? 'new-password' : 'current-password'}
+            placeholder={mode === 'sign-up' ? 'At least 8 characters' : 'Your password'}
+          />
+          <button
+            type="button"
+            className="authfield-toggle"
+            onClick={() => setShowPassword((visible) => !visible)}
+            aria-label={showPassword ? 'Hide password' : 'Show password'}
+            aria-pressed={showPassword}
+          >
+            {showPassword
+              ? <EyeOff size={16} strokeWidth={2.2} aria-hidden />
+              : <Eye size={16} strokeWidth={2.2} aria-hidden />}
+          </button>
+        </span>
+      </label>
+
+      {error && <p role="alert" className="auth-alert auth-alert-error"><CircleAlert size={16} strokeWidth={2.2} aria-hidden />{error}</p>}
+      {notice && <p role="status" className="auth-alert auth-alert-ok"><CheckCircle2 size={16} strokeWidth={2.2} aria-hidden />{notice}</p>}
+
+      <button disabled={pending} type="submit" className="auth-submit">
+        {pending
+          ? <><span className="auth-spinner" aria-hidden />Please wait…</>
+          : <>{mode === 'sign-up' ? 'Create account' : 'Sign in'}<ArrowRight size={17} strokeWidth={2.6} aria-hidden /></>}
+      </button>
     </form>
   )
 }
