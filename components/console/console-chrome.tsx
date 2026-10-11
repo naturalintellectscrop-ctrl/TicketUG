@@ -66,7 +66,11 @@ export function ConsoleChrome({ nav, contextLabel, contextHref, sideTag, roleLab
   return (
     <div className="console">
       <aside className="console-sidebar" data-open={open} aria-label="Console navigation">
-        <Link href="/" className="brand-mark"><span className="brand-dot" aria-hidden="true" />Ticket Uganda</Link>
+        <Link href="/" className="brand-mark" aria-label="Ticket Uganda home">
+          {/* Official logo lockup (public/brand/logo-full.png) */}
+          {/* eslint-disable-next-line @next/next/no-img-element -- static brand asset shipped in /public */}
+          <img src="/brand/logo-full.png" alt="Ticket Uganda — Events Made Easy" className="brand-logo" width={1000} height={333} />
+        </Link>
         {sideTag && <p className="console-side-tag">{sideTag}</p>}
         <nav>
           {nav.map((section, index) => (

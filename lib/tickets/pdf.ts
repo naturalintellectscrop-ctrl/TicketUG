@@ -1,4 +1,6 @@
 import PDFDocument from 'pdfkit'
+import fs from 'node:fs'
+import path from 'node:path'
 
 // Production PDF ticket rendering. The PDF is a delivery/print representation
 // of an ALREADY-AUTHORIZED ticket: every field arrives from the authoritative
@@ -8,12 +10,23 @@ import PDFDocument from 'pdfkit'
 // trusts client-supplied data. Missing optional fields render honestly instead
 // of being invented.
 
-// Brand palette (mirrors app/globals.css :root tokens).
+// Brand palette (mirrors app/globals.css :root tokens + the official logo's
+// Uganda-flag red, sampled from public/brand/logo-full.png).
 const INK = '#171714'
 const CREAM = '#fff8ed'
-const BRAND = '#ef5b43'
+const BRAND = '#ea0d1c'
 const MUTED = '#716d62'
 const BORDER = '#d8d0c1'
+
+// Official logo icon (transparent PNG). Loaded once from /public; when the
+// asset is unavailable the header falls back to the text-only wordmark instead
+// of failing the whole ticket.
+let logoIconPng: Buffer | null = null
+try {
+  logoIconPng = fs.readFileSync(path.join(process.cwd(), 'public', 'brand', 'logo-icon.png'))
+} catch {
+  logoIconPng = null
+}
 
 // Real TicketUG support channels, committed by the team on /contact
 // (app/contact/page.tsx) — carried over verbatim; never invent contact details.
@@ -65,9 +78,15 @@ export async function buildTicketPdf(source: TicketPdfSource): Promise<Buffer> {
   const width = A5[0] - PAGE_PADDING * 2
   let y = 0
 
-  // Header band
+  // Header band: white brand tile + official ticket icon, wordmark beside it.
   doc.rect(0, 0, A5[0], 62).fill(INK)
-  doc.fill(CREAM).font('Helvetica-Bold').fontSize(19).text('Ticket Uganda', PAGE_PADDING, 22)
+  if (logoIconPng) {
+    doc.roundedRect(PAGE_PADDING - 4, 11, 44, 40, 9).fill('#ffffff')
+    doc.image(logoIconPng, PAGE_PADDING + 1, 15, { height: 32 })
+    doc.fill(CREAM).font('Helvetica-Bold').fontSize(19).text('Ticket Uganda', PAGE_PADDING + 50, 22)
+  } else {
+    doc.fill(CREAM).font('Helvetica-Bold').fontSize(19).text('Ticket Uganda', PAGE_PADDING, 22)
+  }
   doc.font('Helvetica').fontSize(8).fillColor('#b9b3a5').text('E-TICKET', A5[0] - PAGE_PADDING - doc.widthOfString('E-TICKET'), 27)
   doc.rect(0, 62, A5[0], 4).fill(BRAND)
   y = 84

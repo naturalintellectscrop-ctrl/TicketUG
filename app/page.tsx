@@ -167,7 +167,10 @@ export default async function HomePage() {
         </div>
       </section>
 
-      <footer className="site-footer mt-auto"><span className="brand-mark"><span className="brand-dot" />Ticket Uganda</span><span>Built for the moments that matter.</span><Link href="/contact">Contact</Link><span>© 2026 Ticket Uganda</span></footer>
+      <footer className="site-footer mt-auto"><span className="brand-mark">
+        {/* eslint-disable-next-line @next/next/no-img-element -- static brand asset shipped in /public */}
+        <img src="/brand/logo-full.png" alt="Ticket Uganda — Events Made Easy" className="brand-logo" width={1000} height={333} />
+      </span><span>Built for the moments that matter.</span><Link href="/contact">Contact</Link><span>© 2026 Ticket Uganda</span></footer>
     </main>
   )
 }

@@ -171,7 +171,10 @@ export default function DevelopersPage() {
         </div>
       </main>
       <footer className="site-footer mt-auto" style={{ paddingLeft: 'max(32px, calc((100% - 1180px) / 2))', paddingRight: 'max(32px, calc((100% - 1180px) / 2))' }}>
-        <Link href="/" className="brand-mark"><span className="brand-dot" aria-hidden="true" />Ticket Uganda</Link>
+        <Link href="/" className="brand-mark" aria-label="Ticket Uganda home">
+          {/* eslint-disable-next-line @next/next/no-img-element -- static brand asset shipped in /public */}
+          <img src="/brand/logo-full.png" alt="Ticket Uganda — Events Made Easy" className="brand-logo" width={1000} height={333} />
+        </Link>
         <p style={{ margin: 0 }}>Developer API v1 · contract: <Link href="/openapi.json">/openapi.json</Link></p>
       </footer>
     </>

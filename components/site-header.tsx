@@ -29,7 +29,11 @@ export async function SiteHeader({ nextPath, children }: { nextPath?: string; ch
 
   return (
     <header className="site-header page-reveal">
-      <Link href="/" className="brand-mark" aria-label="Ticket Uganda home"><span className="brand-dot" />Ticket Uganda</Link>
+      <Link href="/" className="brand-mark" aria-label="Ticket Uganda home">
+        {/* Official logo lockup (public/brand/logo-full.png); plain img keeps the header shell dependency-free */}
+        {/* eslint-disable-next-line @next/next/no-img-element -- static brand asset shipped in /public */}
+        <img src="/brand/logo-full.png" alt="Ticket Uganda — Events Made Easy" className="brand-logo" width={1000} height={333} />
+      </Link>
       <nav className="site-nav" aria-label="Primary navigation">
         {children}
         <Link href="/" className="nav-always nav-home">Home</Link>

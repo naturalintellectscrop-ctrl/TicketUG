@@ -37,8 +37,8 @@ export default function OpengraphImage() {
               justifyContent: 'center',
             }}
           >
-            <div style={{ width: 40, height: 52, borderRadius: 6, background: '#ef5b43', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-              <div style={{ width: 22, height: 30, borderRadius: 3, background: '#f6f1e7' }} />
+            <div style={{ width: 40, height: 52, borderRadius: 6, background: '#ea0d1c', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              <div style={{ width: 22, height: 30, borderRadius: 3, background: '#fcd403' }} />
             </div>
           </div>
           <div style={{ fontSize: 34, fontWeight: 800, letterSpacing: '-0.02em', color: '#191612' }}>
