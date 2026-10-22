@@ -13,11 +13,16 @@ type ThemeContextValue = {
 const ThemeContext = createContext<ThemeContextValue | null>(null)
 
 export function ThemeProvider({ children }: { children: ReactNode }) {
-  const [theme, setThemeState] = useState<Theme>(() => {
-    if (typeof window === 'undefined') return 'dark'
+  const [theme, setThemeState] = useState<Theme>('dark')
+
+  useEffect(() => {
     const stored = window.localStorage.getItem('ticketug-theme')
-    return stored === 'light' || stored === 'dark' ? stored : 'dark'
-  })
+    if (stored === 'light' || stored === 'dark') {
+      // The persisted preference is only available after hydration.
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      setThemeState(stored)
+    }
+  }, [])
 
   useEffect(() => {
     document.documentElement.dataset.theme = theme
