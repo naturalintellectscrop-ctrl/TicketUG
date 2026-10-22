@@ -13,10 +13,10 @@ button, a { -webkit-tap-highlight-color: transparent; }
 .theme-toggle:hover { border-color: var(--brand); background: color-mix(in srgb, var(--brand) 10%, transparent); transform: translateY(-1px); }
 :root[data-theme='dark'] .pillar-card { color: var(--foreground); }
 :root[data-theme='dark'] .pillar-card p { color: var(--muted-foreground); }
-:root[data-theme='dark'] .pillar-card:nth-child(2) { color: #171714; }
-:root[data-theme='dark'] .pillar-card:nth-child(2) p { color: rgb(23 23 20 / 72%); }
-:root[data-theme='dark'] .pillar-card:nth-child(3) { color: #fff8ed; }
-:root[data-theme='dark'] .pillar-card:nth-child(3) p { color: rgb(255 248 237 / 82%); }
+:root[data-theme='dark'] .pillar-card:nth-child(2) { background: #26311d; border-color: #61783a; color: #eff7df; }
+:root[data-theme='dark'] .pillar-card:nth-child(2) p { color: #d7e5bd; }
+:root[data-theme='dark'] .pillar-card:nth-child(3) { background: #5a2028; border-color: #a13d49; color: #fff4f2; }
+:root[data-theme='dark'] .pillar-card:nth-child(3) p { color: #ffd8d5; }
 :root[data-theme='dark'] .banner-side p { color: rgb(23 23 20 / 78%); }
 :root[data-theme='dark'] .ticket-row, :root[data-theme='dark'] .invite-row, :root[data-theme='dark'] .roster-row { background: #1a1e23; color: var(--foreground); }
 :root[data-theme='dark'] .auth-page code, :root[data-theme='dark'] .recovery-link, :root[data-theme='dark'] .invite-token { background: #20252b; color: var(--foreground); }
@@ -78,6 +78,12 @@ h1 em, h2 em { color: var(--brand); font-style: normal; }
 :root[data-theme='dark'] .button:hover,
 :root[data-theme='dark'] .auth-form button:hover,
 :root[data-theme='dark'] .profile-form button:hover { box-shadow: 0 10px 24px rgb(0 0 0 / 35%); }
+:root[data-theme='dark'] .rhythm-section { background: #111315; }
+:root[data-theme='dark'] .rhythm-section .section-intro h2 { color: #f4f0e8; }
+:root[data-theme='dark'] .rhythm-section .section-intro h2 span { color: #b6d961; }
+:root[data-theme='dark'] .pillar-card { background: #1b2025; border-color: #3c4650; color: #f4f0e8; }
+:root[data-theme='dark'] .pillar-card h3 { color: #f4f0e8; }
+:root[data-theme='dark'] .pillar-card p { color: #b9c1ca; }
 :root[data-theme='dark'] .pillar-card:first-child { background: #1b2025; border-color: #3c4650; }
 :root[data-theme='dark'] .pillar-card:first-child h3,
 :root[data-theme='dark'] .pillar-card:first-child p { color: #f4f0e8; }
