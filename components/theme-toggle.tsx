@@ -1,6 +1,6 @@
 'use client'
 
-import { Moon, Sun } from 'lucide-react'
+import { Eye, EyeOff } from 'lucide-react'
 import { useTheme } from './theme-provider'
 
 export function ThemeToggle() {
@@ -15,8 +15,7 @@ export function ThemeToggle() {
       aria-label={`Switch to ${nextTheme} mode`}
       title={`Switch to ${nextTheme} mode`}
     >
-      {theme === 'dark' ? <Sun size={16} aria-hidden="true" /> : <Moon size={16} aria-hidden="true" />}
-      <span>{theme === 'dark' ? 'Light' : 'Dark'}</span>
+      {theme === 'dark' ? <Eye size={16} aria-hidden="true" /> : <EyeOff size={16} aria-hidden="true" />}
     </button>
   )
 }
