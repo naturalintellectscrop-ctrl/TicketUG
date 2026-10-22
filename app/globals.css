@@ -2,11 +2,14 @@
 
 /* --brand is the Uganda-flag red sampled from the official logo (public/brand/); the wider palette (lime, blue, warm creams) stays — the brand is the logo, the site stays colorful. */
 :root { --background: #f3efe5; --foreground: #171714; --muted: #e6dfd0; --muted-foreground: #716d62; --brand: #ea0d1c; --brand-foreground: #fff8ed; --border: #d8d0c1; --ink: #171714; --lime: #c7e86b; --blue: #3657e8; }
+:root[data-theme='dark'] { --background: #111315; --foreground: #f4f0e8; --muted: #25292d; --muted-foreground: #a6adb5; --brand: #ff4b55; --brand-foreground: #fff8ed; --border: #343a41; --ink: #f4f0e8; --lime: #b6d961; --blue: #8ea3ff; }
 * { box-sizing: border-box; }
 html { background: var(--background); scroll-behavior: smooth; }
 body { margin: 0; background: var(--background); color: var(--foreground); font-family: var(--font-body), Arial, sans-serif; }
 a { color: inherit; text-decoration: none; }
 button, a { -webkit-tap-highlight-color: transparent; }
+.theme-toggle { display: inline-flex; align-items: center; gap: 7px; border: 1px solid var(--border); border-radius: 999px; background: transparent; color: var(--foreground); padding: 8px 11px; font: inherit; font-size: .74rem; font-weight: 700; cursor: pointer; transition: background .2s ease, border-color .2s ease, transform .2s ease; }
+.theme-toggle:hover { border-color: var(--brand); background: color-mix(in srgb, var(--brand) 10%, transparent); transform: translateY(-1px); }
 /* Full-bleed sections: each band spans the full viewport width while its content
    stays centered at ≤1180px (padding floor keeps 32px gutters on narrow screens). */
 .site-header, .hero-section, .rhythm-section, .events-banner, .organizer-banner, .site-footer { padding-left: max(32px, calc((100% - 1180px) / 2)); padding-right: max(32px, calc((100% - 1180px) / 2)); }
@@ -428,7 +431,18 @@ h1 em, h2 em { color: var(--brand); font-style: normal; }
    dense content column. Adapts the dashboard reference principles (grouped
    sidebar nav, KPI cards, dense tables) to TicketUG's existing brand — cream
    surfaces, hairline borders, logo-red accent, no decorative extras. */
-.console { display: grid; grid-template-columns: 236px minmax(0, 1fr); min-height: 100vh; }
+  .console { display: grid; grid-template-columns: 236px minmax(0, 1fr); min-height: 100vh; background: #111315; color: #f4f0e8; }
+  .console .theme-toggle { color: #f4f0e8; border-color: #3a4149; }
+  .console-sidebar { background: #171a1e; border-color: #2c3238; }
+  .console-main { background: #111315; }
+  .console-topbar { background: #171a1e; border-color: #2c3238; }
+  .console-side-tag, .console-nav-label, .console-topbar-context, .console-lede, .console-role { color: #9da6af; }
+  .console-topbar-context strong, .console-nav-item, .console-nav-item:hover, .console-nav-item[aria-current="page"], .console-menu-button { color: #f4f0e8; }
+  .console-nav-item:hover { background: #242a30; }
+  .console-nav-item[aria-current="page"] { background: rgb(255 75 85 / 12%); }
+  .console-content .surface, .console-content .platform-scroll { background: #1a1e23; border-color: #343b43; }
+  .console-content .platform-table th { background: #20252b; }
+
 .console-sidebar { position: sticky; top: 0; display: flex; flex-direction: column; height: 100vh; overflow-y: auto; border-right: 1px solid rgb(23 23 20 / 10%); background: #fffaf1; padding: 18px 12px 24px; }
 .console-sidebar .brand-mark { padding: 2px 10px 0; }
 .console-sidebar .brand-logo { height: 34px; }
@@ -487,7 +501,18 @@ h1 em, h2 em { color: var(--brand); font-style: normal; }
 .console-content .platform-table td { padding: 10px 14px; }
 
 /* Role pill in console chrome. */
-.console-role { flex-shrink: 0; padding: 4px 11px; border: 1px solid rgb(23 23 20 / 16%); border-radius: 999px; font-size: .7rem; font-weight: 700; letter-spacing: .04em; color: rgb(23 23 20 / 70%); white-space: nowrap; }
+  .console-role { flex-shrink: 0; padding: 4px 11px; border: 1px solid rgb(23 23 20 / 16%); border-radius: 999px; font-size: .7rem; font-weight: 700; letter-spacing: .04em; color: rgb(23 23 20 / 70%); white-space: nowrap; }
+  :root[data-theme='dark'] .console-sidebar { background: #171a1e; border-color: #2c3238; }
+  :root[data-theme='dark'] .console-main { background: #111315; }
+  :root[data-theme='dark'] .console-topbar { background: #171a1e; border-color: #2c3238; }
+  :root[data-theme='dark'] .console-side-tag, :root[data-theme='dark'] .console-nav-label, :root[data-theme='dark'] .console-topbar-context, :root[data-theme='dark'] .console-lede { color: #9da6af; }
+  :root[data-theme='dark'] .console-topbar-context strong, :root[data-theme='dark'] .console-nav-item, :root[data-theme='dark'] .console-nav-item:hover, :root[data-theme='dark'] .console-nav-item[aria-current='page'], :root[data-theme='dark'] .console-menu-button { color: #f4f0e8; }
+  :root[data-theme='dark'] .console-nav-item:hover { background: #242a30; }
+  :root[data-theme='dark'] .console-nav-item[aria-current='page'] { background: rgb(255 75 85 / 12%); }
+  :root[data-theme='dark'] .console-content .surface, :root[data-theme='dark'] .console-content .platform-scroll { background: #1a1e23; border-color: #343b43; }
+  :root[data-theme='dark'] .console-content .platform-table th { background: #20252b; }
+  :root[data-theme='dark'] .console-role { color: #d7dde3; border-color: #3a4149; }
+
 
 @media (max-width: 960px) {
   .console { grid-template-columns: minmax(0, 1fr); }

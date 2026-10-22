@@ -2,6 +2,7 @@ import Link from 'next/link'
 import type { ReactNode } from 'react'
 import { getTicketUGContext } from '@/lib/request-context'
 import { SignOutButton } from './sign-out-button'
+import { ThemeToggle } from './theme-toggle'
 
 /**
  * Shared session-aware site header.
@@ -39,6 +40,7 @@ export async function SiteHeader({ nextPath, children }: { nextPath?: string; ch
         <Link href="/" className="nav-always nav-home">Home</Link>
         <Link href="/events" className="nav-always">Events</Link>
         <Link href="/contact" className="nav-always">Contact</Link>
+        <ThemeToggle />
         {context ? (
           <>
             {isOrganizer && <Link href="/organizer" className="nav-always">Organizer</Link>}

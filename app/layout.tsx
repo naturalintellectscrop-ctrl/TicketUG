@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from "next"
 import type { ReactNode } from "react"
 import { DM_Sans, Syne } from "next/font/google"
 import { SITE_NAME, SITE_DESCRIPTION, SITE_KEYWORDS, SITE_URL } from "@/lib/site"
+import { ThemeProvider } from "@/components/theme-provider"
 import "./globals.css"
 
 const bodyFont = DM_Sans({ subsets: ["latin"], variable: "--font-body" })
@@ -48,8 +49,10 @@ export const viewport: Viewport = {
 
 export default function RootLayout({ children }: Readonly<{ children: ReactNode }>) {
   return (
-    <html lang="en-UG">
-      <body className={`${bodyFont.variable} ${displayFont.variable}`}>{children}</body>
+    <html lang="en-UG" data-theme="dark">
+      <body className={`${bodyFont.variable} ${displayFont.variable}`}>
+        <ThemeProvider>{children}</ThemeProvider>
+      </body>
     </html>
   )
 }

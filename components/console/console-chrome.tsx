@@ -23,6 +23,7 @@ import {
   type LucideIcon,
 } from 'lucide-react'
 import { SignOutButton } from '@/components/sign-out-button'
+import { ThemeToggle } from '@/components/theme-toggle'
 
 export type ConsoleIconName =
   | 'dashboard' | 'events' | 'orders' | 'payments' | 'tickets' | 'scan'
@@ -107,6 +108,7 @@ export function ConsoleChrome({ nav, contextLabel, contextHref, sideTag, roleLab
           </div>
           <div className="console-topbar-side">
             {roleLabel && <span className="console-role">{roleLabel}</span>}
+            <ThemeToggle />
             <SignOutButton />
           </div>
         </header>
