@@ -795,3 +795,12 @@ h1 em, h2 em { color: var(--brand); font-style: normal; }
 :root[data-theme='dark'] [role='status'],
 :root[data-theme='dark'] [role='alert'] { color: #f4f0e8; }
 :root[data-theme='dark'] .auth-split .authfield input:-webkit-autofill { -webkit-text-fill-color: #f4f0e8; -webkit-box-shadow: 0 0 0 44px #15191d inset; }
+
+/* Final theme contract for the rhythm section: no light surface or light-theme text leaks into dark mode. */
+:root[data-theme='dark'] .rhythm-section,
+:root[data-theme='dark'] .rhythm-section .pillar-card { background-color: #111315 !important; color: #f4f0e8 !important; }
+:root[data-theme='dark'] .rhythm-section .pillar-card { background-color: #1b2025 !important; border-color: #3c4650 !important; }
+:root[data-theme='dark'] .rhythm-section .section-intro h2,
+:root[data-theme='dark'] .rhythm-section .pillar-card h3 { color: #f4f0e8 !important; }
+:root[data-theme='dark'] .rhythm-section .section-intro h2 span { color: #b6d961 !important; }
+:root[data-theme='dark'] .rhythm-section .pillar-card p { color: #b9c1ca !important; }
