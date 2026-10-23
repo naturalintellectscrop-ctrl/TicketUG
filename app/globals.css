@@ -23,7 +23,7 @@ button, a { -webkit-tap-highlight-color: transparent; }
 /* Full-bleed sections: each band spans the full viewport width while its content
    stays centered at ≤1180px (padding floor keeps 32px gutters on narrow screens). */
 .site-header, .hero-section, .rhythm-section, .events-banner, .organizer-banner, .site-footer { padding-left: max(32px, calc((100% - 1180px) / 2)); padding-right: max(32px, calc((100% - 1180px) / 2)); }
-.site-header { display: flex; align-items: center; justify-content: space-between; padding-top: 26px; padding-bottom: 26px; }
+.site-header { position: sticky; top: 0; z-index: 20; display: flex; align-items: center; justify-content: space-between; padding-top: 18px; padding-bottom: 18px; background: color-mix(in srgb, var(--background) 88%, transparent); border-bottom: 1px solid color-mix(in srgb, var(--border) 72%, transparent); backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px); }
 .brand-mark { display: inline-flex; align-items: center; }
 .brand-logo { display: block; width: auto; height: 42px; }
 .site-nav { display: flex; align-items: center; gap: 28px; color: var(--muted-foreground); font-size: .82rem; font-weight: 600; }
