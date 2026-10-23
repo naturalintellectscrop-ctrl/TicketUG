@@ -138,7 +138,12 @@ export default async function HomePage() {
       <section id="events" className="events-banner events-real">
         <div className="section-intro"><p className="eyebrow">Upcoming events</p><h2>The night is<br /><em>already yours.</em></h2></div>
         {eventsUnavailable ? (
-          <p className="muted">Event listings are temporarily unavailable. Please try again shortly.</p>
+          <div className="events-empty surface events-unavailable" role="status">
+            <span className="eyebrow">Live board</span>
+            <p><strong>We&apos;re refreshing the event board.</strong></p>
+            <p className="muted">Live listings are temporarily unavailable. Explore the categories now, or return shortly for the latest nights going on sale.</p>
+            <div className="event-state-actions"><Link href="/events" className="button button-dark">Explore events <ArrowUpRight size={16} strokeWidth={2.6} aria-hidden /></Link><Link href="/contact" className="text-link">Need help?</Link></div>
+          </div>
         ) : upcoming.length ? (
           <>
             <div className="event-card-grid">{upcoming.map((event) => <EventCard key={event.publicId} event={event} />)}</div>
