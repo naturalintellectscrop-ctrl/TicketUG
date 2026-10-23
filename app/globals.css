@@ -100,19 +100,14 @@ h1 em, h2 em { color: var(--brand); font-style: normal; }
 :root[data-theme='dark'] .button:hover,
 :root[data-theme='dark'] .auth-form button:hover,
 :root[data-theme='dark'] .profile-form button:hover { box-shadow: 0 10px 24px rgb(0 0 0 / 35%); }
-.trust-section { background: #f3efe5; color: #171714; }
-.trust-section .section-intro h2 { color: #171714; }
-.trust-section .section-intro h2 span { color: #a8d84f; }
-.trust-card { background: #eee8dc; border-color: #ddd4c5; color: #171714; }
-.trust-card h3 { color: #171714; }
-.trust-card p { color: #716d62; }
+.rhythm-section { background: #f3efe5; color: #171714; }
+.rhythm-section .section-intro h2 { color: #171714; }
+.rhythm-section .section-intro h2 span { color: #a8d84f; }
+.pillar-card { background: #eee8dc; border-color: #ddd4c5; color: #171714; }
+.pillar-card h3 { color: #171714; }
+.pillar-card p { color: #716d62; }
 :root[data-theme='dark'] .rhythm-section { background: #111315; }
-:root[data-theme='dark'] .trust-section { background: #111315; color: #f4f0e8; }
-:root[data-theme='dark'] .trust-section .section-intro h2 { color: #f4f0e8; }
-:root[data-theme='dark'] .trust-section .section-intro h2 span { color: #b6d961; }
-:root[data-theme='dark'] .trust-card { background: #1b2025; border-color: #3c4650; color: #f4f0e8; }
-:root[data-theme='dark'] .trust-card h3 { color: #f4f0e8; }
-:root[data-theme='dark'] .trust-card p { color: #b9c1ca; }
+:root[data-theme='dark'] .rhythm-section { background: #111315; color: #f4f0e8; }
 :root[data-theme='dark'] .rhythm-section .section-intro h2 { color: #f4f0e8; }
 :root[data-theme='dark'] .rhythm-section .section-intro h2 span { color: #b6d961; }
 :root[data-theme='dark'] .pillar-card { background: #1b2025; border-color: #3c4650; color: #f4f0e8; }
