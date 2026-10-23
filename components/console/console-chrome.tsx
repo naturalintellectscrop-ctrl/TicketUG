@@ -5,6 +5,7 @@ import { usePathname } from 'next/navigation'
 import { useState, type ReactNode } from 'react'
 import {
   Activity,
+  BarChart3,
   BookOpen,
   Building2,
   CalendarRange,
@@ -27,7 +28,7 @@ import { SignOutButton } from '@/components/sign-out-button'
 export type ConsoleIconName =
   | 'dashboard' | 'events' | 'orders' | 'payments' | 'tickets' | 'scan'
   | 'organizers' | 'users' | 'audit' | 'system' | 'api' | 'docs'
-  | 'team' | 'settings' | 'key' | 'workspaces'
+  | 'team' | 'settings' | 'key' | 'workspaces' | 'reports'
 
 export type ConsoleNavItem = { href: string; label: string; icon: ConsoleIconName }
 export type ConsoleNavSection = { label?: string; items: ConsoleNavItem[] }
@@ -36,7 +37,7 @@ const ICONS: Record<ConsoleIconName, LucideIcon> = {
   dashboard: LayoutDashboard, events: CalendarRange, orders: ReceiptText, payments: CreditCard,
   tickets: Ticket, scan: ScanLine, organizers: Building2, users: Users, audit: ScrollText,
   system: Activity, api: Plug, docs: BookOpen, team: Users, settings: Settings, key: KeyRound,
-  workspaces: Layers,
+  workspaces: Layers, reports: BarChart3,
 }
 
 /**

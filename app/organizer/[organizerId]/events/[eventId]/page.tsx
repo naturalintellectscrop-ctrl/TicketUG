@@ -8,6 +8,7 @@ import { EventLifecycleControls } from '@/components/event-lifecycle-controls'
 import { EventStaffManager } from '@/components/event-staff-manager'
 import { GateManager } from '@/components/gate-manager'
 import { loadEventSalesMetrics } from '@/lib/event-sales-metrics'
+import { loadPublicationReadiness } from '@/lib/organizer-reports'
 import { pool } from '@/lib/db'
 import { labelOf, LIFECYCLE_LABELS } from '@/lib/platform/format'
 
@@ -48,6 +49,18 @@ export default async function OrganizerEventDetailPage({ params }: { params: Pro
   // Sales aggregates are owner/manager data (same gate as the sales API and the
   // orders/issued-tickets pages); fetched server-side, aggregate numbers only.
   const sales = canManage ? await loadEventSalesMetrics(eventId) : null
+  // Publication readiness (spec §5.2.7): real persisted fields only, shown for
+  // the states that can still become PUBLISHED. Advisory — the SQL lifecycle
+  // machine remains the sole transition authority.
+  const readiness = canManage && ['DRAFT', 'SUSPENDED'].includes(event.lifecycle_state)
+    ? await loadPublicationReadiness(eventId, organizerId, context.profileId)
+    : null
+  const readinessLinks: Record<string, string> = {
+    description: `/organizer/${organizerId}/events/${eventId}/edit`,
+    'ticket-type': `/organizer/${organizerId}/events/${eventId}/tickets/new`,
+    'on-sale': `/organizer/${organizerId}/events/${eventId}/tickets`,
+    schedule: `/organizer/${organizerId}/events/${eventId}/edit`,
+  }
   // Gate management + gate-scoped staff assignment (Pair 1B) — owner/manager only.
   const gates = canManage
     ? (await pool.query(
@@ -70,6 +83,7 @@ export default async function OrganizerEventDetailPage({ params }: { params: Pro
           <>
             <StatusPill tone={stateTone(event.lifecycle_state)}>{labelOf(LIFECYCLE_LABELS, event.lifecycle_state)}</StatusPill>
             <StatusPill tone={event.publication_state === 'PUBLIC' ? 'ok' : 'info'}>{event.publication_state === 'PUBLIC' ? 'Public' : 'Private'}</StatusPill>
+            {canManage && <Link className="button button-quiet" href={`/organizer/${organizerId}/events/${eventId}/edit`}>Edit details</Link>}
             <Link className="button button-quiet" href={`/organizer/${organizerId}/events/${eventId}/tickets`}>Issued tickets</Link>
             <Link className="button button-dark" href={`/organizer/${organizerId}/events/${eventId}/orders`}>View orders</Link>
           </>
@@ -82,6 +96,23 @@ export default async function OrganizerEventDetailPage({ params }: { params: Pro
       <section className="console-section">
         <EventLifecycleControls organizerId={organizerId} eventId={eventId} currentState={event.lifecycle_state} canManage={canManage} isOwner={isOwner} />
       </section>
+      {readiness && readiness.length > 0 && (
+        <section className="console-section" aria-label="Publication readiness">
+          <SectionHead title="Publication readiness" note="What buyers need to find and buy — checked against the saved event" />
+          <div className="alert-list">
+            {readiness.map((item) => (
+              <div className="alert-item" data-severity={item.met ? 'ok' : 'warn'} key={item.key}>
+                <span className="alert-dot" aria-hidden="true" />
+                <div>
+                  <strong>{item.label}</strong>
+                  <p className="muted">{item.hint}{!item.met && readinessLinks[item.key] && <> <Link href={readinessLinks[item.key]}>Fix this</Link>.</>}</p>
+                </div>
+              </div>
+            ))}
+          </div>
+          <p className="muted" style={{ margin: '8px 0 0' }}>Publishing stays a manual decision — these are checks, not gates the system applies for you.</p>
+        </section>
+      )}
       {sales && (
         <section className="console-section" aria-label="Event sales summary">
           <SectionHead title="Sales summary" note={`${sales.paidOrderCount} paid ${sales.paidOrderCount === 1 ? 'order' : 'orders'}`} />

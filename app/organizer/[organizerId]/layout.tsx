@@ -47,8 +47,19 @@ export default async function OrganizerLayout({ children, params }: { children: 
   }
   if (!workspace) redirect('/organizer')
 
+  // Nav follows the role: Orders and Reports carry buyer PII / sales data, so
+  // they are only listed for owners and managers (each page + the data layer
+  // enforce the same independently — hiding here is UX, not authorization).
+  const isManager = ['ORGANIZER_OWNER', 'ORGANIZER_MANAGER'].includes(workspace.role)
   const nav: ConsoleNavSection[] = [
-    { items: [{ href: `/organizer/${organizerId}/events`, label: 'Events', icon: 'events' }] },
+    {
+      items: [
+        { href: `/organizer/${organizerId}`, label: 'Overview', icon: 'dashboard' },
+        { href: `/organizer/${organizerId}/events`, label: 'Events', icon: 'events' },
+        ...(isManager ? [{ href: `/organizer/${organizerId}/orders`, label: 'Orders', icon: 'orders' as const }] : []),
+        ...(isManager ? [{ href: `/organizer/${organizerId}/reports`, label: 'Reports', icon: 'reports' as const }] : []),
+      ],
+    },
     {
       label: 'Workspace',
       items: [
@@ -63,7 +74,7 @@ export default async function OrganizerLayout({ children, params }: { children: 
     <ConsoleChrome
       nav={nav}
       contextLabel={workspace.name}
-      contextHref={`/organizer/${organizerId}/events`}
+      contextHref={`/organizer/${organizerId}`}
       sideTag={`/${workspace.slug}`}
       roleLabel={ROLE_LABELS[workspace.role] ?? workspace.role}
     >

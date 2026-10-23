@@ -486,6 +486,15 @@ h1 em, h2 em { color: var(--brand); font-style: normal; }
 .console-content .platform-table th { position: sticky; top: 0; z-index: 1; background: #faf6ec; }
 .console-content .platform-table td { padding: 10px 14px; }
 
+/* Console filter row (workspace orders): inline search + select + actions. */
+.console-filter-row { display: flex; flex-wrap: wrap; gap: 9px; margin: 4px 0 16px; }
+.console-filter-row input[type="search"] { flex: 1 1 260px; min-width: 0; border: 1px solid var(--border); border-radius: 10px; background: #fffdf8; color: var(--foreground); padding: 9px 13px; font: inherit; }
+.console-filter-row input[type="search"]:focus { outline: none; border-color: var(--brand); box-shadow: 0 0 0 3px rgb(234 13 28 / 12%); }
+.console-filter-row select { border: 1px solid var(--border); border-radius: 10px; background: #fffdf8; color: var(--foreground); padding: 9px 11px; font: inherit; }
+.console-filter-row button, .console-filter-row .button { flex-shrink: 0; }
+/* Report tables: totals footer. */
+.platform-table tfoot td { border-top: 2px solid rgb(23 23 20 / 14%); background: #faf6ec; font-variant-numeric: tabular-nums; }
+
 /* Role pill in console chrome. */
 .console-role { flex-shrink: 0; padding: 4px 11px; border: 1px solid rgb(23 23 20 / 16%); border-radius: 999px; font-size: .7rem; font-weight: 700; letter-spacing: .04em; color: rgb(23 23 20 / 70%); white-space: nowrap; }
 
