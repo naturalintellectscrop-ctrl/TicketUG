@@ -14,6 +14,7 @@ const ThemeContext = createContext<ThemeContextValue | null>(null)
 
 export function ThemeProvider({ children }: { children: ReactNode }) {
   const [theme, setThemeState] = useState<Theme>('dark')
+  const [hasLoadedPreference, setHasLoadedPreference] = useState(false)
 
   useEffect(() => {
     const stored = window.localStorage.getItem('ticketug-theme')
@@ -22,12 +23,13 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
       // eslint-disable-next-line react-hooks/set-state-in-effect
       setThemeState(stored)
     }
+    setHasLoadedPreference(true)
   }, [])
 
   useEffect(() => {
     document.documentElement.dataset.theme = theme
-    window.localStorage.setItem('ticketug-theme', theme)
-  }, [theme])
+    if (hasLoadedPreference) window.localStorage.setItem('ticketug-theme', theme)
+  }, [hasLoadedPreference, theme])
 
   const value = useMemo<ThemeContextValue>(() => ({
     theme,
