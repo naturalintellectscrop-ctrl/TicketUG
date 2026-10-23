@@ -75,7 +75,7 @@ export default async function HomePage() {
     eventsUnavailable = true
   }
   return (
-    <main className="flex min-h-screen flex-col overflow-hidden">
+    <main className="flex min-h-screen flex-col overflow-x-clip">
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }} />
       <SiteHeader nextPath="/account">
         <Link href="#how-it-works">The rhythm</Link>
