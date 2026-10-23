@@ -29,7 +29,7 @@ export async function SiteHeader({ nextPath, children }: { nextPath?: string; ch
   const signUpHref = nextPath ? `/sign-up?next=${encodeURIComponent(nextPath)}` : '/sign-up'
 
   return (
-    <header className="site-header page-reveal">
+    <header className="site-header">
       <Link href="/" className="brand-mark" aria-label="Ticket Uganda home">
         {/* Official logo lockup (public/brand/logo-full.png); plain img keeps the header shell dependency-free */}
         {/* eslint-disable-next-line @next/next/no-img-element -- static brand asset shipped in /public */}
