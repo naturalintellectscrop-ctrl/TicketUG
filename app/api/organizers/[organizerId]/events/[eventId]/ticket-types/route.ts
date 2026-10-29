@@ -16,6 +16,14 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
   if (!parsed.success) return Response.json({ message: parsed.error.issues[0]?.message ?? 'Invalid ticket type' }, { status: 400 })
   const event = await pool.query('SELECT id FROM ticketug.event WHERE id=$1 AND organizer_id=$2 AND EXISTS (SELECT 1 FROM ticketug.organizer_member WHERE organizer_id=$2 AND user_profile_id=$3 AND status=\'ACTIVE\' AND role IN (\'ORGANIZER_OWNER\',\'ORGANIZER_MANAGER\'))', [eventId, organizerId, context.profileId])
   if (!event.rows[0]) return Response.json({ message: 'Organizer access denied' }, { status: 403 })
-  const result = await pool.query('INSERT INTO ticketug.ticket_type (id,event_id,public_id,name,description,price_minor_units,currency,capacity, sale_starts_at,sale_ends_at,active) VALUES (gen_random_uuid(),$1,\'tt_\' || substr(replace(gen_random_uuid()::text,\'-\',\'\'),1,16),$2,$3,$4,\'UGX\',$5,$6,$7,$8) RETURNING public_id,name,description,price_minor_units,currency,capacity,sale_starts_at,sale_ends_at,active', [eventId, parsed.data.name, parsed.data.description, parsed.data.priceMinorUnits, parsed.data.capacity, parsed.data.saleStartsAt ?? null, parsed.data.saleEndsAt ?? null, parsed.data.active])
+  // ticket_type_event_name_unique (006): a repeated name is an expected,
+  // user-fixable condition — map the 23505 to a friendly 409, never a 500.
+  let result
+  try {
+    result = await pool.query('INSERT INTO ticketug.ticket_type (id,event_id,public_id,name,description,price_minor_units,currency,capacity, sale_starts_at,sale_ends_at,active) VALUES (gen_random_uuid(),$1,\'tt_\' || substr(replace(gen_random_uuid()::text,\'-\',\'\'),1,16),$2,$3,$4,\'UGX\',$5,$6,$7,$8) RETURNING public_id,name,description,price_minor_units,currency,capacity,sale_starts_at,sale_ends_at,active', [eventId, parsed.data.name, parsed.data.description, parsed.data.priceMinorUnits, parsed.data.capacity, parsed.data.saleStartsAt ?? null, parsed.data.saleEndsAt ?? null, parsed.data.active])
+  } catch (error) {
+    if ((error as { code?: string })?.code === '23505') return Response.json({ message: 'A ticket type with that name already exists on this event — choose a different name.', code: 'TICKET_TYPE_NAME_TAKEN' }, { status: 409 })
+    throw error
+  }
   return Response.json(result.rows[0], { status: 201 })
 }
