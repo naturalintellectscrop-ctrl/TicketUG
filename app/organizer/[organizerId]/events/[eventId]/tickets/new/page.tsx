@@ -24,7 +24,7 @@ export default function NewTicketTypePage() {
       <PageHeader
         crumb="Events"
         title="Configure inventory"
-        actions={<Link className="button button-quiet" href={`/organizer/${organizerId}/events/${eventId}/tickets`}>Back to ticket types</Link>}
+        actions={<Link className="button button-quiet" href={`/organizer/${organizerId}/events/${eventId}/tickets`}>Back to issued tickets</Link>}
       />
       <form className="form-stack" onSubmit={submit}><div className="form-grid"><label>Name<input name="name" required maxLength={160} /></label><label>Price in UGX<input name="priceMinorUnits" type="number" min="0" step="1" required /></label><label>Capacity<input name="capacity" type="number" min="0" step="1" required /></label><label>Sale starts<input name="saleStartsAt" type="datetime-local" /></label><label>Sale ends<input name="saleEndsAt" type="datetime-local" /></label></div><label>Description<textarea name="description" rows={5} maxLength={5000} /></label><label><input name="active" type="checkbox" /> Active for public display</label>{error && <p className="error-text" role="alert">{error}</p>}<button className="button" disabled={saving}>{saving ? 'Saving…' : 'Create ticket type'}</button></form>
     </>
