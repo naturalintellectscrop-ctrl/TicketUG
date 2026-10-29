@@ -81,6 +81,11 @@ h1 em, h2 em { color: var(--brand); font-style: normal; }
 .auth-form input, .profile-form input { border: 1px solid var(--border); border-radius: 12px; background: var(--background); color: var(--foreground); padding: 12px 14px; font: inherit; }
 .auth-form button, .profile-form button { align-self: flex-start; border: 0; border-radius: 999px; background: var(--ink); color: #fff8ed; padding: 13px 20px; font: inherit; font-weight: 700; cursor: pointer; transition: transform .25s cubic-bezier(.2,.8,.2,1), box-shadow .25s ease; }
 .auth-form button:hover, .profile-form button:hover { transform: translateY(-3px); box-shadow: 0 10px 24px rgb(23 23 20 / 14%); }
+.auth-form button:disabled, .profile-form button:disabled { opacity: .55; cursor: not-allowed; transform: none; box-shadow: none; }
+.onboarding-steps { margin: 10px 0 0; padding-left: 22px; list-style: decimal; display: grid; gap: 6px; color: var(--muted-foreground); font-size: .92rem; line-height: 1.5; }
+.onboarding-steps li::marker { font-weight: 700; color: var(--ink); }
+.onboarding-hint { margin: 0; font-size: .8rem; color: var(--muted-foreground); }
+.onboarding-hint[data-tone='error'] { color: #a12626; font-weight: 700; }
 @media (max-width: 640px) { .auth-page { padding: 28px 18px 44px; } .ticket-row { flex-direction: column; align-items: flex-start; } }
 /* Site header session affordances -------------------------------------------- */
 .site-nav .button { padding: 10px 16px; font-size: .78rem; }

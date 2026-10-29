@@ -45,7 +45,10 @@ export async function POST(request: Request) {
     return NextResponse.json({ organizer }, { status: 201 })
   } catch (error) {
     if (error instanceof Error && error.message === 'UNAUTHENTICATED') return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-    if (error instanceof Error && error.message === 'ORGANIZER_ALREADY_EXISTS') return NextResponse.json({ error: 'Organizer already exists' }, { status: 409 })
+    if (error instanceof Error && error.message === 'ORGANIZER_ALREADY_EXISTS') return NextResponse.json({ error: 'Organizer already exists', code: 'ORGANIZER_LIMIT' }, { status: 409 })
+    // organizer.slug carries a UNIQUE constraint (migration 000) — a taken
+    // address is an expected, user-fixable condition, not a server error.
+    if ((error as { code?: string })?.code === '23505') return NextResponse.json({ error: 'That workspace address is already taken', code: 'SLUG_TAKEN' }, { status: 409 })
     return NextResponse.json({ error: 'Unable to create organizer' }, { status: 500 })
   }
 }
